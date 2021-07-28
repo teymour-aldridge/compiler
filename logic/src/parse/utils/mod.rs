@@ -70,7 +70,7 @@ impl<'a> Input<'a> {
     }
 
     /// Attempts to advance the stream by one character.
-    pub fn advance_one(&mut self) -> Result<&'a str, ParseError> {
+    pub fn advance_one(&mut self) -> Result<&'a str, ParseError<'a>> {
         self.advance_n(1)
     }
 
