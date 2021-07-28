@@ -1,3 +1,5 @@
+use std::fmt::{self, Write};
+
 use super::{
     ident::Ident,
     utils::{Input, Parse, ParseError},
@@ -11,6 +13,21 @@ pub enum Expr<'a> {
 impl<'a> Parse<'a> for Expr<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
         Self::parse_bp(input, 0)
+    }
+}
+
+impl fmt::Display for Expr<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Expr::Ident(ident) => ident.fmt(f),
+            Expr::BinOp(operator, left, right) => {
+                left.fmt(f)?;
+                f.write_char(' ')?;
+                operator.fmt(f)?;
+                f.write_char(' ')?;
+                right.fmt(f)
+            }
+        }
     }
 }
 
@@ -100,5 +117,16 @@ impl BinOp {
             BinOp::Add | BinOp::Subtract => (5, 6),
             BinOp::Divide | BinOp::Multiply => (7, 8),
         }
+    }
+}
+
+impl fmt::Display for BinOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            BinOp::Add => "+",
+            BinOp::Subtract => "-",
+            BinOp::Divide => "/",
+            BinOp::Multiply => "*",
+        })
     }
 }

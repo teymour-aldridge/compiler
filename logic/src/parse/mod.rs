@@ -1,3 +1,5 @@
+use std::fmt;
+
 use self::{
     assign::Assignment,
     expr::Expr,
@@ -12,6 +14,16 @@ pub mod utils;
 
 pub struct Ast<'a> {
     pub nodes: Vec<Node<'a>>,
+}
+
+impl fmt::Display for Ast<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for node in &self.nodes {
+            node.fmt(f)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a> Parse<'a> for Ast<'a> {
@@ -46,6 +58,15 @@ impl<'a> Parse<'a> for Node<'a> {
             }
         } else {
             Expr::parse(input).map(Self::Expr)
+        }
+    }
+}
+
+impl fmt::Display for Node<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Node::Assignment(a) => a.fmt(f),
+            Node::Expr(e) => e.fmt(f),
         }
     }
 }

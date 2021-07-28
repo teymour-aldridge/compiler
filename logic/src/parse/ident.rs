@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::diagnostics::span::Span;
 
 use super::utils::Parse;
@@ -17,6 +19,12 @@ impl<'a> Parse<'a> for Ident<'a> {
                 inner,
                 span: rec.finish_recording(input),
             })
+    }
+}
+
+impl fmt::Display for Ident<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
     }
 }
 

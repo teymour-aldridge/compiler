@@ -1,3 +1,5 @@
+use std::fmt::{self, Write};
+
 use super::{expr::Expr, ident::Ident, utils::Parse};
 
 pub struct Assignment<'a> {
@@ -15,6 +17,14 @@ impl<'a> Parse<'a> for Assignment<'a> {
         let value = Expr::parse(input)?;
 
         Ok(Self { to, value })
+    }
+}
+
+impl fmt::Display for Assignment<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.to.fmt(f)?;
+        f.write_char('=')?;
+        self.value.fmt(f)
     }
 }
 
