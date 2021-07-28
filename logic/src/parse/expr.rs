@@ -5,6 +5,7 @@ use super::{
     utils::{Input, Parse, ParseError},
 };
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Expr<'a> {
     Ident(Ident<'a>),
     BinOp(BinOp, Box<Expr<'a>>, Box<Expr<'a>>),
@@ -104,6 +105,7 @@ impl Op {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
     Add,
     Subtract,

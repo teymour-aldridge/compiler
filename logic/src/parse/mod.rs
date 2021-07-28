@@ -12,6 +12,7 @@ pub mod expr;
 pub mod ident;
 pub mod utils;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Ast<'a> {
     pub nodes: Vec<Node<'a>>,
 }
@@ -41,6 +42,7 @@ impl<'a> Parse<'a> for Ast<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Node<'a> {
     Assignment(Assignment<'a>),
     Expr(Expr<'a>),

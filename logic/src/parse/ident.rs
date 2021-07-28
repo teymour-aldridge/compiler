@@ -4,7 +4,7 @@ use crate::diagnostics::span::Span;
 
 use super::utils::Parse;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ident<'a> {
     inner: &'a str,
     span: Span,

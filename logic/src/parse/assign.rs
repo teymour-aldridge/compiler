@@ -2,6 +2,7 @@ use std::fmt::{self, Write};
 
 use super::{expr::Expr, ident::Ident, utils::Parse};
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Assignment<'a> {
     pub to: Ident<'a>,
     pub value: Expr<'a>,
