@@ -15,7 +15,7 @@ impl<'a> Parse<'a> for Ident<'a> {
             .eat_until_or_end(|char| !char.is_alphanumeric())
             .map(|inner| Self {
                 inner,
-                span: rec.finish_recording(&input),
+                span: rec.finish_recording(input),
             })
     }
 }

@@ -91,7 +91,7 @@ impl<'a> Input<'a> {
                 Ok(ret)
             } else {
                 debug_assert!(false);
-                return Err(ParseError::UnexpectedEndOfInput);
+                Err(ParseError::UnexpectedEndOfInput)
             }
         } else {
             println!("end of input");
@@ -113,12 +113,10 @@ impl<'a> Input<'a> {
         loop {
             let should_stop = if let Some(next) = self.peek_nth(n) {
                 (stop_eating_if_true)(next)
+            } else if should_error_if_reaches_end {
+                return Err(ParseError::UnexpectedEndOfInput);
             } else {
-                if should_error_if_reaches_end {
-                    return Err(ParseError::UnexpectedEndOfInput);
-                } else {
-                    true
-                }
+                true
             };
 
             if should_stop {
