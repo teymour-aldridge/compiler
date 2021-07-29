@@ -1,2 +1,2 @@
 [workspace]
-members = ["logic", "cli", "tests/fuzz/parse"]
+members = ["logic", "cli", "tests/fuzz/parse", "tests/codegen"]

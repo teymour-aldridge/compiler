@@ -10,3 +10,4 @@ _proptest = []
 
 [dev-dependencies]
 proptest = "1.0.0"
+codegen = { path = "../tests/codegen" }

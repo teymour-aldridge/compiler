@@ -19,6 +19,7 @@ pub enum ParseError<'a> {
     UnexpectedEndOfInput,
     /// An assumption the parser makes turns out not to be correct.
     InternalError,
+    __NonExhaustive,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -90,7 +91,6 @@ impl<'a> Input<'a> {
                 });
                 Ok(ret)
             } else {
-                debug_assert!(false);
                 Err(ParseError::UnexpectedEndOfInput)
             }
         } else {
@@ -131,6 +131,10 @@ impl<'a> Input<'a> {
         } else {
             self.advance_n(n)
         }
+    }
+
+    pub fn peek_token(&self, token: char) -> bool {
+        self.peek_char().map(|next| next == token).unwrap_or(false)
     }
 
     /// Eats until the provided funtion `stop_when` is true. If this function reaches the end of

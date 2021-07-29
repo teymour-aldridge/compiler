@@ -1,15 +1,15 @@
 use std::fmt;
 
 use self::{
-    assign::Assignment,
     expr::Expr,
     ident::Ident,
     utils::{Input, Parse, ParseError},
 };
 
-pub mod assign;
 pub mod expr;
 pub mod ident;
+#[cfg(test)]
+mod test;
 pub mod utils;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -44,30 +44,19 @@ impl<'a> Parse<'a> for Ast<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Node<'a> {
-    Assignment(Assignment<'a>),
     Expr(Expr<'a>),
 }
 
 impl<'a> Parse<'a> for Node<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
         let mut peek = *input;
-        if Ident::parse(&mut peek).is_ok() {
-            peek.skip_whitespace()?;
-            if peek.peek_char() == Some('=') {
-                Assignment::parse(input).map(Self::Assignment)
-            } else {
-                Expr::parse(input).map(Self::Expr)
-            }
-        } else {
-            Expr::parse(input).map(Self::Expr)
-        }
+        Expr::parse(input).map(Self::Expr)
     }
 }
 
 impl fmt::Display for Node<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Node::Assignment(a) => a.fmt(f),
             Node::Expr(e) => e.fmt(f),
         }
     }

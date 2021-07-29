@@ -35,45 +35,46 @@ impl fmt::Display for Expr<'_> {
 impl<'a> Expr<'a> {
     fn parse_bp(input: &mut Input<'a>, min_bp: u8) -> Result<Self, ParseError<'a>> {
         input.skip_whitespace()?;
-        let char = input.peek_char().ok_or(ParseError::UnexpectedEndOfInput)?;
-        let mut lhs = match char {
-            '(' => {
-                input.advance_one()?;
-                let lhs = Self::parse_bp(input, 0)?;
-                input.skip_whitespace()?;
-                input.parse_token(")")?;
-                Some(lhs)
+        let mut lhs = {
+            if let Ok(_) = Ident::parse(&mut *input) {
+                let ident = Ident::parse(input)?;
+
+                Self::Ident(ident)
+            } else if let Ok(_) = Op::parse(input, true) {
+                return Err(ParseError::UnexpectedToken {
+                    token: "",
+                    explanation: "unary operators are not yet supported".to_string(),
+                });
+            } else {
+                return Err(ParseError::__NonExhaustive);
             }
-            '[' => {
-                todo!()
-            }
-            _ => None,
         };
 
         loop {
-            let op = Op::parse(input, lhs.is_some())?;
+            input.skip_whitespace()?;
+            if input.is_empty() {
+                break;
+            }
+            let op = Op::parse(input, false)?;
 
-            let (l_bp, r_bp) = op.bp();
+            let (left_bp, right_bp) = op.bp();
 
-            if l_bp < min_bp {
+            if left_bp < right_bp {
                 break;
             }
 
-            let rhs = Self::parse_bp(input, r_bp)?;
-
-            lhs = match op {
-                Op::BinOp(bin_op) => Some(Expr::BinOp(
-                    bin_op,
-                    Box::new(lhs.ok_or(ParseError::UnexpectedEndOfInput)?),
-                    Box::new(rhs),
-                )),
+            lhs = {
+                let rhs = Self::parse_bp(input, right_bp)?;
+                Self::BinOp(op.try_into_bin_op().unwrap(), Box::new(lhs), Box::new(rhs))
             };
+            continue;
         }
 
-        lhs.ok_or(ParseError::UnexpectedEndOfInput)
+        Ok(lhs)
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum Op {
     BinOp(BinOp),
 }
@@ -103,14 +104,23 @@ impl Op {
             Op::BinOp(op) => op.bp(),
         }
     }
+
+    pub fn try_into_bin_op(self) -> Result<BinOp, Self> {
+        if let Self::BinOp(v) = self {
+            Ok(v)
+        } else {
+            Err(self)
+        }
+    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BinOp {
     Add,
     Subtract,
     Divide,
     Multiply,
+    SetEquals,
 }
 
 impl BinOp {
@@ -118,6 +128,7 @@ impl BinOp {
         match self {
             BinOp::Add | BinOp::Subtract => (5, 6),
             BinOp::Divide | BinOp::Multiply => (7, 8),
+            BinOp::SetEquals => (2, 1),
         }
     }
 }
@@ -129,6 +140,7 @@ impl fmt::Display for BinOp {
             BinOp::Subtract => "-",
             BinOp::Divide => "/",
             BinOp::Multiply => "*",
+            BinOp::SetEquals => "=",
         })
     }
 }
