@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Write};
 
 use self::{
     expr::Expr,
@@ -20,6 +20,7 @@ impl fmt::Display for Ast<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for node in &self.nodes {
             node.fmt(f)?;
+            f.write_char(' ')?;
         }
 
         Ok(())

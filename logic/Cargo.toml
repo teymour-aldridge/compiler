@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2018"
 
 [features]
-_proptest = []
+_proptest = ["proptest"]
 
 [dependencies]
+proptest = { version = "1.0.0", optional = true }
 
 [dev-dependencies]
-proptest = "1.0.0"
 codegen = { path = "../tests/codegen" }

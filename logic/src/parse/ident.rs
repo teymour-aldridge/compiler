@@ -19,6 +19,8 @@ impl<'a> Parse<'a> for Ident<'a> {
             .and_then(|inner| {
                 if inner.is_empty() {
                     Err(ParseError::UnexpectedEndOfInput)
+                } else if !inner.chars().next().unwrap().is_alphabetic() {
+                    Err(ParseError::__NonExhaustive)
                 } else {
                     Ok(Self {
                         inner,

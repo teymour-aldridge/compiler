@@ -18,11 +18,8 @@ pub fn regressions(input: TokenStream) -> TokenStream {
         TokenTree::Group(group) => {
             for tree in group.stream() {
                 match tree {
-                    TokenTree::Literal(lit) => literals.push(lit),
                     TokenTree::Punct(p) if p.as_char() == ',' => continue,
-                    _ => {
-                        panic!("Expected a literal")
-                    }
+                    _ => literals.push(tree),
                 }
             }
         }
