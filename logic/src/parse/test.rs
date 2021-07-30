@@ -10,8 +10,18 @@ mod parse_reparse {
             Err(_) => return,
         };
         let output = ast.to_string();
-        let reparsed = Ast::parse(&mut Input::new(&output)).expect("failed to reparse ast");
-        assert_eq!(ast, reparsed);
+        match Ast::parse(&mut Input::new(&output)) {
+            Ok(reconstructed) => {
+                if ast != reconstructed {
+                    println!("INPUT: {}", input);
+                    println!("INTERMEDIATE: {}", output);
+                    panic!("the reconstructed ast does not equal the initially parsed one");
+                }
+            }
+            Err(e) => {
+                panic!("failed to parse, with error: {:#?}", e);
+            }
+        };
     }
 
     codegen::regressions! {
@@ -32,7 +42,18 @@ mod parse_reparse {
             "(ȧ0a782(",
             "YY=-ͪYZYY=",
             "Z=ˀY",
-            "[7-"
+            "[7-",
+            " V",
+            "A0",
+            "A ",
+            "A + A + - * C",
+            "AA09AA090O09",
+            " + B******************** * C",
+            "AA+++o++++/",
+            "ⲲCCCCCCC",
+            "OOOOOOOOOOOOOOOOOOOO0",
+            "Ǿ۳F",
+            "///////////////////////////////////////////////////////////////////////"
         ]
     }
 }

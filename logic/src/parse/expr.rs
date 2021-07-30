@@ -52,21 +52,24 @@ impl<'a> Expr<'a> {
 
         loop {
             input.skip_whitespace()?;
+
             if input.is_empty() {
                 break;
             }
+
             let op = Op::parse(input, false)?;
 
             let (left_bp, right_bp) = op.bp();
-
-            if left_bp < right_bp {
+            if left_bp < min_bp {
                 break;
             }
 
             lhs = {
+                input.skip_whitespace()?;
                 let rhs = Self::parse_bp(input, right_bp)?;
                 Self::BinOp(op.try_into_bin_op().unwrap(), Box::new(lhs), Box::new(rhs))
             };
+
             continue;
         }
 
@@ -106,10 +109,8 @@ impl Op {
     }
 
     pub fn try_into_bin_op(self) -> Result<BinOp, Self> {
-        if let Self::BinOp(v) = self {
-            Ok(v)
-        } else {
-            Err(self)
+        match self {
+            Self::BinOp(v) => Ok(v),
         }
     }
 }

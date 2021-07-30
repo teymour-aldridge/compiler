@@ -2,7 +2,6 @@ use std::fmt;
 
 use self::{
     expr::Expr,
-    ident::Ident,
     utils::{Input, Parse, ParseError},
 };
 
@@ -33,7 +32,6 @@ impl<'a> Parse<'a> for Ast<'a> {
         loop {
             input.skip_whitespace()?;
             if input.is_empty() {
-                println!("empty");
                 return Ok(Self { nodes });
             } else {
                 nodes.push(Node::parse(input)?)
@@ -49,7 +47,6 @@ pub enum Node<'a> {
 
 impl<'a> Parse<'a> for Node<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
-        let mut peek = *input;
         Expr::parse(input).map(Self::Expr)
     }
 }

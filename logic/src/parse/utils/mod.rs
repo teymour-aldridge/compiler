@@ -94,7 +94,6 @@ impl<'a> Input<'a> {
                 Err(ParseError::UnexpectedEndOfInput)
             }
         } else {
-            println!("end of input");
             Err(ParseError::UnexpectedEndOfInput)
         }
     }

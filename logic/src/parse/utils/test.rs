@@ -1,5 +1,6 @@
 mod advance_positions {
     use crate::parse::utils::Input;
+    #[cfg(feature = "_proptest")]
     use proptest::prelude::*;
 
     #[cfg(feature = "_proptest")]
@@ -19,7 +20,29 @@ mod advance_positions {
     }
 
     #[test]
+    // add results from the property test above here.
     fn regressions() {
         test_inner(&mut "A".to_string());
+    }
+}
+
+mod skip_whitespace {
+    #[cfg(feature = "_proptest")]
+    mod proptest {
+        use proptest::prelude::*;
+
+        use crate::parse::utils::Input;
+
+        proptest! {
+            #[test]
+            fn skip_whitespace(input in "[ ]+[a-zA-Z,{}]+") {
+                let mut input = Input::new(&input);
+                input.skip_whitespace().unwrap();
+                assert_ne!(input.peek_char().unwrap(), ' ');
+            }
+        }
+
+        #[test]
+        fn regressions() {}
     }
 }

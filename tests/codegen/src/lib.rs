@@ -10,6 +10,8 @@ pub fn regressions(input: TokenStream) -> TokenStream {
         _ => panic!(),
     };
 
+    iter.next().unwrap();
+
     let mut literals = vec![];
 
     match iter.next().unwrap() {
@@ -26,8 +28,6 @@ pub fn regressions(input: TokenStream) -> TokenStream {
         }
         _ => panic!("Expected a literal here"),
     };
-
-    println!("step 4");
 
     literals
         .into_iter()

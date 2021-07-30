@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::diagnostics::span::Span;
 
-use super::utils::Parse;
+use super::utils::{Parse, ParseError};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ident<'a> {
@@ -12,12 +12,19 @@ pub struct Ident<'a> {
 
 impl<'a> Parse<'a> for Ident<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+        input.skip_whitespace()?;
         let rec = input.start_recording();
         input
             .eat_until_or_end(|char| !char.is_alphanumeric())
-            .map(|inner| Self {
-                inner,
-                span: rec.finish_recording(input),
+            .and_then(|inner| {
+                if inner.is_empty() {
+                    Err(ParseError::UnexpectedEndOfInput)
+                } else {
+                    Ok(Self {
+                        inner,
+                        span: rec.finish_recording(input),
+                    })
+                }
             })
     }
 }
@@ -30,6 +37,7 @@ impl fmt::Display for Ident<'_> {
 
 #[cfg(test)]
 mod test_parse_valid_idents {
+    #[cfg(feature = "_proptest")]
     use proptest::prelude::*;
 
     use crate::parse::{
@@ -55,5 +63,10 @@ mod test_parse_valid_idents {
     #[test]
     fn regressions() {
         test_inner("x");
+    }
+
+    #[test]
+    fn test_invalid_idents_do_not_parse() {
+        Ident::parse(&mut Input::new("////")).expect_err("this identifier should not be valid");
     }
 }
