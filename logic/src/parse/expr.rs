@@ -2,12 +2,14 @@ use std::fmt::{self, Display, Write};
 
 use super::{
     ident::Ident,
+    lit::Literal,
     utils::{Input, Parse, ParseError},
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expr<'a> {
     Ident(Ident<'a>),
+    Literal(Literal<'a>),
     BinOp(BinOp, Box<Expr<'a>>, Box<Expr<'a>>),
     UnOp(UnOp, Box<Expr<'a>>),
 }
@@ -34,6 +36,7 @@ impl fmt::Display for Expr<'_> {
                 f.write_char(' ')?;
                 left.fmt(f)
             }
+            Expr::Literal(lit) => lit.fmt(f),
         }
     }
 }
@@ -57,21 +60,21 @@ impl<'a> Expr<'a> {
                 let ident = Ident::parse(input)?;
 
                 Some(Self::Ident(ident))
+            } else if let Ok(_) = Literal::parse(&mut input.clone()) {
+                let lit = Literal::parse(input)?;
+                dbg!(&lit);
+                dbg!(&input);
+
+                Some(Self::Literal(lit))
             } else {
                 None
             }
         };
 
-        dbg!(&lhs);
-
         loop {
-            dbg!(&input);
             input.skip_whitespace()?;
-            dbg!(&input);
-            dbg!(&input.starts_with('\n'));
 
             if input.is_empty() || input.starts_with('\n') || (stop_if)(&*input) {
-                println!("going to break");
                 break;
             }
 
@@ -114,7 +117,6 @@ impl<'a> Expr<'a> {
             }
         }
 
-        dbg!(&lhs);
         Ok(lhs)
     }
 }

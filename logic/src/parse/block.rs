@@ -5,7 +5,6 @@ use super::{utils::Parse, Ast};
 #[derive(Debug, PartialEq, Eq)]
 pub struct Block<'a> {
     inner: Ast<'a>,
-    indent: usize,
 }
 
 impl fmt::Display for Block<'_> {
@@ -19,7 +18,6 @@ impl<'a> Parse<'a> for Block<'a> {
         input.increment_indent(2);
         let res = Ok(Self {
             inner: Ast::parse(input)?,
-            indent: input.indent,
         });
         input.decrement_indent(2);
         res

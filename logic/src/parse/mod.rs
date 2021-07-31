@@ -10,6 +10,7 @@ pub mod r#block;
 pub mod expr;
 pub mod r#for;
 pub mod ident;
+pub mod lit;
 #[cfg(test)]
 mod test;
 pub mod utils;
@@ -60,10 +61,9 @@ pub enum Node<'a> {
 
 impl<'a> Parse<'a> for Node<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
-        if input.starts_with("for") {
+        if input.starts_with("for ") {
             ForLoop::parse(input).map(Self::For)
         } else {
-            dbg!(&input);
             Expr::parse(input).map(Self::Expr)
         }
     }

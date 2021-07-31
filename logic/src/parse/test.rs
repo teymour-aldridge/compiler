@@ -29,13 +29,11 @@ mod parse_reparse {
                 if ast != reconstructed {
                     println!("INPUT: {}", input);
                     println!("INTERMEDIATE: {}", output);
-                    dbg!(&ast);
                     panic!("the reconstructed ast does not equal the initially parsed one");
                 }
             }
             Err(e) => {
                 println!("INPUT: {}", input);
-                dbg!(&ast);
                 println!("INTERMEDIATE: {}", output);
                 panic!(
                     "failed to parse the reconstructed output, with error: {:#?}",
@@ -123,7 +121,7 @@ mod parse_reparse {
             ("A / B/+ C -", false),
             ("A / B + / D - ", false),
             ("A / B + -A", true),
-            ("A / B + -6", false),
+            ("A / B + -6", true),
             ("AA /C - /C - ", false),
             ("A + C -+ C - ", false),
             ("A / B + + C      -", false),
@@ -138,7 +136,17 @@ mod parse_reparse {
             ("A / B +                                   *    C ", false),
             ("a + b * c * d + e", true),
             ("a = b + c", true),
-            (include_str!("examples/for"), true)
+            (include_str!("examples/for"), true),
+            (include_str!("examples/invalid-for"), false),
+            ("forA = B +AB +A = B +A =OOOOO* EO=OOOAAAAAAAAAAAAAAAAAAAAAAAA=nOOOO* E", false),
+            ("forA = +AOOO* E", false),
+            ("forA = B +ABE", false),
+            ("forӷT", false),
+            ("A++++++++++++++++++++++++++ B", true),
+            ("	for++++++++++++++++++++++++++ B", false),
+            ("for𖥀o", false),
+            ("forf3ror𖥇A + B", false),
+            ("a = 1 + 2", true)
         ]
     }
 }

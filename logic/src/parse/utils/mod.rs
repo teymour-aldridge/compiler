@@ -109,7 +109,7 @@ impl<'a> Input<'a> {
         }
     }
 
-    fn peek_nth(&self, n: usize) -> Option<char> {
+    pub fn peek_nth(&self, n: usize) -> Option<char> {
         self.inner.chars().nth(n)
     }
 
@@ -227,7 +227,7 @@ impl<'a> Input<'a> {
 
         loop {
             match iter.next() {
-                Some(' ') => total += 1,
+                Some(' ' | '\u{C}' | '\u{B}') => total += 1,
                 Some('\t') => total += 4,
                 _ => break,
             }
@@ -241,7 +241,7 @@ impl<'a> Input<'a> {
         loop {
             match self.inner.chars().next() {
                 Some(char) => match char {
-                    ' ' => {
+                    ' ' | '\u{C}' | '\u{B}' => {
                         whitespace_units += 1;
                         self.advance_one()?;
                     }
@@ -259,8 +259,6 @@ impl<'a> Input<'a> {
         if whitespace_units == self.indent {
             Ok(())
         } else {
-            dbg!(&whitespace_units, self.indent);
-            println!("invalid indent");
             return Err(ParseError::__NonExhaustive);
         }
     }

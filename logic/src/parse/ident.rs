@@ -10,6 +10,14 @@ pub struct Ident<'a> {
     span: Span,
 }
 
+impl<'a> std::ops::Deref for Ident<'a> {
+    type Target = &'a str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl<'a> Parse<'a> for Ident<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
         input.skip_whitespace()?;

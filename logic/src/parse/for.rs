@@ -28,11 +28,7 @@ impl<'a> Parse<'a> for ForLoop<'a> {
         input.skip_whitespace()?;
         let between = Between::parse(input)?;
 
-        dbg!(&between);
-
         input.parse_token("\n")?;
-
-        dbg!(&input);
 
         let block = Block::parse(input)?;
 
@@ -42,7 +38,17 @@ impl<'a> Parse<'a> for ForLoop<'a> {
         input.parse_token("next")?;
         input.skip_whitespace()?;
 
-        input.parse_token(&var.to_string())?;
+        let ident = Ident::parse(input)?;
+
+        if *ident != *var {
+            return Err(ParseError::UnexpectedToken {
+                token: *ident,
+                explanation: format!(
+                    "Expected the identifier `{}` here, but instead found `{}`.",
+                    *var, *ident
+                ),
+            });
+        }
 
         Ok(Self {
             var,
@@ -89,9 +95,6 @@ impl<'a> Parse<'a> for Between<'a> {
 
         input.skip_whitespace()?;
 
-        dbg!(&start);
-        dbg!(&input);
-
         input.parse_token("to")?;
 
         input.skip_whitespace()?;
@@ -99,10 +102,7 @@ impl<'a> Parse<'a> for Between<'a> {
         let stop = Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("step"))?
             .ok_or(ParseError::__NonExhaustive)?;
 
-        dbg!(&stop);
-
         let step = if input.clone().parse_token("step").is_ok() {
-            println!("here");
             input.parse_token("step")?;
             Some(
                 Expr::parse_bp_stop_if(input, 0, |input| input.starts_with('\n'))?
@@ -111,8 +111,6 @@ impl<'a> Parse<'a> for Between<'a> {
         } else {
             None
         };
-
-        dbg!(&step);
 
         Ok(Self { start, stop, step })
     }
