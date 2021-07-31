@@ -39,7 +39,18 @@ impl fmt::Display for Expr<'_> {
 }
 
 impl<'a> Expr<'a> {
-    fn parse_bp(input: &mut Input<'a>, min_bp: u8) -> Result<Option<Self>, ParseError<'a>> {
+    pub(crate) fn parse_bp(
+        input: &mut Input<'a>,
+        min_bp: u8,
+    ) -> Result<Option<Self>, ParseError<'a>> {
+        Self::parse_bp_stop_if(input, min_bp, |_| false)
+    }
+
+    pub(crate) fn parse_bp_stop_if(
+        input: &mut Input<'a>,
+        min_bp: u8,
+        stop_if: impl Fn(&str) -> bool,
+    ) -> Result<Option<Self>, ParseError<'a>> {
         input.skip_whitespace()?;
         let mut lhs = {
             if let Ok(_) = Ident::parse(&mut input.clone()) {
@@ -51,10 +62,16 @@ impl<'a> Expr<'a> {
             }
         };
 
-        loop {
-            input.skip_whitespace()?;
+        dbg!(&lhs);
 
-            if input.is_empty() {
+        loop {
+            dbg!(&input);
+            input.skip_whitespace()?;
+            dbg!(&input);
+            dbg!(&input.starts_with('\n'));
+
+            if input.is_empty() || input.starts_with('\n') || (stop_if)(&*input) {
+                println!("going to break");
                 break;
             }
 
@@ -84,7 +101,7 @@ impl<'a> Expr<'a> {
                             op.try_into_bin_op().unwrap(),
                             Box::new(left),
                             Box::new(right),
-                        ))
+                        ));
                     }
                     _ => return Err(ParseError::__NonExhaustive),
                 }
@@ -95,10 +112,9 @@ impl<'a> Expr<'a> {
                     return Err(ParseError::__NonExhaustive);
                 }
             }
-
-            continue;
         }
 
+        dbg!(&lhs);
         Ok(lhs)
     }
 }

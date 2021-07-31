@@ -20,6 +20,7 @@ impl<'a> Parse<'a> for Ident<'a> {
                 if inner.is_empty() {
                     Err(ParseError::UnexpectedEndOfInput)
                 } else if !inner.chars().next().unwrap().is_alphabetic() {
+                    println!("failed to parse ident");
                     Err(ParseError::__NonExhaustive)
                 } else {
                     Ok(Self {

@@ -68,7 +68,7 @@ mod parse_reparse {
             ("YY=-ͪYZYY=", false),
             ("Z=ˀY", true),
             ("[7-", false),
-            (" V", true),
+            (" V", false),
             ("A0", true),
             ("A ", true),
             ("A + A + - * C", false),
@@ -137,7 +137,8 @@ mod parse_reparse {
             ("A / B ++C - / B ++C - ", false),
             ("A / B +                                   *    C ", false),
             ("a + b * c * d + e", true),
-            ("a = b + c", true)
+            ("a = b + c", true),
+            (include_str!("examples/for"), true)
         ]
     }
 }

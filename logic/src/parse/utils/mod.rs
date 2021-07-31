@@ -3,6 +3,9 @@
 #[cfg(test)]
 mod test;
 
+use core::fmt;
+use std::fmt::Write;
+
 use crate::diagnostics::{position::Position, span::Span};
 
 pub trait Parse<'a>: Sized {
@@ -25,8 +28,16 @@ pub enum ParseError<'a> {
 #[derive(Copy, Clone, Debug)]
 pub struct Input<'a> {
     inner: &'a str,
-    indent: usize,
+    pub(crate) indent: usize,
     position: Position,
+}
+
+impl<'a> std::ops::Deref for Input<'a> {
+    type Target = &'a str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl<'a> Input<'a> {
@@ -138,7 +149,10 @@ impl<'a> Input<'a> {
 
     /// Eats until the provided funtion `stop_when` is true. If this function reaches the end of
     /// the input, it will return an error.
-    pub fn eat_until(&mut self, stop_when: impl Fn(char) -> bool) -> Result<&'a str, ParseError> {
+    pub fn eat_until(
+        &mut self,
+        stop_when: impl Fn(char) -> bool,
+    ) -> Result<&'a str, ParseError<'a>> {
         self.eat_until_inner(stop_when, true)
     }
 
@@ -167,7 +181,7 @@ impl<'a> Input<'a> {
     }
 
     pub fn skip_whitespace(&mut self) -> Result<(), ParseError<'a>> {
-        self.eat_until_or_end(|input| !input.is_whitespace())
+        self.eat_until_or_end(|input| !input.is_whitespace() || input == '\n')
             .map(drop)
     }
 
@@ -198,6 +212,58 @@ impl<'a> Input<'a> {
     pub fn set_indent(&mut self, indent: usize) {
         self.indent = indent;
     }
+
+    pub fn increment_indent(&mut self, by: usize) {
+        self.indent += by;
+    }
+
+    pub fn decrement_indent(&mut self, by: usize) {
+        self.indent -= by;
+    }
+
+    pub fn count_indent(&self) -> Result<usize, ParseError<'a>> {
+        let mut iter = self.chars();
+        let mut total = 0;
+
+        loop {
+            match iter.next() {
+                Some(' ') => total += 1,
+                Some('\t') => total += 4,
+                _ => break,
+            }
+        }
+
+        Ok(total)
+    }
+
+    pub fn advance_indent(&mut self) -> Result<(), ParseError<'a>> {
+        let mut whitespace_units = 0;
+        loop {
+            match self.inner.chars().next() {
+                Some(char) => match char {
+                    ' ' => {
+                        whitespace_units += 1;
+                        self.advance_one()?;
+                    }
+                    '\t' => {
+                        whitespace_units += 4;
+                        self.advance_one()?;
+                    }
+                    _ => break,
+                },
+                None => {
+                    break;
+                }
+            }
+        }
+        if whitespace_units == self.indent {
+            Ok(())
+        } else {
+            dbg!(&whitespace_units, self.indent);
+            println!("invalid indent");
+            return Err(ParseError::__NonExhaustive);
+        }
+    }
 }
 
 pub struct IncompleteSpan {
@@ -208,4 +274,12 @@ impl IncompleteSpan {
     pub fn finish_recording(self, input: &Input) -> Span {
         input.finish_recording(self)
     }
+}
+
+pub(crate) fn write_indentation(units: usize, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    for _ in 0..units {
+        f.write_char(' ')?;
+    }
+
+    Ok(())
 }
