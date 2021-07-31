@@ -8,6 +8,7 @@ use super::utils::Parse;
 pub enum Literal<'a> {
     String(&'a str),
     Number(Number<'a>),
+    Bool(bool),
 }
 
 impl fmt::Display for Literal<'_> {
@@ -19,6 +20,7 @@ impl fmt::Display for Literal<'_> {
                 f.write_char('"')
             }
             Literal::Number(number) => number.fmt(f),
+            Literal::Bool(b) => f.write_str(if *b { "True" } else { "False" }),
         }
     }
 }
@@ -33,6 +35,10 @@ impl<'a> Parse<'a> for Literal<'a> {
             Ok(Self::String(string))
         } else if let Some('0'..='9') = input.chars().next() {
             Ok(Self::Number(Number::parse(input)?))
+        } else if input.starts_with("True") {
+            Ok(Self::Bool(true))
+        } else if input.starts_with("False") {
+            Ok(Self::Bool(false))
         } else {
             Err(ParseError::__NonExhaustive)
         }

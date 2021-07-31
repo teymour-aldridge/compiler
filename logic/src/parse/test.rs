@@ -163,7 +163,8 @@ mod parse_reparse {
             (include_str!("examples/if"), true),
             ("a + 1", true),
             (include_str!("examples/while"), true),
-            (include_str!("examples/invalid-if"), false)
+            (include_str!("examples/invalid-if"), false),
+            ("a = True", true)
         ]
     }
 }
