@@ -46,3 +46,24 @@ mod skip_whitespace {
         fn regressions() {}
     }
 }
+
+mod test_parse_token {
+    use crate::parse::utils::Input;
+
+    #[test]
+    fn regression_1() {
+        let mut cursor = Input::new("\"");
+        cursor.parse_token("\"").expect("failed to parse");
+        assert!(cursor.is_empty())
+    }
+}
+
+mod test_peek_n {
+    use crate::parse::utils::Input;
+
+    #[test]
+    fn regression_1() {
+        let cursor = Input::new("\"");
+        assert_eq!(cursor.peek_n(1), Some("\""));
+    }
+}

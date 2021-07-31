@@ -3,6 +3,7 @@ use std::fmt::{self, Write};
 use self::{
     expr::Expr,
     r#for::ForLoop,
+    r#if::If,
     utils::{write_indentation, Input, Parse, ParseError},
 };
 
@@ -10,7 +11,10 @@ pub mod r#block;
 pub mod expr;
 pub mod r#for;
 pub mod ident;
+pub mod r#if;
 pub mod lit;
+pub mod r#while;
+
 #[cfg(test)]
 mod test;
 pub mod utils;
@@ -57,12 +61,15 @@ impl<'a> Parse<'a> for Ast<'a> {
 pub enum Node<'a> {
     Expr(Expr<'a>),
     For(ForLoop<'a>),
+    If(If<'a>),
 }
 
 impl<'a> Parse<'a> for Node<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
         if input.starts_with("for ") {
             ForLoop::parse(input).map(Self::For)
+        } else if input.starts_with("if ") {
+            If::parse(input).map(Self::If)
         } else {
             Expr::parse(input).map(Self::Expr)
         }
@@ -74,6 +81,7 @@ impl fmt::Display for Node<'_> {
         match self {
             Node::Expr(e) => e.fmt(f),
             Node::For(l) => l.fmt(f),
+            Node::If(i) => i.fmt(f),
         }
     }
 }

@@ -27,6 +27,7 @@ impl<'a> Parse<'a> for Literal<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, ParseError<'a>> {
         input.skip_whitespace()?;
         if input.starts_with('"') {
+            input.parse_token("\"")?;
             let string = input.eat_until(|char| char == '"')?;
             input.parse_token("\"")?;
             Ok(Self::String(string))
@@ -197,5 +198,10 @@ mod test_literals {
     #[test]
     fn regression_4() {
         inner("", false);
+    }
+
+    #[test]
+    fn regression_5() {
+        inner("\" aaaaa", false);
     }
 }

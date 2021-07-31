@@ -4,6 +4,8 @@ use crate::diagnostics::span::Span;
 
 use super::utils::{Parse, ParseError};
 
+pub const KEYWORDS: &[&'static str] = &[&"for"];
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ident<'a> {
     inner: &'a str,
@@ -28,8 +30,15 @@ impl<'a> Parse<'a> for Ident<'a> {
                 if inner.is_empty() {
                     Err(ParseError::UnexpectedEndOfInput)
                 } else if !inner.chars().next().unwrap().is_alphabetic() {
-                    println!("failed to parse ident");
                     Err(ParseError::__NonExhaustive)
+                } else if KEYWORDS.contains(&inner) {
+                    Err(ParseError::UnexpectedToken {
+                        token: inner,
+                        explanation: format!(
+                            "Expected an identifier here, but `{}` is a keyword.",
+                            inner
+                        ),
+                    })
                 } else {
                     Ok(Self {
                         inner,

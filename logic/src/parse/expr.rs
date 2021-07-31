@@ -62,8 +62,6 @@ impl<'a> Expr<'a> {
                 Some(Self::Ident(ident))
             } else if let Ok(_) = Literal::parse(&mut input.clone()) {
                 let lit = Literal::parse(input)?;
-                dbg!(&lit);
-                dbg!(&input);
 
                 Some(Self::Literal(lit))
             } else {

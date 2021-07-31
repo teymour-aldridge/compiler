@@ -146,7 +146,20 @@ mod parse_reparse {
             ("	for++++++++++++++++++++++++++ B", false),
             ("for𖥀o", false),
             ("forf3ror𖥇A + B", false),
-            ("a = 1 + 2", true)
+            ("a = 1 + 2", true),
+            ("2 = \"", false),
+            ("\"+ + C - C - L =5", false),
+            ("A0= \"", false),
+            ("\" ", false),
+            ("\" / B
+            ", false),
+            ("for=e = A ", false),
+            ("for", false),
+            ("for*i = c ", false),
+            (include_str!("examples/invalid-for2"), false),
+            (include_str!("examples/invalid-for3"), false),
+            (include_str!("examples/invalid-for4"), false),
+            (include_str!("examples/invalid-for5"), false)
         ]
     }
 }

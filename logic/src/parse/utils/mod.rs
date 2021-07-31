@@ -50,11 +50,13 @@ impl<'a> Input<'a> {
     }
 
     pub fn parse_token(&mut self, token: &str) -> Result<&'a str, ParseError<'a>> {
-        let peek = self
-            .peek_n(token.len())
-            .ok_or(ParseError::UnexpectedEndOfInput)?;
-        if peek == token {
+        let peek = self.peek_n(token.len()).ok_or_else(|| {
+            println!("failed");
+            ParseError::UnexpectedEndOfInput
+        })?;
+        let ret = if peek == token {
             self.advance_n(token.len())?;
+            println!("advanced");
             Ok(peek)
         } else {
             Err(ParseError::UnexpectedToken {
@@ -64,7 +66,8 @@ impl<'a> Input<'a> {
                     token, peek
                 ),
             })
-        }
+        };
+        ret
     }
 
     /// Peek the next character
@@ -76,8 +79,8 @@ impl<'a> Input<'a> {
     pub fn peek_n(&self, n: usize) -> Option<&'a str> {
         self.inner
             .char_indices()
-            .nth(n)
-            .map(|(index, _)| self.inner.get(..index))
+            .nth(n - 1)
+            .map(|(index, _)| self.inner.get(..=index))
             .flatten()
     }
 
