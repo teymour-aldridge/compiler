@@ -49,14 +49,19 @@ impl<'a> Input<'a> {
         }
     }
 
+    /// Parses zero or more whitespace units (excluding new lines) and then one
+    /// new line
+    pub fn advance_whitespace_and_new_line(&mut self) -> Result<(), ParseError<'a>> {
+        self.skip_whitespace()?;
+        self.parse_token("\n").map(drop)
+    }
+
     pub fn parse_token(&mut self, token: &str) -> Result<&'a str, ParseError<'a>> {
-        let peek = self.peek_n(token.len()).ok_or_else(|| {
-            println!("failed");
-            ParseError::UnexpectedEndOfInput
-        })?;
+        let peek = self
+            .peek_n(token.len())
+            .ok_or_else(|| ParseError::UnexpectedEndOfInput)?;
         let ret = if peek == token {
             self.advance_n(token.len())?;
-            println!("advanced");
             Ok(peek)
         } else {
             Err(ParseError::UnexpectedToken {
@@ -186,6 +191,16 @@ impl<'a> Input<'a> {
     pub fn skip_whitespace(&mut self) -> Result<(), ParseError<'a>> {
         self.eat_until_or_end(|input| !input.is_whitespace() || input == '\n')
             .map(drop)
+    }
+
+    pub fn assert_new_line(&self) -> Result<(), ParseError<'a>> {
+        match self.chars().next() {
+            Some('\n') | None => Ok(()),
+            Some(_) => Err(ParseError::UnexpectedToken {
+                token: self.peek_n(1).unwrap(),
+                explanation: "Expected a new line here, but found this instead.".to_string(),
+            }),
+        }
     }
 
     pub fn len(&self) -> usize {

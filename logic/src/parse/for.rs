@@ -19,7 +19,6 @@ pub struct ForLoop<'a> {
 impl<'a> Parse<'a> for ForLoop<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
         input.parse_token("for")?;
-        println!("parsed for");
         input.skip_whitespace()?;
 
         let var = Ident::parse(input)?;
@@ -28,7 +27,7 @@ impl<'a> Parse<'a> for ForLoop<'a> {
         input.skip_whitespace()?;
         let between = Between::parse(input)?;
 
-        input.parse_token("\n")?;
+        input.advance_whitespace_and_new_line()?;
 
         let block = Block::parse(input)?;
 

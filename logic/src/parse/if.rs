@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Write};
 
 use crate::parse::utils::{write_indentation, ParseError};
 
@@ -22,9 +22,15 @@ impl<'a> Parse<'a> for If<'a> {
                     .ok_or(ParseError::UnexpectedEndOfInput)?;
                 input.skip_whitespace()?;
                 input.parse_token("then")?;
+                input.advance_whitespace_and_new_line()?;
                 cond
             },
-            block: Block::parse(input)?,
+            block: {
+                dbg!(&input);
+                let block = Block::parse(input)?;
+                input.advance_whitespace_and_new_line()?;
+                block
+            },
         };
 
         let mut elseifs = vec![];
@@ -37,10 +43,14 @@ impl<'a> Parse<'a> for If<'a> {
                     Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("then"))?
                         .ok_or(ParseError::UnexpectedEndOfInput)?;
                 input.parse_token("then")?;
+                input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;
+                input.advance_whitespace_and_new_line()?;
                 elseifs.push(Branch { condition, block });
             } else if input.starts_with("else") {
+                input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;
+                input.advance_whitespace_and_new_line()?;
                 input.advance_indent()?;
                 input.parse_token("endif")?;
                 return Ok(Self {
@@ -51,6 +61,8 @@ impl<'a> Parse<'a> for If<'a> {
                 });
             } else {
                 input.parse_token("endif")?;
+                input.skip_whitespace()?;
+                input.assert_new_line()?;
                 return Ok(Self {
                     r#if,
                     else_ifs: elseifs,
@@ -67,19 +79,26 @@ impl fmt::Display for If<'_> {
         write_indentation(self.indent, f)?;
         f.write_str("if ")?;
         self.r#if.condition.fmt(f)?;
-        f.write_str("then")?;
+        f.write_str(" then")?;
+        f.write_char('\n')?;
         self.r#if.block.fmt(f)?;
+        f.write_char('\n')?;
+
         for else_if in &self.else_ifs {
             write_indentation(self.indent, f)?;
             f.write_str("elseif ")?;
             else_if.condition.fmt(f)?;
             f.write_str("then")?;
+            f.write_char('\n')?;
             else_if.block.fmt(f)?;
+            f.write_char('\n')?;
         }
         if let Some(ref r#else) = self.r#else {
             write_indentation(self.indent, f)?;
             f.write_str("else")?;
+            f.write_char('\n')?;
             r#else.fmt(f)?;
+            f.write_char('\n')?;
         }
         f.write_str("endif")
     }

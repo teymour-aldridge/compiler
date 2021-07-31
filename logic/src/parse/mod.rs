@@ -4,6 +4,7 @@ use self::{
     expr::Expr,
     r#for::ForLoop,
     r#if::If,
+    r#while::While,
     utils::{write_indentation, Input, Parse, ParseError},
 };
 
@@ -62,6 +63,7 @@ pub enum Node<'a> {
     Expr(Expr<'a>),
     For(ForLoop<'a>),
     If(If<'a>),
+    While(While<'a>),
 }
 
 impl<'a> Parse<'a> for Node<'a> {
@@ -70,6 +72,8 @@ impl<'a> Parse<'a> for Node<'a> {
             ForLoop::parse(input).map(Self::For)
         } else if input.starts_with("if ") {
             If::parse(input).map(Self::If)
+        } else if input.starts_with("while ") {
+            While::parse(input).map(Self::While)
         } else {
             Expr::parse(input).map(Self::Expr)
         }
@@ -82,6 +86,7 @@ impl fmt::Display for Node<'_> {
             Node::Expr(e) => e.fmt(f),
             Node::For(l) => l.fmt(f),
             Node::If(i) => i.fmt(f),
+            Node::While(w) => w.fmt(f),
         }
     }
 }

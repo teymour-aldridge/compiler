@@ -4,7 +4,7 @@ use crate::diagnostics::span::Span;
 
 use super::utils::{Parse, ParseError};
 
-pub const KEYWORDS: &[&'static str] = &[&"for"];
+pub const KEYWORDS: &[&'static str] = &[&"for", &"if", &"while"];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ident<'a> {
