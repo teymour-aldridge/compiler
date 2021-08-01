@@ -53,7 +53,7 @@ impl<'a> Parse<'a> for ForLoop<'a> {
 
         if !input.is_empty() && input.chars().next() != Some('\n') {
             return Err(ParseError::UnexpectedToken {
-                token: input.peek_n(1).unwrap(),
+                token: input.peek_n(1).unwrap_or(""),
                 explanation: "Expected a new line here.".to_string(),
             });
         }

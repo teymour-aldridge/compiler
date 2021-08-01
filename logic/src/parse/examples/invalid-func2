@@ -1,0 +1,3 @@
+function W(x)
+  return-"-"-- x + 1
+endfunction

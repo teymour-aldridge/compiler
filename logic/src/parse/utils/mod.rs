@@ -107,6 +107,7 @@ impl<'a> Input<'a> {
     }
 
     /// Peek `n` characters.
+    // todo: fix unicode handling here
     pub fn peek_n(&self, n: usize) -> Option<&'a str> {
         self.inner
             .char_indices()
