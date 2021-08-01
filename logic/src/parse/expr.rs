@@ -12,6 +12,7 @@ pub enum Expr<'a> {
     Literal(Literal<'a>),
     BinOp(BinOp, Box<Expr<'a>>, Box<Expr<'a>>),
     UnOp(UnOp, Box<Expr<'a>>),
+    FunctionCall(Ident<'a>, Vec<Expr<'a>>),
 }
 
 impl<'a> Parse<'a> for Expr<'a> {
@@ -37,6 +38,15 @@ impl fmt::Display for Expr<'_> {
                 left.fmt(f)
             }
             Expr::Literal(lit) => lit.fmt(f),
+            Expr::FunctionCall(name, args) => {
+                name.fmt(f)?;
+                f.write_char('(')?;
+                for arg in args {
+                    arg.fmt(f)?;
+                    f.write_char(',')?;
+                }
+                f.write_char(')')
+            }
         }
     }
 }
@@ -52,14 +62,32 @@ impl<'a> Expr<'a> {
     pub(crate) fn parse_bp_stop_if(
         input: &mut Input<'a>,
         min_bp: u8,
-        stop_if: impl Fn(&str) -> bool,
+        stop_if: impl Fn(&str) -> bool + Copy,
     ) -> Result<Option<Self>, ParseError<'a>> {
         input.skip_whitespace()?;
         let mut lhs = {
             if let Ok(_) = Ident::parse(&mut input.clone()) {
                 let ident = Ident::parse(input)?;
 
-                Some(Self::Ident(ident))
+                input.skip_whitespace()?;
+
+                dbg!(&input);
+
+                if let Some('(') = input.peek_char() {
+                    fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError<'a>> {
+                        Expr::parse_bp_stop_if(input, 0, |input| {
+                            input.starts_with(")") || input.starts_with(",")
+                        })
+                        .and_then(|ok| ok.ok_or(ParseError::__NonExhaustive))
+                    }
+
+                    input.parse_token("(")?;
+                    let args = input.delimited_list(parse, ')', ",")?;
+                    input.parse_token(")")?;
+                    Some(Self::FunctionCall(ident, args))
+                } else {
+                    Some(Self::Ident(ident))
+                }
             } else if let Ok(_) = Literal::parse(&mut input.clone()) {
                 let lit = Literal::parse(input)?;
 
@@ -93,7 +121,7 @@ impl<'a> Expr<'a> {
 
             Op::parse(input, false)?;
 
-            let rhs = Self::parse_bp(input, right_bp)?;
+            let rhs = Self::parse_bp_stop_if(input, right_bp, stop_if)?;
 
             if op.is_bin_op() {
                 match (lhs, rhs) {

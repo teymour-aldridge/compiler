@@ -75,6 +75,32 @@ impl<'a> Input<'a> {
         ret
     }
 
+    pub fn delimited_list<P: Fn(&mut Input<'a>) -> Result<T, ParseError<'a>>, T>(
+        &mut self,
+        function: P,
+        stop_delimiter: char,
+        interspacer: &str,
+    ) -> Result<Vec<T>, ParseError<'a>> {
+        let mut ret = vec![];
+        loop {
+            let parsed = (function)(self)?;
+            ret.push(parsed);
+            self.skip_whitespace()?;
+            if self.is_empty() {
+                return Err(ParseError::UnexpectedEndOfInput);
+            } else if self.starts_with(interspacer) {
+                self.parse_token(interspacer)?;
+                if self.starts_with(stop_delimiter) {
+                    return Ok(ret);
+                } else {
+                    continue;
+                }
+            } else if self.starts_with(stop_delimiter) {
+                return Ok(ret);
+            }
+        }
+    }
+
     /// Peek the next character
     pub fn peek_char(&self) -> Option<char> {
         self.inner.chars().next()
@@ -197,7 +223,7 @@ impl<'a> Input<'a> {
         match self.chars().next() {
             Some('\n') | None => Ok(()),
             Some(_) => Err(ParseError::UnexpectedToken {
-                token: self.peek_n(1).unwrap(),
+                token: self.peek_n(1).unwrap_or(""),
                 explanation: "Expected a new line here, but found this instead.".to_string(),
             }),
         }
@@ -256,6 +282,7 @@ impl<'a> Input<'a> {
 
     pub fn advance_indent(&mut self) -> Result<(), ParseError<'a>> {
         let mut whitespace_units = 0;
+
         loop {
             match self.inner.chars().next() {
                 Some(char) => match char {
@@ -274,6 +301,7 @@ impl<'a> Input<'a> {
                 }
             }
         }
+
         if whitespace_units == self.indent {
             Ok(())
         } else {

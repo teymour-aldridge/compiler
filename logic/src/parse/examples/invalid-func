@@ -1,0 +1,3 @@
+function f(g)
+  return=x + 1
+endfunction

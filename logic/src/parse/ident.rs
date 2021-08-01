@@ -4,7 +4,7 @@ use crate::diagnostics::span::Span;
 
 use super::utils::{Parse, ParseError};
 
-pub const KEYWORDS: &[&'static str] = &[&"for", &"if", &"while"];
+pub const KEYWORDS: &[&'static str] = &[&"for", &"if", &"while", &"function", &"return"];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ident<'a> {
@@ -25,7 +25,7 @@ impl<'a> Parse<'a> for Ident<'a> {
         input.skip_whitespace()?;
         let rec = input.start_recording();
         input
-            .eat_until_or_end(|char| !char.is_alphanumeric())
+            .eat_until_or_end(|char| !char.is_alphanumeric() && char != '_')
             .and_then(|inner| {
                 if inner.is_empty() {
                     Err(ParseError::UnexpectedEndOfInput)
@@ -83,6 +83,7 @@ mod test_parse_valid_idents {
     #[test]
     fn regressions() {
         test_inner("x");
+        test_inner("function_call");
     }
 
     #[test]

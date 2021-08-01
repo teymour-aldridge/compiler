@@ -164,7 +164,19 @@ mod parse_reparse {
             ("a + 1", true),
             (include_str!("examples/while"), true),
             (include_str!("examples/invalid-if"), false),
-            ("a = True", true)
+            ("a = True", true),
+            (include_str!("examples/func"), true),
+            (include_str!("examples/invalid-func"), false),
+            (include_str!("examples/invalid-if-for"), false),
+            (include_str!("examples/invalid-return"), false),
+            (include_str!("examples/invalid-if2"), false),
+            (include_str!("examples/invalid-while"), false),
+            ("--------------------------------------------------------A", true),
+            ("call_function(a + b)", true),
+            ("f(x + 2 + 3) + 4", true)
         ]
+        // note: examples/invalid-expr and examples/invalid-expr2 are not
+        // included here because I haven't figured out what is causing the stack
+        // overflow
     }
 }

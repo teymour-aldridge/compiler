@@ -26,7 +26,6 @@ impl<'a> Parse<'a> for If<'a> {
                 cond
             },
             block: {
-                dbg!(&input);
                 let block = Block::parse(input)?;
                 input.advance_whitespace_and_new_line()?;
                 block
@@ -53,6 +52,8 @@ impl<'a> Parse<'a> for If<'a> {
                 input.advance_whitespace_and_new_line()?;
                 input.advance_indent()?;
                 input.parse_token("endif")?;
+                input.skip_whitespace()?;
+                input.assert_new_line()?;
                 return Ok(Self {
                     r#if,
                     else_ifs: elseifs,

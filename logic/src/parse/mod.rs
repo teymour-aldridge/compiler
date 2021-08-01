@@ -2,6 +2,7 @@ use std::fmt::{self, Write};
 
 use self::{
     expr::Expr,
+    func::{Func, Return},
     r#for::ForLoop,
     r#if::If,
     r#while::While,
@@ -11,14 +12,15 @@ use self::{
 pub mod r#block;
 pub mod expr;
 pub mod r#for;
+pub mod func;
 pub mod ident;
 pub mod r#if;
 pub mod lit;
+pub mod utils;
 pub mod r#while;
 
 #[cfg(test)]
 mod test;
-pub mod utils;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Ast<'a> {
@@ -64,16 +66,22 @@ pub enum Node<'a> {
     For(ForLoop<'a>),
     If(If<'a>),
     While(While<'a>),
+    Return(Return<'a>),
+    Func(Func<'a>),
 }
 
 impl<'a> Parse<'a> for Node<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
         if input.starts_with("for ") {
             ForLoop::parse(input).map(Self::For)
+        } else if input.starts_with("return ") {
+            Return::parse(input).map(Self::Return)
         } else if input.starts_with("if ") {
             If::parse(input).map(Self::If)
         } else if input.starts_with("while ") {
             While::parse(input).map(Self::While)
+        } else if input.starts_with("function ") {
+            Func::parse(input).map(Self::Func)
         } else {
             Expr::parse(input).map(Self::Expr)
         }
@@ -87,6 +95,8 @@ impl fmt::Display for Node<'_> {
             Node::For(l) => l.fmt(f),
             Node::If(i) => i.fmt(f),
             Node::While(w) => w.fmt(f),
+            Node::Return(r) => r.fmt(f),
+            Node::Func(func) => func.fmt(f),
         }
     }
 }
