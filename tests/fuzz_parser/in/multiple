@@ -1,0 +1,15 @@
+function f(x)
+  x + 1 + 2 + 3
+endfunction
+
+while True
+  x + 1
+endwhile
+
+if False then
+  print(1)
+elseif True then
+  x = 2
+else
+  x + 1
+endif
