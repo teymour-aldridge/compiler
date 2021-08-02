@@ -178,7 +178,9 @@ mod parse_reparse {
             (include_str!("examples/invalid-if3"), false),
             (include_str!("examples/invalid-if4"), false),
             ("return+ 1", false),
-            (include_str!("examples/invalid-func2"), false)
+            (include_str!("examples/invalid-func2"), false),
+            ("U", true),
+            (include_str!("examples/multiple"), true)
         ]
         // note: examples/invalid-expr and examples/invalid-expr2 are not
         // included here because I haven't figured out what is causing the stack

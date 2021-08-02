@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt::{self, Write}, hash};
 
 use crate::diagnostics::span::Span;
 
@@ -10,6 +10,12 @@ pub const KEYWORDS: &[&'static str] = &[&"for", &"if", &"while", &"function", &"
 pub struct Ident<'a> {
     inner: &'a str,
     span: Span,
+}
+
+impl<'a> hash::Hash for Ident<'a> {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.inner.hash(state)
+    }
 }
 
 impl<'a> std::ops::Deref for Ident<'a> {
@@ -51,7 +57,8 @@ impl<'a> Parse<'a> for Ident<'a> {
 
 impl fmt::Display for Ident<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
+        self.inner.fmt(f)?;
+        f.write_char(' ')
     }
 }
 

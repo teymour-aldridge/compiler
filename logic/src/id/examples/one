@@ -1,0 +1,11 @@
+for i = A to B step C
+  x + 1
+next i
+
+while True
+  x + 1
+endwhile
+
+function f(x)
+  x + 1
+endfunction

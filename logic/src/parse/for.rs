@@ -1,5 +1,5 @@
 use core::fmt;
-use std::fmt::Write;
+use std::{fmt::Write, marker::PhantomData};
 
 use super::{
     block::Block,
@@ -9,11 +9,11 @@ use super::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ForLoop<'a> {
-    var: Ident<'a>,
-    between: Between<'a>,
-    block: Block<'a>,
-    indent: usize,
+pub struct ForLoop<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
+    pub(crate) var: IDENT,
+    pub(crate) between: Between<'a, IDENT, EXPR>,
+    pub(crate) block: Block<'a, IDENT, EXPR>,
+    pub(crate) indent: usize,
 }
 
 impl<'a> Parse<'a> for ForLoop<'a> {
@@ -85,15 +85,17 @@ impl fmt::Display for ForLoop<'_> {
         f.write_char('\n')?;
         write_indentation(self.indent, f)?;
         f.write_str("next ")?;
-        self.var.fmt(f)
+        self.var.fmt(f)?;
+        f.write_char('\n')
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Between<'a> {
-    start: Expr<'a>,
-    stop: Expr<'a>,
-    step: Option<Expr<'a>>,
+pub struct Between<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
+    pub(crate) start: EXPR,
+    pub(crate) stop: EXPR,
+    pub(crate) step: Option<EXPR>,
+    pub(crate) _i: PhantomData<&'a IDENT>,
 }
 
 impl<'a> Parse<'a> for Between<'a> {
@@ -120,6 +122,11 @@ impl<'a> Parse<'a> for Between<'a> {
             None
         };
 
-        Ok(Self { start, stop, step })
+        Ok(Self {
+            start,
+            stop,
+            step,
+            _i: PhantomData,
+        })
     }
 }

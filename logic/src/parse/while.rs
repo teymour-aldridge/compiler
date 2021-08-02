@@ -2,13 +2,13 @@ use std::fmt::{self, Write};
 
 use crate::parse::utils::write_indentation;
 
-use super::{block::Block, expr::Expr, utils::Parse};
+use super::{block::Block, expr::Expr, ident::Ident, utils::Parse};
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct While<'a> {
-    condition: Expr<'a>,
-    block: Block<'a>,
-    indent: usize,
+pub struct While<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
+    pub(crate) condition: EXPR,
+    pub(crate) block: Block<'a, IDENT, EXPR>,
+    pub(crate) indent: usize,
 }
 
 impl<'a> Parse<'a> for While<'a> {
@@ -20,6 +20,7 @@ impl<'a> Parse<'a> for While<'a> {
         input.advance_whitespace_and_new_line()?;
 
         let block = Block::parse(input)?;
+        dbg!(&block);
         input.advance_whitespace_and_new_line()?;
         input.advance_indent()?;
         input.parse_token("endwhile")?;
@@ -42,6 +43,7 @@ impl fmt::Display for While<'_> {
         self.block.fmt(f)?;
         f.write_char('\n')?;
         write_indentation(self.indent, f)?;
-        f.write_str("endwhile")
+        f.write_str("endwhile")?;
+        f.write_char('\n')
     }
 }

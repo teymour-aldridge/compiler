@@ -1,8 +1,9 @@
-use std::fmt::{self, Write};
+use std::fmt::{self};
 
 use self::{
     expr::Expr,
     func::{Func, Return},
+    ident::Ident,
     r#for::ForLoop,
     r#if::If,
     r#while::While,
@@ -23,9 +24,9 @@ pub mod r#while;
 mod test;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Ast<'a> {
-    pub nodes: Vec<Node<'a>>,
-    indent: usize,
+pub struct Ast<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
+    pub nodes: Vec<Node<'a, IDENT, EXPR>>,
+    pub(crate) indent: usize,
 }
 
 impl fmt::Display for Ast<'_> {
@@ -33,7 +34,6 @@ impl fmt::Display for Ast<'_> {
         for node in &self.nodes {
             write_indentation(self.indent, f)?;
             node.fmt(f)?;
-            f.write_char(' ')?;
         }
 
         Ok(())
@@ -53,6 +53,16 @@ impl<'a> Parse<'a> for Ast<'a> {
                     indent: input.indent,
                 });
             } else {
+                loop {
+                    let mut tmp = input.clone();
+                    tmp.skip_whitespace()?;
+                    if tmp.starts_with('\n') {
+                        input.skip_whitespace()?;
+                        input.parse_token("\n")?;
+                    } else {
+                        break;
+                    }
+                }
                 input.advance_indent()?;
                 nodes.push(Node::parse(input)?);
             }
@@ -61,13 +71,13 @@ impl<'a> Parse<'a> for Ast<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Node<'a> {
-    Expr(Expr<'a>),
-    For(ForLoop<'a>),
-    If(If<'a>),
-    While(While<'a>),
-    Return(Return<'a>),
-    Func(Func<'a>),
+pub enum Node<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
+    Expr(EXPR),
+    For(ForLoop<'a, IDENT, EXPR>),
+    If(If<'a, IDENT, EXPR>),
+    While(While<'a, IDENT, EXPR>),
+    Return(Return<'a, EXPR>),
+    Func(Func<'a, IDENT, EXPR>),
 }
 
 impl<'a> Parse<'a> for Node<'a> {

@@ -1,0 +1,354 @@
+---
+source: logic/src/id/test.rs
+expression: tagged
+
+---
+Ast {
+    nodes: [
+        For(
+            ForLoop {
+                var: Tagged {
+                    token: Ident {
+                        inner: "i",
+                        span: Span {
+                            start: Position {
+                                column: 4,
+                                line: 0,
+                            },
+                            stop: Position {
+                                column: 5,
+                                line: 0,
+                            },
+                        },
+                    },
+                    id: Id {
+                        inner: 0,
+                    },
+                },
+                between: Between {
+                    start: Tagged {
+                        token: Ident(
+                            Tagged {
+                                token: Ident {
+                                    inner: "A",
+                                    span: Span {
+                                        start: Position {
+                                            column: 8,
+                                            line: 0,
+                                        },
+                                        stop: Position {
+                                            column: 9,
+                                            line: 0,
+                                        },
+                                    },
+                                },
+                                id: Id {
+                                    inner: 1,
+                                },
+                            },
+                        ),
+                        id: Id {
+                            inner: 2,
+                        },
+                    },
+                    stop: Tagged {
+                        token: Ident(
+                            Tagged {
+                                token: Ident {
+                                    inner: "B",
+                                    span: Span {
+                                        start: Position {
+                                            column: 13,
+                                            line: 0,
+                                        },
+                                        stop: Position {
+                                            column: 14,
+                                            line: 0,
+                                        },
+                                    },
+                                },
+                                id: Id {
+                                    inner: 3,
+                                },
+                            },
+                        ),
+                        id: Id {
+                            inner: 4,
+                        },
+                    },
+                    step: Some(
+                        Tagged {
+                            token: Ident(
+                                Tagged {
+                                    token: Ident {
+                                        inner: "C",
+                                        span: Span {
+                                            start: Position {
+                                                column: 20,
+                                                line: 0,
+                                            },
+                                            stop: Position {
+                                                column: 21,
+                                                line: 0,
+                                            },
+                                        },
+                                    },
+                                    id: Id {
+                                        inner: 5,
+                                    },
+                                },
+                            ),
+                            id: Id {
+                                inner: 6,
+                            },
+                        },
+                    ),
+                    _i: PhantomData,
+                },
+                block: Block {
+                    inner: Ast {
+                        nodes: [
+                            Expr(
+                                Tagged {
+                                    token: BinOp(
+                                        Add,
+                                        Tagged {
+                                            token: Ident(
+                                                Tagged {
+                                                    token: Ident {
+                                                        inner: "x",
+                                                        span: Span {
+                                                            start: Position {
+                                                                column: 23,
+                                                                line: 1,
+                                                            },
+                                                            stop: Position {
+                                                                column: 24,
+                                                                line: 1,
+                                                            },
+                                                        },
+                                                    },
+                                                    id: Id {
+                                                        inner: 7,
+                                                    },
+                                                },
+                                            ),
+                                            id: Id {
+                                                inner: 8,
+                                            },
+                                        },
+                                        Tagged {
+                                            token: Literal(
+                                                Number(
+                                                    Number {
+                                                        int: "1",
+                                                        float: None,
+                                                        exp: None,
+                                                    },
+                                                ),
+                                            ),
+                                            id: Id {
+                                                inner: 9,
+                                            },
+                                        },
+                                    ),
+                                    id: Id {
+                                        inner: 10,
+                                    },
+                                },
+                            ),
+                        ],
+                        indent: 2,
+                    },
+                },
+                indent: 0,
+            },
+        ),
+        While(
+            While {
+                condition: Tagged {
+                    token: Ident(
+                        Tagged {
+                            token: Ident {
+                                inner: "True",
+                                span: Span {
+                                    start: Position {
+                                        column: 40,
+                                        line: 4,
+                                    },
+                                    stop: Position {
+                                        column: 44,
+                                        line: 4,
+                                    },
+                                },
+                            },
+                            id: Id {
+                                inner: 11,
+                            },
+                        },
+                    ),
+                    id: Id {
+                        inner: 12,
+                    },
+                },
+                block: Block {
+                    inner: Ast {
+                        nodes: [
+                            Expr(
+                                Tagged {
+                                    token: BinOp(
+                                        Add,
+                                        Tagged {
+                                            token: Ident(
+                                                Tagged {
+                                                    token: Ident {
+                                                        inner: "x",
+                                                        span: Span {
+                                                            start: Position {
+                                                                column: 46,
+                                                                line: 5,
+                                                            },
+                                                            stop: Position {
+                                                                column: 47,
+                                                                line: 5,
+                                                            },
+                                                        },
+                                                    },
+                                                    id: Id {
+                                                        inner: 7,
+                                                    },
+                                                },
+                                            ),
+                                            id: Id {
+                                                inner: 13,
+                                            },
+                                        },
+                                        Tagged {
+                                            token: Literal(
+                                                Number(
+                                                    Number {
+                                                        int: "1",
+                                                        float: None,
+                                                        exp: None,
+                                                    },
+                                                ),
+                                            ),
+                                            id: Id {
+                                                inner: 14,
+                                            },
+                                        },
+                                    ),
+                                    id: Id {
+                                        inner: 15,
+                                    },
+                                },
+                            ),
+                        ],
+                        indent: 2,
+                    },
+                },
+                indent: 0,
+            },
+        ),
+        Func(
+            Func {
+                name: Tagged {
+                    token: Ident {
+                        inner: "f",
+                        span: Span {
+                            start: Position {
+                                column: 68,
+                                line: 8,
+                            },
+                            stop: Position {
+                                column: 69,
+                                line: 8,
+                            },
+                        },
+                    },
+                    id: Id {
+                        inner: 16,
+                    },
+                },
+                parameters: [
+                    Tagged {
+                        token: Ident {
+                            inner: "x",
+                            span: Span {
+                                start: Position {
+                                    column: 70,
+                                    line: 8,
+                                },
+                                stop: Position {
+                                    column: 71,
+                                    line: 8,
+                                },
+                            },
+                        },
+                        id: Id {
+                            inner: 17,
+                        },
+                    },
+                ],
+                block: Block {
+                    inner: Ast {
+                        nodes: [
+                            Expr(
+                                Tagged {
+                                    token: BinOp(
+                                        Add,
+                                        Tagged {
+                                            token: Ident(
+                                                Tagged {
+                                                    token: Ident {
+                                                        inner: "x",
+                                                        span: Span {
+                                                            start: Position {
+                                                                column: 74,
+                                                                line: 9,
+                                                            },
+                                                            stop: Position {
+                                                                column: 75,
+                                                                line: 9,
+                                                            },
+                                                        },
+                                                    },
+                                                    id: Id {
+                                                        inner: 17,
+                                                    },
+                                                },
+                                            ),
+                                            id: Id {
+                                                inner: 18,
+                                            },
+                                        },
+                                        Tagged {
+                                            token: Literal(
+                                                Number(
+                                                    Number {
+                                                        int: "1",
+                                                        float: None,
+                                                        exp: None,
+                                                    },
+                                                ),
+                                            ),
+                                            id: Id {
+                                                inner: 19,
+                                            },
+                                        },
+                                    ),
+                                    id: Id {
+                                        inner: 20,
+                                    },
+                                },
+                            ),
+                        ],
+                        indent: 2,
+                    },
+                },
+                indent: 0,
+            },
+        ),
+    ],
+    indent: 0,
+}

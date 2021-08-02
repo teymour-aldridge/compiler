@@ -7,12 +7,12 @@ use super::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Expr<'a> {
-    Ident(Ident<'a>),
+pub enum Expr<'a, IDENT = Ident<'a>> {
+    Ident(IDENT),
     Literal(Literal<'a>),
-    BinOp(BinOp, Box<Expr<'a>>, Box<Expr<'a>>),
-    UnOp(UnOp, Box<Expr<'a>>),
-    FunctionCall(Ident<'a>, Vec<Expr<'a>>),
+    BinOp(BinOp, Box<Expr<'a, IDENT>>, Box<Expr<'a, IDENT>>),
+    UnOp(UnOp, Box<Expr<'a, IDENT>>),
+    FunctionCall(IDENT, Vec<Expr<'a, IDENT>>),
 }
 
 impl<'a> Parse<'a> for Expr<'a> {

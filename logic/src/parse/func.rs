@@ -1,4 +1,7 @@
-use std::fmt::{self, Write};
+use std::{
+    fmt::{self, Write},
+    marker::PhantomData,
+};
 
 use super::{
     block::Block,
@@ -8,11 +11,11 @@ use super::{
 };
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Func<'a> {
-    name: Ident<'a>,
-    parameters: Vec<Ident<'a>>,
-    block: Block<'a>,
-    indent: usize,
+pub struct Func<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
+    pub(crate) name: IDENT,
+    pub(crate) parameters: Vec<IDENT>,
+    pub(crate) block: Block<'a, IDENT, EXPR>,
+    pub(crate) indent: usize,
 }
 
 impl<'a> Parse<'a> for Func<'a> {
@@ -58,14 +61,16 @@ impl fmt::Display for Func<'_> {
         self.block.fmt(f)?;
         f.write_char('\n')?;
         write_indentation(self.indent, f)?;
-        f.write_str("endfunction\n")
+        f.write_str("endfunction")?;
+        f.write_char('\n')
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Return<'a> {
-    expr: Expr<'a>,
-    indent: usize,
+pub struct Return<'a, EXPR = Expr<'a>> {
+    pub(crate) expr: EXPR,
+    pub(crate) indent: usize,
+    pub(crate) _a: PhantomData<&'a ()>,
 }
 
 impl<'a> Parse<'a> for Return<'a> {
@@ -75,6 +80,7 @@ impl<'a> Parse<'a> for Return<'a> {
         Ok(Self {
             expr: Expr::parse(input)?,
             indent: input.indent,
+            _a: PhantomData,
         })
     }
 }

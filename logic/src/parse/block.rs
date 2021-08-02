@@ -1,10 +1,10 @@
 use std::fmt;
 
-use super::{utils::Parse, Ast};
+use super::{expr::Expr, ident::Ident, utils::Parse, Ast};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Block<'a> {
-    inner: Ast<'a>,
+pub struct Block<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
+    pub(crate) inner: Ast<'a, IDENT, EXPR>,
 }
 
 impl fmt::Display for Block<'_> {

@@ -2,14 +2,14 @@ use std::fmt::{self, Write};
 
 use crate::parse::utils::{write_indentation, ParseError};
 
-use super::{block::Block, expr::Expr, utils::Parse};
+use super::{block::Block, expr::Expr, ident::Ident, utils::Parse};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct If<'a> {
-    r#if: Branch<'a>,
-    else_ifs: Vec<Branch<'a>>,
-    r#else: Option<Block<'a>>,
-    indent: usize,
+pub struct If<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
+    pub(crate) r#if: Branch<'a, IDENT, EXPR>,
+    pub(crate) else_ifs: Vec<Branch<'a, IDENT, EXPR>>,
+    pub(crate) r#else: Option<Block<'a, IDENT, EXPR>>,
+    pub(crate) indent: usize,
 }
 
 impl<'a> Parse<'a> for If<'a> {
@@ -106,7 +106,7 @@ impl fmt::Display for If<'_> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Branch<'a> {
-    condition: Expr<'a>,
-    block: Block<'a>,
+pub struct Branch<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
+    pub(crate) condition: EXPR,
+    pub(crate) block: Block<'a, IDENT, EXPR>,
 }
