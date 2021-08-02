@@ -22,6 +22,10 @@ pub enum ParseError<'a> {
     UnexpectedEndOfInput,
     /// An assumption the parser makes turns out not to be correct.
     InternalError,
+    InvalidWhitespace {
+        span: Span,
+        explanation: String,
+    },
     __NonExhaustive,
 }
 
@@ -130,6 +134,7 @@ impl<'a> Input<'a> {
                 self.position = ret.chars().fold(self.position, |mut position, char| {
                     if char == '\n' {
                         position.line += 1;
+                        position.column = 0;
                     } else {
                         position.column += 1;
                     };
@@ -274,7 +279,9 @@ impl<'a> Input<'a> {
             match iter.next() {
                 Some(' ' | '\u{C}' | '\u{B}') => total += 1,
                 Some('\t') => total += 4,
-                _ => break,
+                _ => {
+                    break;
+                }
             }
         }
 
@@ -282,6 +289,7 @@ impl<'a> Input<'a> {
     }
 
     pub fn advance_indent(&mut self) -> Result<(), ParseError<'a>> {
+        let start_recording = self.start_recording();
         let mut whitespace_units = 0;
 
         loop {
@@ -306,7 +314,13 @@ impl<'a> Input<'a> {
         if whitespace_units == self.indent {
             Ok(())
         } else {
-            return Err(ParseError::__NonExhaustive);
+            return Err(ParseError::InvalidWhitespace {
+                span: start_recording.finish_recording(&self),
+                explanation: format!(
+                    "Expected exactly {} spaces here, but instead found {} spaces.",
+                    self.indent, whitespace_units
+                ),
+            });
         }
     }
 }

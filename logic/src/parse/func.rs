@@ -34,10 +34,9 @@ impl<'a> Parse<'a> for Func<'a> {
         input.skip_whitespace()?;
         input.parse_token("\n")?;
         let block = Block::parse(input)?;
-        input.advance_whitespace_and_new_line()?;
+        input.advance_indent()?;
         input.parse_token("endfunction")?;
         input.skip_whitespace()?;
-        input.assert_new_line()?;
         Ok(Self {
             name,
             parameters,

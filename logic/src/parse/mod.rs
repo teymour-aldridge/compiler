@@ -1,4 +1,4 @@
-use std::fmt::{self};
+use std::fmt::{self, Write};
 
 use self::{
     expr::Expr,
@@ -34,6 +34,7 @@ impl fmt::Display for Ast<'_> {
         for node in &self.nodes {
             write_indentation(self.indent, f)?;
             node.fmt(f)?;
+            f.write_char('\n')?;
         }
 
         Ok(())
@@ -44,6 +45,17 @@ impl<'a> Parse<'a> for Ast<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
         let mut nodes = vec![];
         loop {
+            loop {
+                let mut tmp = input.clone();
+                tmp.skip_whitespace()?;
+                if tmp.starts_with('\n') {
+                    input.skip_whitespace()?;
+                    input.parse_token("\n")?;
+                } else {
+                    break;
+                }
+            }
+
             if input.is_empty()
                 || (input.indent >= 2 && input.count_indent()? == input.indent - 2)
                 || input.chars().all(|char| char.is_whitespace())
@@ -53,16 +65,6 @@ impl<'a> Parse<'a> for Ast<'a> {
                     indent: input.indent,
                 });
             } else {
-                loop {
-                    let mut tmp = input.clone();
-                    tmp.skip_whitespace()?;
-                    if tmp.starts_with('\n') {
-                        input.skip_whitespace()?;
-                        input.parse_token("\n")?;
-                    } else {
-                        break;
-                    }
-                }
                 input.advance_indent()?;
                 nodes.push(Node::parse(input)?);
             }

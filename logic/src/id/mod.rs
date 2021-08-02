@@ -168,6 +168,7 @@ fn tagged_node<'a>(
             },
             block: tagged_block(for_loop.block, ctx, false),
             indent: for_loop.indent,
+            span: for_loop.span,
         }),
         Node::If(stmt) => Node::If(tagged_if(stmt, ctx)),
         Node::While(block) => Node::While(tagged_while(block, ctx)),
@@ -219,6 +220,7 @@ fn tagged_while<'a>(
         condition: tagged_expr(block.condition, ctx),
         block: tagged_block(block.block, ctx, false),
         indent: block.indent,
+        span: block.span,
     }
 }
 
@@ -235,6 +237,7 @@ fn tagged_if<'a>(
             .collect(),
         r#else: block.r#else.map(|block| tagged_block(block, ctx, false)),
         indent: block.indent,
+        span: block.span,
     }
 }
 

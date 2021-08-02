@@ -67,3 +67,33 @@ mod test_peek_n {
         assert_eq!(cursor.peek_n(1), Some("\""));
     }
 }
+
+mod write_indent {
+    #[cfg(feature = "_proptest")]
+    mod proptest {
+        use std::fmt;
+
+        use proptest::prelude::*;
+
+        use crate::parse::utils::{write_indentation, Input};
+
+        proptest! {
+            #[test]
+            fn test(units in 1..10000usize) {
+                struct X {units: usize}
+                impl fmt::Display for X {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        write_indentation(self.units, f)
+                    }
+                }
+                let output = X {units}.to_string();
+                assert_eq!(Input::new(&output).count_indent().unwrap(), units);
+                let concat = output + "a";
+                let mut input = Input::new(&concat);
+                input.set_indent(units);
+                assert!(input.advance_indent().is_ok());
+                assert_eq!(input.inner, "a")
+            }
+        }
+    }
+}

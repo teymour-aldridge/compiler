@@ -1,6 +1,8 @@
 use core::fmt;
 use std::{fmt::Write, marker::PhantomData};
 
+use crate::diagnostics::span::Span;
+
 use super::{
     block::Block,
     expr::Expr,
@@ -14,10 +16,12 @@ pub struct ForLoop<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
     pub(crate) between: Between<'a, IDENT, EXPR>,
     pub(crate) block: Block<'a, IDENT, EXPR>,
     pub(crate) indent: usize,
+    pub(crate) span: Span,
 }
 
 impl<'a> Parse<'a> for ForLoop<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+        let rec = input.start_recording();
         input.parse_token("for")?;
         input.skip_whitespace()?;
 
@@ -30,8 +34,6 @@ impl<'a> Parse<'a> for ForLoop<'a> {
         input.advance_whitespace_and_new_line()?;
 
         let block = Block::parse(input)?;
-
-        input.parse_token("\n")?;
 
         input.advance_indent()?;
         input.parse_token("next")?;
@@ -63,6 +65,7 @@ impl<'a> Parse<'a> for ForLoop<'a> {
             between,
             block,
             indent: input.indent,
+            span: rec.finish_recording(input),
         })
     }
 }

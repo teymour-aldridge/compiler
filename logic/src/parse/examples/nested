@@ -1,0 +1,9 @@
+while True
+  while True
+    while True
+      x + 1
+      y + 2
+      z + 3
+    endwhile
+  endwhile
+endwhile
