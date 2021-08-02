@@ -1,4 +1,7 @@
-use std::{fmt::{self, Write}, hash};
+use std::{
+    fmt::{self, Write},
+    hash,
+};
 
 use crate::diagnostics::span::Span;
 
