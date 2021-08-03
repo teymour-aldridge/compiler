@@ -3,7 +3,7 @@ use std::{
     hash,
 };
 
-use crate::diagnostics::span::Span;
+use crate::diagnostics::span::{HasSpan, Span};
 
 use super::utils::{Parse, ParseError};
 
@@ -22,6 +22,12 @@ pub const KEYWORDS: &[&'static str] = &[
 pub struct Ident<'a> {
     inner: &'a str,
     span: Span,
+}
+
+impl HasSpan for Ident<'_> {
+    fn span(&self) -> Span {
+        self.span
+    }
 }
 
 impl<'a> hash::Hash for Ident<'a> {

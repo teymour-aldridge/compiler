@@ -8,6 +8,7 @@ _proptest = ["proptest"]
 
 [dependencies]
 proptest = { version = "1.0.0", optional = true }
+z3 = "0.10"
 
 [dev-dependencies]
 codegen = { path = "../tests/codegen" }

@@ -1,5 +1,7 @@
 use std::fmt::{self, Display, Write};
 
+use crate::diagnostics::span::Spanned;
+
 use super::{
     ident::Ident,
     lit::Literal,
@@ -9,9 +11,9 @@ use super::{
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expr<'a, IDENT = Ident<'a>> {
     Ident(IDENT),
-    Literal(Literal<'a>),
-    BinOp(BinOp, Box<Expr<'a, IDENT>>, Box<Expr<'a, IDENT>>),
-    UnOp(UnOp, Box<Expr<'a, IDENT>>),
+    Literal(Spanned<Literal<'a>>),
+    BinOp(Spanned<BinOp>, Box<Expr<'a, IDENT>>, Box<Expr<'a, IDENT>>),
+    UnOp(Spanned<UnOp>, Box<Expr<'a, IDENT>>),
     FunctionCall(IDENT, Vec<Expr<'a, IDENT>>),
 }
 
@@ -89,9 +91,13 @@ impl<'a> Expr<'a> {
                     Some(Self::Ident(ident))
                 }
             } else if let Ok(_) = Literal::parse(&mut input.clone()) {
+                let rec = input.start_recording();
                 let lit = Literal::parse(input)?;
 
-                Some(Self::Literal(lit))
+                Some(Self::Literal(Spanned::new(
+                    rec.finish_recording(input),
+                    lit,
+                )))
             } else {
                 None
             }
@@ -119,7 +125,9 @@ impl<'a> Expr<'a> {
                 break;
             }
 
+            let rec = input.start_recording();
             Op::parse(input, false)?;
+            let op_span = rec.finish_recording(input);
 
             let rhs = Self::parse_bp_stop_if(input, right_bp, stop_if)?;
 
@@ -127,7 +135,7 @@ impl<'a> Expr<'a> {
                 match (lhs, rhs) {
                     (Some(left), Some(right)) => {
                         lhs = Some(Self::BinOp(
-                            op.try_into_bin_op().unwrap(),
+                            Spanned::new(op_span, op.try_into_bin_op().unwrap()),
                             Box::new(left),
                             Box::new(right),
                         ));
@@ -136,7 +144,10 @@ impl<'a> Expr<'a> {
                 }
             } else {
                 if let Some(rhs) = rhs {
-                    lhs = Some(Self::UnOp(op.try_into_un_op().unwrap(), Box::new(rhs)))
+                    lhs = Some(Self::UnOp(
+                        Spanned::new(op_span, op.try_into_un_op().unwrap()),
+                        Box::new(rhs),
+                    ))
                 } else {
                     return Err(ParseError::__NonExhaustive);
                 }

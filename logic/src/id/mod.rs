@@ -5,16 +5,19 @@ mod test;
 
 use std::{collections::HashMap, marker::PhantomData, mem};
 
-use crate::parse::{
-    block::Block,
-    expr::{BinOp, Expr, UnOp},
-    func::{Func, Return},
-    ident::Ident,
-    lit::Literal,
-    r#for::{Between, ForLoop},
-    r#if::{Branch, If},
-    r#while::While,
-    Ast, Node,
+use crate::{
+    diagnostics::span::{HasSpan, Span, Spanned},
+    parse::{
+        block::Block,
+        expr::{BinOp, Expr, UnOp},
+        func::{Func, Return},
+        ident::Ident,
+        lit::Literal,
+        r#for::{Between, ForLoop},
+        r#if::{Branch, If},
+        r#while::While,
+        Ast, Node,
+    },
 };
 
 #[derive(Debug, Default)]
@@ -40,8 +43,22 @@ pub struct Id {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Tagged<T> {
-    token: T,
-    id: Id,
+    pub(crate) token: T,
+    pub(crate) id: Id,
+}
+
+impl<T: HasSpan> HasSpan for Tagged<T> {
+    fn span(&self) -> Span {
+        self.token.span()
+    }
+}
+
+impl<T> std::ops::Deref for Tagged<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.token
+    }
 }
 
 #[derive(Debug, Default)]
@@ -133,10 +150,14 @@ pub fn tag<'a>(ast: Ast<'a>) -> Ast<'a, Tagged<Ident<'a>>, TaggedExpr<'a>> {
     tagged_ast(ast, &mut ctx)
 }
 
-fn tagged_ast<'a>(
-    ast: Ast<'a>,
-    ctx: &mut TaggingCtx<'a>,
-) -> Ast<'a, Tagged<Ident<'a>>, TaggedExpr<'a>> {
+pub type TaggedAst<'a> = Ast<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedNode<'a> = Node<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedIdent<'a> = Tagged<Ident<'a>>;
+pub type TaggedFunc<'a> = Func<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedBlock<'a> = Block<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedBranch<'a> = Branch<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+
+fn tagged_ast<'a>(ast: Ast<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedAst<'a> {
     ctx.push_scope();
     let ret = Ast {
         nodes: ast
@@ -308,8 +329,14 @@ pub type TaggedExpr<'a> = Tagged<TaggedExprInner<'a, Tagged<Ident<'a>>>>;
 #[derive(Debug, PartialEq, Eq)]
 pub enum TaggedExprInner<'a, IDENT = Ident<'a>> {
     Ident(IDENT),
-    Literal(Literal<'a>),
-    BinOp(BinOp, Box<TaggedExpr<'a>>, Box<TaggedExpr<'a>>),
-    UnOp(UnOp, Box<TaggedExpr<'a>>),
+    Literal(Spanned<Literal<'a>>),
+    BinOp(Spanned<BinOp>, Box<TaggedExpr<'a>>, Box<TaggedExpr<'a>>),
+    UnOp(Spanned<UnOp>, Box<TaggedExpr<'a>>),
     FunctionCall(IDENT, Vec<TaggedExpr<'a>>),
+}
+
+impl<IDENT: HasSpan> HasSpan for TaggedExprInner<'_, IDENT> {
+    fn span(&self) -> Span {
+        todo!()
+    }
 }
