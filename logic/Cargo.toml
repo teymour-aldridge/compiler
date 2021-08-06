@@ -12,4 +12,6 @@ z3 = "0.10"
 
 [dev-dependencies]
 codegen = { path = "../tests/codegen" }
+fuzzcheck = "0.7.0"
 insta = "1.7.1"
+rustversion = "1.0.5"

@@ -1,0 +1,11 @@
+[tasks.fuzz_parser]
+command = "cargo"
+toolchain = "nightly"
+args = [
+    "fuzzcheck",
+    # `parse::parse` is to work around non-stable proc macro hygiene
+    "fuzzcheck::parse::parse::fuzz_parser",
+    "fuzz",
+    "--artifacts",
+    "fuzz/artifacts",
+]
