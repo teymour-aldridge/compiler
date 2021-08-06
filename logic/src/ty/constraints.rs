@@ -10,7 +10,9 @@ use crate::{
 use super::Ty;
 
 pub(crate) enum Constraint {
+    #[allow(unused)]
     IdToTy { id: Id, ty: Ty },
+    #[allow(unused)]
     IdToId { id: Id, to: Id },
 }
 
@@ -68,7 +70,7 @@ fn collect_node(
         Node::If(stmt) => {
             let mut c = vec![];
 
-            let mut branch_constraints =
+            let branch_constraints =
                 |branch: &TaggedBranch| -> Result<Vec<Constraint>, ConstraintGatheringError> {
                     let mut c = vec![];
                     c.push(Constraint::IdToTy {
@@ -231,6 +233,7 @@ fn collect_expr(
     Ok(constraints)
 }
 
+#[derive(Debug)]
 pub(crate) enum ConstraintGatheringError {
     CannotAssignToExpression { span: Span, explanation: String },
     UnresolvableFunction { span: Span, explanation: String },

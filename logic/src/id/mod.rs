@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod test;
 
-use std::{collections::HashMap, marker::PhantomData, mem};
+use std::{collections::HashMap, fmt, marker::PhantomData, mem};
 
 use crate::{
     diagnostics::span::{HasSpan, Span, Spanned},
@@ -39,6 +39,12 @@ impl MonotonicIdGenerator {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Id {
     inner: usize,
+}
+
+impl fmt::Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
