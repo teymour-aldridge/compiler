@@ -73,8 +73,6 @@ impl<'a> Expr<'a> {
 
                 input.skip_whitespace()?;
 
-                dbg!(&input);
-
                 if let Some('(') = input.peek_char() {
                     fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError<'a>> {
                         Expr::parse_bp_stop_if(input, 0, |input| {

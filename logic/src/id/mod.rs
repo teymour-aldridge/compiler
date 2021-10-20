@@ -41,6 +41,12 @@ pub struct Id {
     inner: usize,
 }
 
+impl Id {
+    pub fn new(inner: usize) -> Self {
+        Self { inner }
+    }
+}
+
 impl fmt::Display for Id {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)

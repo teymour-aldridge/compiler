@@ -82,6 +82,16 @@ pub enum Node<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
     Func(Func<'a, IDENT, EXPR>),
 }
 
+impl<'a, IDENT, EXPR> Node<'a, IDENT, EXPR> {
+    pub fn as_expr(&self) -> Option<&EXPR> {
+        if let Self::Expr(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
 impl<'a> Parse<'a> for Node<'a> {
     fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
         if input.starts_with("for ") {

@@ -9,11 +9,22 @@ use crate::{
 
 use super::Ty;
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) enum Constraint {
     #[allow(unused)]
-    IdToTy { id: Id, ty: Ty },
+    IdToTy {
+        id: Id,
+        ty: Ty,
+    },
     #[allow(unused)]
-    IdToId { id: Id, to: Id },
+    IdToId {
+        id: Id,
+        to: Id,
+    },
+    TyToTy {
+        ty: Ty,
+        to: Ty,
+    },
 }
 
 pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGatheringError> {
@@ -170,11 +181,19 @@ fn collect_expr(
                     id: left.id,
                     to: right.id,
                 });
+                constraints.push(Constraint::IdToId {
+                    id: left.id,
+                    to: expr.id,
+                });
                 constraints.extend(collect_expr(&left, definitions, None)?);
                 constraints.extend(collect_expr(&right, definitions, None)?);
             }
             (BinOp::SetEquals, left, right) => {
                 if let TaggedExprInner::Ident(ref ident) = left.token {
+                    constraints.push(Constraint::IdToId {
+                        id: ident.id,
+                        to: right.id,
+                    });
                     constraints.push(Constraint::IdToId {
                         id: left.id,
                         to: right.id,
@@ -183,6 +202,16 @@ fn collect_expr(
                         id: ident.id,
                         to: left.id,
                     });
+                    constraints.push(Constraint::IdToId {
+                        id: expr.id,
+                        to: left.id,
+                    });
+                    constraints.push(Constraint::IdToId {
+                        id: expr.id,
+                        to: right.id,
+                    });
+                    constraints.extend(collect_expr(&left, definitions, None)?);
+                    constraints.extend(collect_expr(&right, definitions, None)?);
                 } else {
                     return Err(ConstraintGatheringError::CannotAssignToExpression {
                         span: expr.token.span(),
@@ -234,7 +263,7 @@ fn collect_expr(
 }
 
 #[derive(Debug)]
-pub(crate) enum ConstraintGatheringError {
+pub enum ConstraintGatheringError {
     CannotAssignToExpression { span: Span, explanation: String },
     UnresolvableFunction { span: Span, explanation: String },
     MismatchedFunctionCall { span: Span, explanation: String },
