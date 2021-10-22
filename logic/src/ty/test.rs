@@ -9,6 +9,7 @@ use crate::{
 fn simple_type_check() {
     let tree = crate::parse::parse(include_str!("examples/simple")).unwrap();
     let tagged = tag(tree);
+
     let ty_env = type_check(&tagged).expect("failed to type check");
 
     let x = match tagged.nodes.get(1).unwrap().as_expr().unwrap().token {
@@ -26,6 +27,7 @@ fn simple_type_check() {
         },
         _ => panic!(),
     };
+    dbg!(y);
     assert_eq!(ty_env.ty_of(x), Some(Ty::Int));
     assert_eq!(ty_env.ty_of(y), Some(Ty::Int))
 }

@@ -243,8 +243,13 @@ fn collect_expr(
                     });
                 }
                 for (a, b) in function.parameters.iter().zip(params) {
-                    constraints.push(Constraint::IdToId { id: b.id, to: a.id })
+                    constraints.push(Constraint::IdToId { id: b.id, to: a.id });
+                    constraints.extend(collect_expr(b, definitions, None)?);
                 }
+                constraints.push(Constraint::IdToId {
+                    id: func.id,
+                    to: expr.id,
+                });
             } else {
                 return Err(ConstraintGatheringError::UnresolvableFunction {
                     span: func.span(),

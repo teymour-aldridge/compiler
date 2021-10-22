@@ -2,7 +2,9 @@ use super::position::Position;
 
 #[derive(Copy, Clone, Debug, Eq)]
 pub struct Span {
+    #[allow(unused)]
     start: Position,
+    #[allow(unused)]
     stop: Position,
 }
 

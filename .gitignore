@@ -1,3 +1,4 @@
 target
 Cargo.lock
 hfuzz_target
+fuzz

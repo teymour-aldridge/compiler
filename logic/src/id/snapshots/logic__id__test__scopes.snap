@@ -111,7 +111,19 @@ Ast {
                             Expr(
                                 Tagged {
                                     token: BinOp(
-                                        Add,
+                                        Spanned {
+                                            span: Span {
+                                                start: Position {
+                                                    column: 4,
+                                                    line: 1,
+                                                },
+                                                stop: Position {
+                                                    column: 5,
+                                                    line: 1,
+                                                },
+                                            },
+                                            token: Add,
+                                        },
                                         Tagged {
                                             token: Ident(
                                                 Tagged {
@@ -139,13 +151,25 @@ Ast {
                                         },
                                         Tagged {
                                             token: Literal(
-                                                Number(
-                                                    Number {
-                                                        int: "1",
-                                                        float: None,
-                                                        exp: None,
+                                                Spanned {
+                                                    span: Span {
+                                                        start: Position {
+                                                            column: 6,
+                                                            line: 1,
+                                                        },
+                                                        stop: Position {
+                                                            column: 7,
+                                                            line: 1,
+                                                        },
                                                     },
-                                                ),
+                                                    token: Number(
+                                                        Number {
+                                                            int: "1",
+                                                            float: None,
+                                                            exp: None,
+                                                        },
+                                                    ),
+                                                },
                                             ),
                                             id: Id {
                                                 inner: 9,
@@ -207,7 +231,19 @@ Ast {
                             Expr(
                                 Tagged {
                                     token: BinOp(
-                                        Add,
+                                        Spanned {
+                                            span: Span {
+                                                start: Position {
+                                                    column: 4,
+                                                    line: 5,
+                                                },
+                                                stop: Position {
+                                                    column: 5,
+                                                    line: 5,
+                                                },
+                                            },
+                                            token: Add,
+                                        },
                                         Tagged {
                                             token: Ident(
                                                 Tagged {
@@ -235,13 +271,25 @@ Ast {
                                         },
                                         Tagged {
                                             token: Literal(
-                                                Number(
-                                                    Number {
-                                                        int: "1",
-                                                        float: None,
-                                                        exp: None,
+                                                Spanned {
+                                                    span: Span {
+                                                        start: Position {
+                                                            column: 6,
+                                                            line: 5,
+                                                        },
+                                                        stop: Position {
+                                                            column: 7,
+                                                            line: 5,
+                                                        },
                                                     },
-                                                ),
+                                                    token: Number(
+                                                        Number {
+                                                            int: "1",
+                                                            float: None,
+                                                            exp: None,
+                                                        },
+                                                    ),
+                                                },
                                             ),
                                             id: Id {
                                                 inner: 14,
@@ -316,7 +364,19 @@ Ast {
                             Expr(
                                 Tagged {
                                     token: BinOp(
-                                        Add,
+                                        Spanned {
+                                            span: Span {
+                                                start: Position {
+                                                    column: 4,
+                                                    line: 9,
+                                                },
+                                                stop: Position {
+                                                    column: 5,
+                                                    line: 9,
+                                                },
+                                            },
+                                            token: Add,
+                                        },
                                         Tagged {
                                             token: Ident(
                                                 Tagged {
@@ -344,13 +404,25 @@ Ast {
                                         },
                                         Tagged {
                                             token: Literal(
-                                                Number(
-                                                    Number {
-                                                        int: "1",
-                                                        float: None,
-                                                        exp: None,
+                                                Spanned {
+                                                    span: Span {
+                                                        start: Position {
+                                                            column: 6,
+                                                            line: 9,
+                                                        },
+                                                        stop: Position {
+                                                            column: 7,
+                                                            line: 9,
+                                                        },
                                                     },
-                                                ),
+                                                    token: Number(
+                                                        Number {
+                                                            int: "1",
+                                                            float: None,
+                                                            exp: None,
+                                                        },
+                                                    ),
+                                                },
                                             ),
                                             id: Id {
                                                 inner: 19,

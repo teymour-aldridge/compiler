@@ -3,11 +3,7 @@
 #[cfg(test)]
 mod test;
 
-use std::{
-    any::TypeId,
-    collections::{HashMap, HashSet},
-    iter::FromIterator,
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     id::{Id, TaggedAst},
@@ -72,15 +68,18 @@ pub struct TyEnv {
 }
 
 impl TyEnv {
-    pub(crate) fn is_empty(&self) -> bool {
+    #[allow(unused)]
+    fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
 
-    pub(crate) fn len(&self) -> usize {
+    #[allow(unused)]
+    fn len(&self) -> usize {
         self.map.len()
     }
 
     /// Obtain the type of the item in question (if it exists).
+    #[allow(unused)]
     pub(crate) fn ty_of(&self, id: Id) -> Option<Ty> {
         self.map.get(&id).and_then(|info| match info.ty {
             TyInfo::EqId(equal_to) => self.ty_of(equal_to),
@@ -132,7 +131,7 @@ fn unify(set: HashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheckEr
         Constraint::IdToTy { id, ty } => Some(Substitution::ConcreteForX(ty, id)),
         Constraint::IdToId { id, to } => {
             if id != to {
-                Some(Substitution::XforY(id, to))
+                Some(Substitution::XforY(to, id))
             } else {
                 None
             }
