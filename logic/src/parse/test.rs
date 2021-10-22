@@ -181,7 +181,10 @@ mod parse_reparse {
             (include_str!("examples/invalid-func2"), false),
             ("U", true),
             (include_str!("examples/multiple"), true),
-            (include_str!("examples/nested"), true)
+            (include_str!("examples/nested"), true),
+            (include_str!("examples/fuzzcheck/complex-expr"), true),
+            (include_str!("examples/fuzzcheck/floats"), true)
+            ("(1 + 2) * 3", true)
         ]
         // note: examples/invalid-expr and examples/invalid-expr2 are not
         // included here because I haven't figured out what is causing the stack

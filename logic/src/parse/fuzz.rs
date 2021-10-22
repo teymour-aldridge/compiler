@@ -22,9 +22,19 @@ fn run_test(input: &str) -> bool {
 
 #[test]
 fn fuzz_parser() {
-    let ident = repetition! {
-        literal!('a'..='z'),
-        0..50
+    let ident = concatenation! {
+        alternation! {
+            literal!('a'..='z'),
+            literal!('A'..='z')
+        },
+        repetition! {
+            alternation! {
+                literal!('a'..='z'),
+                literal!('A'..='z'),
+                literal!('_')
+            },
+            1..50
+        }
     };
 
     let string = concatenation! {

@@ -25,6 +25,7 @@ impl<'a> Parse<'a> for Expr<'a> {
 
 impl fmt::Display for Expr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_char('(')?;
         match self {
             Expr::Ident(ident) => ident.fmt(f),
             Expr::BinOp(operator, left, right) => {
@@ -49,7 +50,8 @@ impl fmt::Display for Expr<'_> {
                 }
                 f.write_char(')')
             }
-        }
+        }?;
+        f.write_char(')')
     }
 }
 
@@ -68,7 +70,22 @@ impl<'a> Expr<'a> {
     ) -> Result<Option<Self>, ParseError<'a>> {
         input.skip_whitespace()?;
         let mut lhs = {
-            if let Ok(_) = Ident::parse(&mut input.clone()) {
+            if input.starts_with('(') {
+                println!("starting");
+                dbg!(&input);
+                input.advance_one()?;
+                let expr = Self::parse_bp_stop_if(input, 0, stop_if)?;
+                input.skip_whitespace()?;
+                dbg!(&input);
+                println!("finished");
+                if input.starts_with(')') {
+                    input.advance_one()?;
+                    expr
+                } else {
+                    // todo: make a proper error about mismatched brackets
+                    return Err(ParseError::UnexpectedEndOfInput);
+                }
+            } else if let Ok(_) = Ident::parse(&mut input.clone()) {
                 let ident = Ident::parse(input)?;
 
                 input.skip_whitespace()?;
@@ -104,7 +121,11 @@ impl<'a> Expr<'a> {
         loop {
             input.skip_whitespace()?;
 
-            if input.is_empty() || input.starts_with('\n') || (stop_if)(&*input) {
+            if input.is_empty()
+                || input.starts_with('\n')
+                || (stop_if)(&*input)
+                || input.starts_with(')')
+            {
                 break;
             }
 
