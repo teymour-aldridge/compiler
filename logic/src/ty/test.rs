@@ -27,7 +27,6 @@ fn simple_type_check() {
         },
         _ => panic!(),
     };
-    dbg!(y);
     assert_eq!(ty_env.ty_of(x), Some(Ty::Int));
     assert_eq!(ty_env.ty_of(y), Some(Ty::Int))
 }

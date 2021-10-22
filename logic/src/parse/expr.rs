@@ -71,13 +71,9 @@ impl<'a> Expr<'a> {
         input.skip_whitespace()?;
         let mut lhs = {
             if input.starts_with('(') {
-                println!("starting");
-                dbg!(&input);
                 input.advance_one()?;
                 let expr = Self::parse_bp_stop_if(input, 0, stop_if)?;
                 input.skip_whitespace()?;
-                dbg!(&input);
-                println!("finished");
                 if input.starts_with(')') {
                     input.advance_one()?;
                     expr
