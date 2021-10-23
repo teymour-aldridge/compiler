@@ -14,7 +14,7 @@ fn main() {
 
     if args.is_empty() {
         println!("You must provide the name of the file you would like to compile!");
-        process::abort();
+        process::exit(1);
     }
 
     let file_name = args.get(1).unwrap();
