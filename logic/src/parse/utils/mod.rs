@@ -6,27 +6,58 @@ mod test;
 use core::fmt;
 use std::fmt::Write;
 
-use crate::diagnostics::{position::Position, span::Span};
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
+use crate::diagnostics::{
+    position::Position,
+    span::{IndexOnlySpan, Span},
+};
 
 pub trait Parse<'a>: Sized {
-    fn parse(input: &mut Input<'a>) -> Result<Self, ParseError<'a>>;
+    fn parse(input: &mut Input<'a>) -> Result<Self, ParseError>;
 }
 
 // todo: convert this into a `Diagnostic` (also create that struct as well)
 #[derive(Debug)]
-pub enum ParseError<'a> {
+pub enum ParseError {
     UnexpectedToken {
-        token: &'a str,
         explanation: String,
+        span: IndexOnlySpan,
     },
     UnexpectedEndOfInput,
     /// An assumption the parser makes turns out not to be correct.
     InternalError,
     InvalidWhitespace {
-        span: Span,
+        span: IndexOnlySpan,
         explanation: String,
     },
     __NonExhaustive,
+}
+
+impl ParseError {
+    /// Turns the parse error in question into a reportable error message.
+    pub fn report(&self, id: usize) -> Diagnostic<usize> {
+        let diagnostic: Diagnostic<usize> =
+            Diagnostic::error().with_message("Your program contains a syntax error!");
+        match self {
+            ParseError::UnexpectedToken { explanation, span }
+            | ParseError::InvalidWhitespace { explanation, span } => diagnostic.with_labels(vec![
+                Label::primary(id, span.range()).with_message(explanation),
+            ]),
+            ParseError::UnexpectedEndOfInput => {
+                Diagnostic::error().with_message("Unexpected end of input.")
+            }
+            ParseError::InternalError => Diagnostic::error().with_message(
+                "Internal compiler error! Please report this
+                at https://github.com/bailion/compiler",
+            ),
+            ParseError::__NonExhaustive => Diagnostic::error().with_message(
+                "__NonExhaustive.
+                You're welcome for this unhelpful message. Fear not – a proper error message will
+                (hopefully) replace it soon.",
+            ),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -55,12 +86,12 @@ impl<'a> Input<'a> {
 
     /// Parses zero or more whitespace units (excluding new lines) and then one
     /// new line
-    pub fn advance_whitespace_and_new_line(&mut self) -> Result<(), ParseError<'a>> {
+    pub fn advance_whitespace_and_new_line(&mut self) -> Result<(), ParseError> {
         self.skip_whitespace()?;
         self.parse_token("\n").map(drop)
     }
 
-    pub fn parse_token(&mut self, token: &str) -> Result<&'a str, ParseError<'a>> {
+    pub fn parse_token(&mut self, token: &str) -> Result<&'a str, ParseError> {
         let peek = self
             .peek_n(token.len())
             .ok_or_else(|| ParseError::UnexpectedEndOfInput)?;
@@ -69,22 +100,22 @@ impl<'a> Input<'a> {
             Ok(peek)
         } else {
             Err(ParseError::UnexpectedToken {
-                token: peek,
                 explanation: format!(
                     "Expected `{}` in this position, however, instead there was `{}`",
                     token, peek
                 ),
+                span: IndexOnlySpan::new(self.position.index, self.position.index + token.len()),
             })
         };
         ret
     }
 
-    pub fn delimited_list<P: Fn(&mut Input<'a>) -> Result<T, ParseError<'a>>, T>(
+    pub fn delimited_list<P: Fn(&mut Input<'a>) -> Result<T, ParseError>, T>(
         &mut self,
         function: P,
         stop_delimiter: char,
         interspacer: &str,
-    ) -> Result<Vec<T>, ParseError<'a>> {
+    ) -> Result<Vec<T>, ParseError> {
         let mut ret = vec![];
         loop {
             let parsed = (function)(self)?;
@@ -121,17 +152,18 @@ impl<'a> Input<'a> {
     }
 
     /// Attempts to advance the stream by one character.
-    pub fn advance_one(&mut self) -> Result<&'a str, ParseError<'a>> {
+    pub fn advance_one(&mut self) -> Result<&'a str, ParseError> {
         self.advance_n(1)
     }
 
     /// Advance n characters
-    pub fn advance_n(&mut self, n: usize) -> Result<&'a str, ParseError<'a>> {
+    pub fn advance_n(&mut self, n: usize) -> Result<&'a str, ParseError> {
         let n = n - 1;
         if let Some((index, _)) = self.inner.char_indices().nth(n) {
             if let (Some(ret), slice) = (self.inner.get(..=index), self.inner.get(index + 1..)) {
                 self.inner = slice.unwrap_or("");
                 self.position = ret.chars().fold(self.position, |mut position, char| {
+                    position.index += char.len_utf8();
                     if char == '\n' {
                         position.line += 1;
                         position.column = 0;
@@ -157,7 +189,7 @@ impl<'a> Input<'a> {
         &mut self,
         stop_eating_if_true: impl Fn(char) -> bool,
         should_error_if_reaches_end: bool,
-    ) -> Result<&'a str, ParseError<'a>> {
+    ) -> Result<&'a str, ParseError> {
         let mut n = 0;
 
         loop {
@@ -189,10 +221,7 @@ impl<'a> Input<'a> {
 
     /// Eats until the provided funtion `stop_when` is true. If this function reaches the end of
     /// the input, it will return an error.
-    pub fn eat_until(
-        &mut self,
-        stop_when: impl Fn(char) -> bool,
-    ) -> Result<&'a str, ParseError<'a>> {
+    pub fn eat_until(&mut self, stop_when: impl Fn(char) -> bool) -> Result<&'a str, ParseError> {
         self.eat_until_inner(stop_when, true)
     }
 
@@ -201,7 +230,7 @@ impl<'a> Input<'a> {
     pub fn eat_until_or_end(
         &mut self,
         stop_when: impl Fn(char) -> bool,
-    ) -> Result<&'a str, ParseError<'a>> {
+    ) -> Result<&'a str, ParseError> {
         self.eat_until_inner(stop_when, false)
     }
 
@@ -220,17 +249,20 @@ impl<'a> Input<'a> {
         &self.position
     }
 
-    pub fn skip_whitespace(&mut self) -> Result<(), ParseError<'a>> {
+    pub fn skip_whitespace(&mut self) -> Result<(), ParseError> {
         self.eat_until_or_end(|input| !input.is_whitespace() || input == '\n')
             .map(drop)
     }
 
-    pub fn assert_new_line(&self) -> Result<(), ParseError<'a>> {
+    pub fn assert_new_line(&self) -> Result<(), ParseError> {
         match self.chars().next() {
             Some('\n') | None => Ok(()),
             Some(_) => Err(ParseError::UnexpectedToken {
-                token: self.peek_n(1).unwrap_or(""),
-                explanation: "Expected a new line here, but found this instead.".to_string(),
+                explanation: "Expected a new line here!".to_string(),
+                span: IndexOnlySpan::new(
+                    self.position.index,
+                    self.position.index + self.peek_char().unwrap().len_utf8(),
+                ),
             }),
         }
     }
@@ -271,7 +303,7 @@ impl<'a> Input<'a> {
         self.indent -= by;
     }
 
-    pub fn count_indent(&self) -> Result<usize, ParseError<'a>> {
+    pub fn count_indent(&self) -> Result<usize, ParseError> {
         let mut iter = self.chars();
         let mut total = 0;
 
@@ -288,7 +320,7 @@ impl<'a> Input<'a> {
         Ok(total)
     }
 
-    pub fn advance_indent(&mut self) -> Result<(), ParseError<'a>> {
+    pub fn advance_indent(&mut self) -> Result<(), ParseError> {
         let start_recording = self.start_recording();
         let mut whitespace_units = 0;
 
@@ -315,7 +347,7 @@ impl<'a> Input<'a> {
             Ok(())
         } else {
             return Err(ParseError::InvalidWhitespace {
-                span: start_recording.finish_recording(&self),
+                span: start_recording.finish_recording(&self).into(),
                 explanation: format!(
                     "Expected exactly {} spaces here, but instead found {} spaces.",
                     self.indent, whitespace_units

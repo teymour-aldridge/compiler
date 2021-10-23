@@ -13,7 +13,7 @@ pub struct While<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
 }
 
 impl<'a> Parse<'a> for While<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         let rec = input.start_recording();
         input.parse_token("while")?;
         input.skip_whitespace()?;

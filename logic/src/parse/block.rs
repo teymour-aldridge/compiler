@@ -14,7 +14,7 @@ impl fmt::Display for Block<'_> {
 }
 
 impl<'a> Parse<'a> for Block<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         input.increment_indent(2);
         let res = Ok(Self {
             inner: Ast::parse(input)?,

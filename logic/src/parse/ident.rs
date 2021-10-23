@@ -3,7 +3,7 @@ use std::{
     hash,
 };
 
-use crate::diagnostics::span::{HasSpan, Span};
+use crate::diagnostics::span::{HasSpan, IndexOnlySpan, Span};
 
 use super::utils::{Parse, ParseError};
 
@@ -45,7 +45,7 @@ impl<'a> std::ops::Deref for Ident<'a> {
 }
 
 impl<'a> Parse<'a> for Ident<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         input.skip_whitespace()?;
         let rec = input.start_recording();
         input
@@ -57,11 +57,11 @@ impl<'a> Parse<'a> for Ident<'a> {
                     Err(ParseError::__NonExhaustive)
                 } else if KEYWORDS.contains(&inner) {
                     Err(ParseError::UnexpectedToken {
-                        token: inner,
                         explanation: format!(
                             "Expected an identifier here, but `{}` is a keyword.",
                             inner
                         ),
+                        span: { IndexOnlySpan::from(rec.finish_recording(input)) },
                     })
                 } else {
                     Ok(Self {

@@ -19,7 +19,7 @@ pub struct Func<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
 }
 
 impl<'a> Parse<'a> for Func<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         input.advance_indent()?;
         input.parse_token("function")?;
         input.skip_whitespace()?;
@@ -73,7 +73,7 @@ pub struct Return<'a, EXPR = Expr<'a>> {
 }
 
 impl<'a> Parse<'a> for Return<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         input.parse_token("return ")?;
 
         Ok(Self {

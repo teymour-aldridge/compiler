@@ -45,7 +45,7 @@ impl fmt::Display for Ast<'_> {
 }
 
 impl<'a> Parse<'a> for Ast<'a> {
-    fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
+    fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError> {
         let mut nodes = vec![];
         loop {
             loop {
@@ -96,7 +96,7 @@ impl<'a, IDENT, EXPR> Node<'a, IDENT, EXPR> {
 }
 
 impl<'a> Parse<'a> for Node<'a> {
-    fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError<'a>> {
+    fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError> {
         if input.starts_with("for ") {
             ForLoop::parse(input).map(Self::For)
         } else if input.starts_with("return ") {
@@ -126,7 +126,7 @@ impl fmt::Display for Node<'_> {
     }
 }
 
-pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseError<'a>> {
+pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseError> {
     let mut input = Input::new(input);
     Ast::parse(&mut input)
 }

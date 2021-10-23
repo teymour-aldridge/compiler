@@ -1,4 +1,29 @@
+use std::ops::Range;
+
 use super::position::Position;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct IndexOnlySpan {
+    start: usize,
+    stop: usize,
+}
+
+impl IndexOnlySpan {
+    pub fn new(start: usize, stop: usize) -> Self {
+        debug_assert!(stop >= start);
+        Self { start, stop }
+    }
+
+    pub fn range(&self) -> Range<usize> {
+        self.start..self.stop
+    }
+}
+
+impl From<Span> for IndexOnlySpan {
+    fn from(s: Span) -> Self {
+        Self::new(s.start.index, s.stop.index)
+    }
+}
 
 #[derive(Copy, Clone, Debug, Eq)]
 pub struct Span {
@@ -18,6 +43,10 @@ impl PartialEq for Span {
 impl Span {
     pub fn new(start: Position, stop: Position) -> Self {
         Self { start, stop }
+    }
+
+    pub fn range(&self) -> (usize, usize) {
+        (self.start.index, self.stop.index)
     }
 }
 

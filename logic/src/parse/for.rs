@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{fmt::Write, marker::PhantomData};
 
-use crate::diagnostics::span::Span;
+use crate::diagnostics::span::{HasSpan, IndexOnlySpan, Span};
 
 use super::{
     block::Block,
@@ -20,7 +20,7 @@ pub struct ForLoop<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
 }
 
 impl<'a> Parse<'a> for ForLoop<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         let rec = input.start_recording();
         input.parse_token("for")?;
         input.skip_whitespace()?;
@@ -43,11 +43,11 @@ impl<'a> Parse<'a> for ForLoop<'a> {
 
         if *ident != *var {
             return Err(ParseError::UnexpectedToken {
-                token: *ident,
                 explanation: format!(
                     "Expected the identifier `{}` here, but instead found `{}`.",
                     *var, *ident
                 ),
+                span: IndexOnlySpan::from(ident.span()),
             });
         }
 
@@ -55,8 +55,11 @@ impl<'a> Parse<'a> for ForLoop<'a> {
 
         if !input.is_empty() && input.chars().next() != Some('\n') {
             return Err(ParseError::UnexpectedToken {
-                token: input.peek_n(1).unwrap_or(""),
                 explanation: "Expected a new line here.".to_string(),
+                span: {
+                    let moved = input.chars().next().unwrap().len_utf8();
+                    IndexOnlySpan::new(input.position().index, input.position().index + moved)
+                },
             });
         }
 
@@ -102,7 +105,7 @@ pub struct Between<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
 }
 
 impl<'a> Parse<'a> for Between<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         let start = Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("to"))?
             .ok_or(ParseError::__NonExhaustive)?;
 

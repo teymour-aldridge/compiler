@@ -26,7 +26,7 @@ impl fmt::Display for Literal<'_> {
 }
 
 impl<'a> Parse<'a> for Literal<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, ParseError> {
         input.skip_whitespace()?;
         if input.starts_with('"') {
             input.parse_token("\"")?;
@@ -68,7 +68,7 @@ impl fmt::Display for Number<'_> {
 }
 
 impl<'a> Parse<'a> for Number<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         enum State {
             Int,
             Float(usize),

@@ -1,6 +1,8 @@
 use std::fmt::{self, Display, Write};
 
-use crate::diagnostics::span::Spanned;
+use crate::{
+    diagnostics::span::{IndexOnlySpan, Spanned},
+};
 
 use super::{
     ident::Ident,
@@ -18,7 +20,7 @@ pub enum Expr<'a, IDENT = Ident<'a>> {
 }
 
 impl<'a> Parse<'a> for Expr<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         Self::parse_bp(input, 0).and_then(|op| op.ok_or(ParseError::__NonExhaustive))
     }
 }
@@ -56,10 +58,7 @@ impl fmt::Display for Expr<'_> {
 }
 
 impl<'a> Expr<'a> {
-    pub(crate) fn parse_bp(
-        input: &mut Input<'a>,
-        min_bp: u8,
-    ) -> Result<Option<Self>, ParseError<'a>> {
+    pub(crate) fn parse_bp(input: &mut Input<'a>, min_bp: u8) -> Result<Option<Self>, ParseError> {
         Self::parse_bp_stop_if(input, min_bp, |_| false)
     }
 
@@ -67,7 +66,7 @@ impl<'a> Expr<'a> {
         input: &mut Input<'a>,
         min_bp: u8,
         stop_if: impl Fn(&str) -> bool + Copy,
-    ) -> Result<Option<Self>, ParseError<'a>> {
+    ) -> Result<Option<Self>, ParseError> {
         input.skip_whitespace()?;
         let mut lhs = {
             if input.starts_with('(') {
@@ -87,7 +86,7 @@ impl<'a> Expr<'a> {
                 input.skip_whitespace()?;
 
                 if let Some('(') = input.peek_char() {
-                    fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError<'a>> {
+                    fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError> {
                         Expr::parse_bp_stop_if(input, 0, |input| {
                             input.starts_with(")") || input.starts_with(",")
                         })
@@ -180,7 +179,8 @@ pub enum Op {
 }
 
 impl Op {
-    fn parse<'a>(input: &mut Input<'a>, prefix: bool) -> Result<Self, ParseError<'a>> {
+    fn parse<'a>(input: &mut Input<'a>, prefix: bool) -> Result<Self, ParseError> {
+        let rec = input.start_recording();
         input.skip_whitespace()?;
         Ok(match input.advance_one()? {
             "+" if !prefix => Op::BinOp(BinOp::Add),
@@ -192,11 +192,14 @@ impl Op {
             "=" => Op::BinOp(BinOp::SetEquals),
             token => {
                 return Err(ParseError::UnexpectedToken {
-                    token,
                     explanation: format!(
                         "Expected an operator here. Instead we found `{}`.",
                         token
                     ),
+                    span: {
+                        let span = rec.finish_recording(input);
+                        IndexOnlySpan::from(span)
+                    },
                 })
             }
         })

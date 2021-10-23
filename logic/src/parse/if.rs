@@ -17,7 +17,7 @@ pub struct If<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
 }
 
 impl<'a> Parse<'a> for If<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError<'a>> {
+    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         let rec = input.start_recording();
 
         input.advance_indent()?;
