@@ -1,0 +1,4 @@
+for i= 1715 to -(0.4e5) step (+(Cg))
+  "e_"
+next i
+U_((((6.4e8-("dZ"/(fa*+(HT)))))), dX)
