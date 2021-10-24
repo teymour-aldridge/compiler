@@ -7,7 +7,7 @@ use codespan_reporting::{
         termcolor::{ColorChoice, StandardStream},
     },
 };
-use logic::parse;
+use logic::{id::tag, parse, ty::type_check};
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();
@@ -28,7 +28,7 @@ fn main() {
     let mut writer = StandardStream::stderr(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();
 
-    let _ = match parse::parse(&input) {
+    let ast = match parse::parse(&input) {
         Ok(ast) => ast,
         Err(error) => {
             let report = error.report(file_id);
@@ -36,4 +36,12 @@ fn main() {
             return;
         }
     };
+
+    let tagged = tag(ast);
+
+    let _ = type_check(&tagged).unwrap();
+
+    // todo: codegen
+
+    // todo: execute the generated code
 }
