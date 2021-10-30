@@ -1,6 +1,2 @@
 [workspace]
-members = ["logic", "cli", "tests/fuzz_parser", "tests/codegen"]
-
-[profile.release]
-codegen-units = 1
-lto = "thin" # maybe not necessary
+members = ["logic", "cli", "tests/codegen"]
