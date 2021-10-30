@@ -69,6 +69,7 @@ pub struct TyEnv {
 
 impl TyEnv {
     /// Obtain a reference to the underlying hash map.
+    #[allow(unused)]
     pub(crate) fn map(&self) -> &HashMap<Id, Info> {
         &self.map
     }

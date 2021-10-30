@@ -7,8 +7,7 @@ use std::convert::TryInto;
 use cranelift_codegen::{
     binemit::{NullStackMapSink, NullTrapSink},
     entity::EntityRef,
-    ir::{self, AbiParam, ExternalName, Function, InstBuilder, Signature},
-    isa::CallConv,
+    ir::{self, AbiParam, InstBuilder},
     Context,
 };
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
@@ -76,26 +75,25 @@ impl<'ctx> Compiler<'ctx> {
     /// Todo:
     ///  - add debuginfo
     fn compile_func(&mut self, func: &TaggedFunc) {
-        let signature = {
-            let returns = self
-                .ty_env
-                .ty_of(func.name.id)
-                .map(Self::cranelift_of_ty)
-                .unwrap();
-            let returns = AbiParam::new(returns);
-            self.context.func.signature.returns = vec![returns];
+        // set up the signature
+        let returns = self
+            .ty_env
+            .ty_of(func.name.id)
+            .map(Self::cranelift_of_ty)
+            .unwrap();
+        let returns = AbiParam::new(returns);
+        self.context.func.signature.returns = vec![returns];
 
-            let parameters = func
-                .parameters
-                .iter()
-                .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
-                .map(Self::cranelift_of_ty)
-                .map(AbiParam::new)
-                .collect::<Vec<_>>();
-            for param in parameters {
-                self.context.func.signature.params.push(param);
-            }
-        };
+        let parameters = func
+            .parameters
+            .iter()
+            .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
+            .map(Self::cranelift_of_ty)
+            .map(AbiParam::new)
+            .collect::<Vec<_>>();
+        for param in parameters {
+            self.context.func.signature.params.push(param);
+        }
 
         let func_id = self
             .module
@@ -135,7 +133,7 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         let mut function_compiler =
-            FunctionCompiler::new(&mut function_builder, func, self.ty_env, &mut self.module);
+            FunctionCompiler::new(&mut function_builder, self.ty_env, &mut self.module);
 
         function_compiler.compile_block(&func.block);
 
@@ -155,7 +153,6 @@ impl<'ctx> Compiler<'ctx> {
 /// Compiles one specific function.
 struct FunctionCompiler<'ctx, 'builder> {
     builder: &'builder mut FunctionBuilder<'ctx>,
-    func: &'builder TaggedFunc<'ctx>,
     ty_env: &'ctx TyEnv,
     module: &'builder mut ObjectModule,
 }
@@ -163,13 +160,11 @@ struct FunctionCompiler<'ctx, 'builder> {
 impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
     fn new(
         function: &'builder mut FunctionBuilder<'ctx>,
-        func: &'builder TaggedFunc<'ctx>,
         ty_env: &'ctx TyEnv,
         module: &'builder mut ObjectModule,
     ) -> Self {
         Self {
             builder: function,
-            func,
             ty_env,
             module,
         }
@@ -207,10 +202,10 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
             crate::id::TaggedExprInner::Literal(lit) => match &lit.token {
                 crate::parse::lit::Literal::String(_) => todo!(),
                 crate::parse::lit::Literal::Number(number) => {
-                    if let Some(float) = number.float {
+                    if let Some(_) = number.float {
                         panic!("Floats are not yet supported.")
                     }
-                    if let Some(exp) = number.exp {
+                    if let Some(_) = number.exp {
                         panic!("Exponents are not yet supported!")
                     }
 
@@ -326,7 +321,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         }
     }
 
-    fn compile_for(&self, stmt: &TaggedFor) {
+    fn compile_for(&self, _: &TaggedFor) {
         panic!("compilation of for loops is not yet implemented")
     }
 
