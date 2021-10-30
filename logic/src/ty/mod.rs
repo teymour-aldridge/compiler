@@ -4,6 +4,7 @@
 mod test;
 
 #[cfg(test)]
+#[cfg(not(disable_fuzzcheck))]
 mod fuzz;
 
 use std::collections::{HashMap, HashSet};

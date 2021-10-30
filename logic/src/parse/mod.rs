@@ -21,6 +21,7 @@ pub mod utils;
 pub mod r#while;
 
 #[cfg(test)]
+#[cfg(not(disable_fuzzcheck))]
 mod fuzz;
 #[cfg(test)]
 mod test;
