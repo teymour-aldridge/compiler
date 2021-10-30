@@ -45,6 +45,10 @@ impl Id {
     pub fn new(inner: usize) -> Self {
         Self { inner }
     }
+
+    pub fn raw_id(&self) -> usize {
+        self.inner
+    }
 }
 
 impl fmt::Display for Id {
@@ -168,6 +172,10 @@ pub type TaggedIdent<'a> = Tagged<Ident<'a>>;
 pub type TaggedFunc<'a> = Func<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedBlock<'a> = Block<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedBranch<'a> = Branch<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedFor<'a> = ForLoop<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedIf<'a> = If<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedWhile<'a> = While<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
+pub type TaggedReturn<'a> = Return<'a, TaggedExpr<'a>>;
 
 fn tagged_ast<'a>(ast: Ast<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedAst<'a> {
     ctx.push_scope();

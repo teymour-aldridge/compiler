@@ -47,9 +47,20 @@ impl<'a> Parse<'a> for Literal<'a> {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Number<'a> {
-    int: &'a str,
-    float: Option<&'a str>,
-    exp: Option<&'a str>,
+    pub(crate) int: &'a str,
+    pub(crate) float: Option<&'a str>,
+    pub(crate) exp: Option<&'a str>,
+}
+
+impl Number<'_> {
+    pub(crate) fn as_int(&self) -> i32 {
+        let int_part = self.int.parse::<i32>().unwrap();
+        if let Some(exp) = self.exp {
+            i32::pow(int_part, exp.parse::<u32>().unwrap())
+        } else {
+            int_part
+        }
+    }
 }
 
 impl fmt::Display for Number<'_> {

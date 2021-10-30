@@ -314,6 +314,5 @@ fn fuzz_parser() {
         .default_sensor()
         .default_pool()
         .arguments_from_cargo_fuzzcheck()
-        .stop_after_first_test_failure(true)
         .launch();
 }

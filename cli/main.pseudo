@@ -1,1 +1,5 @@
-(1 ( 2)
+function main(a, b)
+  return a - b
+endfunction
+
+main(3, 1)

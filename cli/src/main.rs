@@ -7,7 +7,7 @@ use codespan_reporting::{
         termcolor::{ColorChoice, StandardStream},
     },
 };
-use logic::{id::tag, parse, ty::type_check};
+use logic::{codegen::compile, id::tag, parse, ty::type_check};
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();
@@ -39,9 +39,9 @@ fn main() {
 
     let tagged = tag(ast);
 
-    let _ = type_check(&tagged).unwrap();
+    dbg!(&tagged);
 
-    // todo: codegen
+    let env = type_check(&tagged).unwrap();
 
-    // todo: execute the generated code
+    compile(&tagged, &env);
 }
