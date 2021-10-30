@@ -230,7 +230,32 @@ fn collect_expr(
                 }),
         },
         crate::id::TaggedExprInner::FunctionCall(func, params) => {
-            if let Some(function) = definitions.iter().find(|function| function.name == *func) {
+            if *func.token == "print_int" {
+                if params.len() != 1 {
+                    return Err(ConstraintGatheringError::MismatchedFunctionCall {
+                        span: func.span(),
+                        explanation: format!(
+                            "This function accepts 1
+                            parameter, but you've called it with `{}` arguments.",
+                            params.len()
+                        ),
+                    });
+                }
+
+                let param = &params[0];
+                constraints.push(Constraint::IdToTy {
+                    id: param.id,
+                    ty: Ty::Int,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: expr.id,
+                    to: param.id,
+                });
+                constraints.extend(collect_expr(&param, definitions, None)?);
+            } else if let Some(function) = definitions
+                .iter()
+                .find(|function| function.name.token == func.token)
+            {
                 if function.parameters.len() != params.len() {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
                         span: func.span(),
@@ -251,6 +276,8 @@ fn collect_expr(
                     to: expr.id,
                 });
             } else {
+                dbg!(&*func);
+                dbg!(definitions);
                 return Err(ConstraintGatheringError::UnresolvableFunction {
                     span: func.span(),
                     explanation: {

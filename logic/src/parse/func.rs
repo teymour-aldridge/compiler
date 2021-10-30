@@ -27,7 +27,13 @@ impl<'a> Parse<'a> for Func<'a> {
         input.skip_whitespace()?;
         input.parse_token("(")?;
 
-        let parameters = input.delimited_list(Ident::parse, ')', ",")?;
+        input.skip_whitespace()?;
+
+        let parameters = if !input.starts_with(")") {
+            input.delimited_list(Ident::parse, ')', ",")?
+        } else {
+            vec![]
+        };
 
         input.parse_token(")")?;
 

@@ -1,5 +1,4 @@
-function main(a, b)
-  return a - b
+function main()
+  print_int(7 * 6)
+  return 0
 endfunction
-
-main(3, 1)

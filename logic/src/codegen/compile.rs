@@ -76,11 +76,14 @@ impl<'ctx> Compiler<'ctx> {
     ///  - add debuginfo
     fn compile_func(&mut self, func: &TaggedFunc) {
         // set up the signature
-        let returns = self
-            .ty_env
-            .ty_of(func.name.id)
-            .map(Self::cranelift_of_ty)
-            .unwrap();
+        let returns = if *func.name.token == "print_int" {
+            Self::cranelift_of_ty(Ty::Int)
+        } else {
+            self.ty_env
+                .ty_of(func.name.id)
+                .map(Self::cranelift_of_ty)
+                .unwrap()
+        };
         let returns = AbiParam::new(returns);
         self.context.func.signature.returns = vec![returns];
 
@@ -255,34 +258,53 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
             },
             crate::id::TaggedExprInner::UnOp(_, _) => todo!(),
             crate::id::TaggedExprInner::FunctionCall(name, params) => {
-                let mut sig = self.module.make_signature();
+                let local_callee = match *name.token {
+                    "print_int" => {
+                        let mut sig = self.module.make_signature();
+                        sig.params
+                            .push(AbiParam::new(Compiler::cranelift_of_ty(Ty::Int)));
+                        sig.returns
+                            .push(AbiParam::new(Compiler::cranelift_of_ty(Ty::Int)));
+                        let func_id = self
+                            .module
+                            .declare_function("print_int", Linkage::Import, &sig)
+                            .unwrap();
+                        let local_callee =
+                            self.module.declare_func_in_func(func_id, self.builder.func);
+                        local_callee
+                    }
+                    _ => {
+                        let mut sig = self.module.make_signature();
 
-                for param in params {
-                    sig.params.push(AbiParam::new(
-                        self.ty_env
-                            .ty_of(param.id)
-                            .map(Compiler::cranelift_of_ty)
-                            .unwrap(),
-                    ))
-                }
+                        for param in params {
+                            sig.params.push(AbiParam::new(
+                                self.ty_env
+                                    .ty_of(param.id)
+                                    .map(Compiler::cranelift_of_ty)
+                                    .unwrap(),
+                            ))
+                        }
 
-                sig.returns.push(AbiParam::new(
-                    self.ty_env
-                        .ty_of(name.id)
-                        .map(Compiler::cranelift_of_ty)
-                        .unwrap(),
-                ));
+                        sig.returns.push(AbiParam::new(
+                            self.ty_env
+                                .ty_of(name.id)
+                                .map(Compiler::cranelift_of_ty)
+                                .unwrap(),
+                        ));
 
-                let callee = match self.module.get_name(*name.token).unwrap() {
-                    cranelift_module::FuncOrDataId::Func(func_id) => func_id,
-                    cranelift_module::FuncOrDataId::Data(_) => {
-                        unreachable!()
-                        // (or so I believe :D)
+                        let callee = match self.module.get_name(*name.token).unwrap() {
+                            cranelift_module::FuncOrDataId::Func(func_id) => func_id,
+                            cranelift_module::FuncOrDataId::Data(_) => {
+                                unreachable!()
+                                // (or so I believe :D)
+                            }
+                        };
+
+                        let local_callee =
+                            self.module.declare_func_in_func(callee, self.builder.func);
+                        local_callee
                     }
                 };
-
-                let local_callee = self.module.declare_func_in_func(callee, self.builder.func);
-
                 let arg_values = params
                     .iter()
                     .map(|param| self.compile_expr(param))
