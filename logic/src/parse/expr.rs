@@ -1,8 +1,6 @@
 use std::fmt::{self, Display, Write};
 
-use crate::{
-    diagnostics::span::{IndexOnlySpan, Spanned},
-};
+use crate::diagnostics::span::{IndexOnlySpan, Spanned};
 
 use super::{
     ident::Ident,
