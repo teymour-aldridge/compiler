@@ -39,8 +39,6 @@ fn main() {
 
     let tagged = tag(ast);
 
-    dbg!(&tagged);
-
     let env = type_check(&tagged).unwrap();
 
     compile(&tagged, &env);

@@ -61,95 +61,89 @@ impl<'ctx> Compiler<'ctx> {
             _ => None,
         });
 
+        let mut function_builder_context = FunctionBuilderContext::new();
+
         for func in functions {
-            self.compile_func(func);
+            // set up the signature
+            let returns = if *func.name.token == "print_int" {
+                Self::cranelift_of_ty(Ty::Int)
+            } else {
+                self.ty_env
+                    .ty_of(func.name.id)
+                    .map(Self::cranelift_of_ty)
+                    .unwrap()
+            };
+            let returns = AbiParam::new(returns);
+            self.context.func.signature.returns = vec![returns];
+
+            let parameters = func
+                .parameters
+                .iter()
+                .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
+                .map(Self::cranelift_of_ty)
+                .map(AbiParam::new)
+                .collect::<Vec<_>>();
+            for param in parameters {
+                self.context.func.signature.params.push(param);
+            }
+
+            let func_id = self
+                .module
+                .declare_function(
+                    *func.name.token,
+                    Linkage::Export,
+                    &self.context.func.signature,
+                )
+                .unwrap();
+
+            let mut function_builder =
+                FunctionBuilder::new(&mut self.context.func, &mut function_builder_context);
+
+            let entry_block = function_builder.create_block();
+
+            function_builder.append_block_params_for_function_params(entry_block);
+
+            function_builder.switch_to_block(entry_block);
+
+            function_builder.seal_block(entry_block);
+
+            for (i, param) in func.parameters.iter().enumerate() {
+                let var = Variable::new(param.id.raw_id());
+                function_builder.declare_var(
+                    var,
+                    self.ty_env
+                        .ty_of(param.id)
+                        .map(Compiler::cranelift_of_ty)
+                        .unwrap(),
+                );
+
+                let val = function_builder.block_params(entry_block)[i];
+
+                function_builder.def_var(var, val);
+            }
+
+            let mut function_compiler =
+                FunctionCompiler::new(&mut function_builder, self.ty_env, &mut self.module);
+
+            function_compiler.compile_block(&func.block);
+
+            function_compiler.builder.finalize();
+
+            self.module
+                .define_function(
+                    func_id,
+                    &mut self.context,
+                    &mut NullTrapSink {},
+                    &mut NullStackMapSink {},
+                )
+                .unwrap();
+
+            self.module.clear_context(&mut self.context);
         }
     }
 
     pub fn finish(self) -> ObjectProduct {
         self.module.finish()
-    }
-
-    /// Compiles a given function.
-    ///
-    /// Todo:
-    ///  - add debuginfo
-    fn compile_func(&mut self, func: &TaggedFunc) {
-        // set up the signature
-        let returns = if *func.name.token == "print_int" {
-            Self::cranelift_of_ty(Ty::Int)
-        } else {
-            self.ty_env
-                .ty_of(func.name.id)
-                .map(Self::cranelift_of_ty)
-                .unwrap()
-        };
-        let returns = AbiParam::new(returns);
-        self.context.func.signature.returns = vec![returns];
-
-        let parameters = func
-            .parameters
-            .iter()
-            .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
-            .map(Self::cranelift_of_ty)
-            .map(AbiParam::new)
-            .collect::<Vec<_>>();
-        for param in parameters {
-            self.context.func.signature.params.push(param);
-        }
-
-        let func_id = self
-            .module
-            .declare_function(
-                *func.name.token,
-                Linkage::Export,
-                &self.context.func.signature,
-            )
-            .unwrap();
-
-        let mut function_builder_context = FunctionBuilderContext::new();
-
-        let mut function_builder =
-            FunctionBuilder::new(&mut self.context.func, &mut function_builder_context);
-
-        let entry_block = function_builder.create_block();
-
-        function_builder.append_block_params_for_function_params(entry_block);
-
-        function_builder.switch_to_block(entry_block);
-
-        function_builder.seal_block(entry_block);
-
-        for (i, param) in func.parameters.iter().enumerate() {
-            let var = Variable::new(param.id.raw_id());
-            function_builder.declare_var(
-                var,
-                self.ty_env
-                    .ty_of(param.id)
-                    .map(Compiler::cranelift_of_ty)
-                    .unwrap(),
-            );
-
-            let val = function_builder.block_params(entry_block)[i];
-
-            function_builder.def_var(var, val);
-        }
-
-        let mut function_compiler =
-            FunctionCompiler::new(&mut function_builder, self.ty_env, &mut self.module);
-
-        function_compiler.compile_block(&func.block);
-
-        function_compiler.builder.finalize();
-
-        self.module
-            .define_function(
-                func_id,
-                &mut self.context,
-                &mut NullTrapSink {},
-                &mut NullStackMapSink {},
-            )
-            .unwrap();
     }
 }
 

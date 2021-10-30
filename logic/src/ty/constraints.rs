@@ -251,7 +251,7 @@ fn collect_expr(
                     id: expr.id,
                     to: param.id,
                 });
-                constraints.extend(collect_expr(&param, definitions, None)?);
+                constraints.extend(collect_expr(&param, definitions, Some(Ty::Int))?);
             } else if let Some(function) = definitions
                 .iter()
                 .find(|function| function.name.token == func.token)
@@ -276,8 +276,6 @@ fn collect_expr(
                     to: expr.id,
                 });
             } else {
-                dbg!(&*func);
-                dbg!(definitions);
                 return Err(ConstraintGatheringError::UnresolvableFunction {
                     span: func.span(),
                     explanation: {
