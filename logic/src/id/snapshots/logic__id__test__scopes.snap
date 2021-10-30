@@ -14,10 +14,12 @@ Ast {
                             start: Position {
                                 column: 4,
                                 line: 0,
+                                index: 4,
                             },
                             stop: Position {
                                 column: 5,
                                 line: 0,
+                                index: 5,
                             },
                         },
                     },
@@ -35,10 +37,12 @@ Ast {
                                         start: Position {
                                             column: 8,
                                             line: 0,
+                                            index: 8,
                                         },
                                         stop: Position {
                                             column: 9,
                                             line: 0,
+                                            index: 9,
                                         },
                                     },
                                 },
@@ -60,10 +64,12 @@ Ast {
                                         start: Position {
                                             column: 13,
                                             line: 0,
+                                            index: 13,
                                         },
                                         stop: Position {
                                             column: 14,
                                             line: 0,
+                                            index: 14,
                                         },
                                     },
                                 },
@@ -86,10 +92,12 @@ Ast {
                                             start: Position {
                                                 column: 20,
                                                 line: 0,
+                                                index: 20,
                                             },
                                             stop: Position {
                                                 column: 21,
                                                 line: 0,
+                                                index: 21,
                                             },
                                         },
                                     },
@@ -116,10 +124,12 @@ Ast {
                                                 start: Position {
                                                     column: 4,
                                                     line: 1,
+                                                    index: 26,
                                                 },
                                                 stop: Position {
                                                     column: 5,
                                                     line: 1,
+                                                    index: 27,
                                                 },
                                             },
                                             token: Add,
@@ -133,10 +143,12 @@ Ast {
                                                             start: Position {
                                                                 column: 2,
                                                                 line: 1,
+                                                                index: 24,
                                                             },
                                                             stop: Position {
                                                                 column: 3,
                                                                 line: 1,
+                                                                index: 25,
                                                             },
                                                         },
                                                     },
@@ -156,10 +168,12 @@ Ast {
                                                         start: Position {
                                                             column: 6,
                                                             line: 1,
+                                                            index: 28,
                                                         },
                                                         stop: Position {
                                                             column: 7,
                                                             line: 1,
+                                                            index: 29,
                                                         },
                                                     },
                                                     token: Number(
@@ -190,10 +204,12 @@ Ast {
                     start: Position {
                         column: 0,
                         line: 0,
+                        index: 0,
                     },
                     stop: Position {
                         column: 6,
                         line: 2,
+                        index: 36,
                     },
                 },
             },
@@ -209,10 +225,12 @@ Ast {
                                     start: Position {
                                         column: 6,
                                         line: 4,
+                                        index: 44,
                                     },
                                     stop: Position {
                                         column: 10,
                                         line: 4,
+                                        index: 48,
                                     },
                                 },
                             },
@@ -236,10 +254,12 @@ Ast {
                                                 start: Position {
                                                     column: 4,
                                                     line: 5,
+                                                    index: 53,
                                                 },
                                                 stop: Position {
                                                     column: 5,
                                                     line: 5,
+                                                    index: 54,
                                                 },
                                             },
                                             token: Add,
@@ -253,10 +273,12 @@ Ast {
                                                             start: Position {
                                                                 column: 2,
                                                                 line: 5,
+                                                                index: 51,
                                                             },
                                                             stop: Position {
                                                                 column: 3,
                                                                 line: 5,
+                                                                index: 52,
                                                             },
                                                         },
                                                     },
@@ -276,10 +298,12 @@ Ast {
                                                         start: Position {
                                                             column: 6,
                                                             line: 5,
+                                                            index: 55,
                                                         },
                                                         stop: Position {
                                                             column: 7,
                                                             line: 5,
+                                                            index: 56,
                                                         },
                                                     },
                                                     token: Number(
@@ -310,10 +334,12 @@ Ast {
                     start: Position {
                         column: 0,
                         line: 4,
+                        index: 38,
                     },
                     stop: Position {
                         column: 8,
                         line: 6,
+                        index: 65,
                     },
                 },
             },
@@ -327,10 +353,12 @@ Ast {
                             start: Position {
                                 column: 9,
                                 line: 8,
+                                index: 76,
                             },
                             stop: Position {
                                 column: 10,
                                 line: 8,
+                                index: 77,
                             },
                         },
                     },
@@ -346,10 +374,12 @@ Ast {
                                 start: Position {
                                     column: 11,
                                     line: 8,
+                                    index: 78,
                                 },
                                 stop: Position {
                                     column: 12,
                                     line: 8,
+                                    index: 79,
                                 },
                             },
                         },
@@ -369,10 +399,12 @@ Ast {
                                                 start: Position {
                                                     column: 4,
                                                     line: 9,
+                                                    index: 85,
                                                 },
                                                 stop: Position {
                                                     column: 5,
                                                     line: 9,
+                                                    index: 86,
                                                 },
                                             },
                                             token: Add,
@@ -386,10 +418,12 @@ Ast {
                                                             start: Position {
                                                                 column: 2,
                                                                 line: 9,
+                                                                index: 83,
                                                             },
                                                             stop: Position {
                                                                 column: 3,
                                                                 line: 9,
+                                                                index: 84,
                                                             },
                                                         },
                                                     },
@@ -409,10 +443,12 @@ Ast {
                                                         start: Position {
                                                             column: 6,
                                                             line: 9,
+                                                            index: 87,
                                                         },
                                                         stop: Position {
                                                             column: 7,
                                                             line: 9,
+                                                            index: 88,
                                                         },
                                                     },
                                                     token: Number(

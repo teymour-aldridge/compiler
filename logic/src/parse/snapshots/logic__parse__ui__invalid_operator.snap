@@ -1,0 +1,12 @@
+---
+source: logic/src/parse/ui.rs
+expression: string
+
+---
+error: Your program contains a syntax error!
+  ┌─ file:1:4
+  │
+1 │ (a b c)
+  │    ^ Expected an operator here. Instead we found `b`.
+
+

@@ -22,9 +22,10 @@ pub mod r#while;
 
 #[cfg(test)]
 mod fuzz;
-
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+pub mod ui;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Ast<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
