@@ -82,21 +82,10 @@ impl fmt::Display for Ident<'_> {
 
 #[cfg(test)]
 mod test_parse_valid_idents {
-    #[cfg(feature = "_proptest")]
-    use proptest::prelude::*;
-
     use crate::parse::{
         ident::Ident,
         utils::{Input, Parse},
     };
-
-    #[cfg(feature = "_proptest")]
-    proptest! {
-        #[test]
-        fn test(input in "[a-zA-Z0-9]+") {
-            test_inner(&input)
-        }
-    }
 
     fn test_inner(string: &str) {
         let mut input = Input::new(string);
