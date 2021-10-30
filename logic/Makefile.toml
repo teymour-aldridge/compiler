@@ -9,6 +9,17 @@ args = [
     "fuzz/artifacts",
 ]
 
+[tasks.fuzz_unifier]
+command = "cargo"
+toolchain = "nightly"
+args = [
+    "fuzzcheck",
+    "ty::fuzz::fuzz_unifier",
+    "fuzz",
+    "--artifacts",
+    "fuzz/artifacts",
+]
+
 [tasks.tests]
 command = "cargo"
 toolchain = "nightly"

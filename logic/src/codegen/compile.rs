@@ -16,10 +16,7 @@ use cranelift_object::{ObjectModule, ObjectProduct};
 
 use crate::codegen::make_module::make_module_for_compiler_host_architecture;
 use crate::{
-    id::{
-        TaggedAst, TaggedBlock, TaggedExpr, TaggedFor, TaggedFunc, TaggedIf, TaggedReturn,
-        TaggedWhile,
-    },
+    id::{TaggedAst, TaggedBlock, TaggedExpr, TaggedFor, TaggedIf, TaggedReturn, TaggedWhile},
     parse::expr::BinOp,
     ty::{Ty, TyEnv},
 };

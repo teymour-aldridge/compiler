@@ -32,6 +32,27 @@ fn simple_type_check() {
 }
 
 #[test]
+fn factorial_type_check() {
+    let tree = crate::parse::parse(include_str!("examples/factorial")).unwrap();
+    let tagged = tag(tree);
+
+    let ty_env = type_check(&tagged).expect("failed to type check");
+
+    let main = match &tagged.nodes[0] {
+        crate::parse::Node::Func(ref func) => func.name.id,
+        _ => panic!("failed to find type inferred for `main` function"),
+    };
+
+    let factorial = match &tagged.nodes[1] {
+        crate::parse::Node::Func(ref func) => func.name.id,
+        _ => panic!("failed to find type inferred for `factorial` function"),
+    };
+
+    assert_eq!(ty_env.ty_of(main), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(factorial), Some(Ty::Int))
+}
+
+#[test]
 fn simple_unify_check() {
     let set = HashSet::from_iter(vec![
         Constraint::IdToTy {

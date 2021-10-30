@@ -4,8 +4,6 @@ use fuzzcheck::{
     recurse, recursive, repetition, SerdeSerializer,
 };
 
-use crate::parse::expr;
-
 use super::parse;
 
 fn run_test(input: &str) -> bool {

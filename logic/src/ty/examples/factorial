@@ -1,0 +1,8 @@
+function main()
+  print_int(factorial(n - 1))
+  return 0
+endfunction
+
+function factorial(n)
+  return n * factorial(n - 1)
+endfunction

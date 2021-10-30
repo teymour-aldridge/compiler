@@ -18,3 +18,4 @@ codegen = { path = "../tests/codegen" }
 fuzzcheck = "0.8.0"
 insta = "1.8.0"
 rustversion = "1.0.5"
+serde = { version = "1.0.130", features = ["derive"] }

@@ -1,4 +1,8 @@
+function square(n)
+  return n * n * 1
+endfunction
+
 function main()
-  print_int(10 * 9 * 8 * 7 * 6 * 5 * 4 * 3 * 2 * 1)
+  print_int(square(3))
   return 0
 endfunction

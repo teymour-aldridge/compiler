@@ -3,6 +3,9 @@
 #[cfg(test)]
 mod test;
 
+#[cfg(test)]
+mod fuzz;
+
 use std::collections::{HashMap, HashSet};
 
 use crate::{
