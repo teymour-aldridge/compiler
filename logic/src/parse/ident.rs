@@ -54,7 +54,14 @@ impl<'a> Parse<'a> for Ident<'a> {
                 if inner.is_empty() {
                     Err(ParseError::UnexpectedEndOfInput)
                 } else if !inner.chars().next().unwrap().is_alphabetic() {
-                    Err(ParseError::__NonExhaustive)
+                    Err(ParseError::InvalidIdent {
+                        span: input.finish_recording(rec).into(),
+                        explanation: format!(
+                            "The identifier you have provided is not valid,
+                            because it starts with `{}` instead of a letter!",
+                            inner.chars().next().unwrap()
+                        ),
+                    })
                 } else if KEYWORDS.contains(&inner) {
                     Err(ParseError::UnexpectedToken {
                         explanation: format!(

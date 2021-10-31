@@ -31,6 +31,10 @@ pub enum ParseError {
         span: IndexOnlySpan,
         explanation: String,
     },
+    InvalidIdent {
+        span: IndexOnlySpan,
+        explanation: String,
+    },
     __NonExhaustive,
 }
 
@@ -41,7 +45,8 @@ impl ParseError {
             Diagnostic::error().with_message("Your program contains a syntax error!");
         match self {
             ParseError::UnexpectedToken { explanation, span }
-            | ParseError::InvalidWhitespace { explanation, span } => diagnostic.with_labels(vec![
+            | ParseError::InvalidWhitespace { explanation, span }
+            | ParseError::InvalidIdent { explanation, span } => diagnostic.with_labels(vec![
                 Label::primary(id, span.range()).with_message(explanation),
             ]),
             ParseError::UnexpectedEndOfInput => {

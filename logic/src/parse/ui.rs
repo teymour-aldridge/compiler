@@ -1,3 +1,4 @@
+/// Tests that the parser emits appropriate errors.
 use codespan_reporting::{
     files::SimpleFiles,
     term::{self, termcolor::Buffer, Config},
@@ -29,16 +30,32 @@ fn ui_test(string: String) {
 }
 
 #[test]
+/// I'm reasonably happy with this error message
 fn test_invalid_operator() {
     ui_test("(a b c)".to_string())
 }
 
 #[test]
+/// I'm also reasonably happy with this error message
 fn test_invalid_brackets_1() {
     ui_test("( ( ) a".to_string())
 }
 
 #[test]
 fn test_invalid_brackets2() {
+    // this ideally should also mention what token it expects (rather than just saying "unexpected
+    // end of input")
     ui_test("f(x + a * z (( zz".to_string())
+}
+
+#[test]
+fn test_non_alphabetic_ident() {
+    // i'm not sure if this is the best possible error message tbh
+    ui_test("0x = 15".to_string());
+}
+
+#[test]
+fn test_missing_endfor() {
+    // todo: make this highlight the *whole* token (see the debug snapshot for specifics)
+    ui_test(include_str!("ui-examples/missing-next").to_string())
 }
