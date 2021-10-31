@@ -32,6 +32,7 @@ fn fuzz_parser() {
             alternation! {
                 // this range chosen to avoid collisions with keywords
                 literal!('a'..='h'),
+                literal!('0'..='9'),
                 literal!('A'..='Z'),
                 literal!('_')
             },
@@ -134,8 +135,12 @@ fn fuzz_parser() {
         literal!('i')
     };
 
-    let indented_statement = repetition! {
+    let indented_statements = repetition! {
         concatenation! {
+            repetition! {
+                literal!('\n'),
+                1..20
+            },
             literal!(' '),
             literal!(' '),
             statement.clone()
@@ -173,7 +178,7 @@ fn fuzz_parser() {
         },
         expression.clone(),
         literal!('\n'),
-        indented_statement.clone(),
+        indented_statements.clone(),
         literal!('n'),
         literal!('e'),
         literal!('x'),
@@ -192,7 +197,7 @@ fn fuzz_parser() {
         literal!(' '),
         expression.clone(),
         literal!('\n'),
-        indented_statement.clone(),
+        indented_statements.clone(),
         literal!('e'),
         literal!('n'),
         literal!('d'),
@@ -225,7 +230,7 @@ fn fuzz_parser() {
         },
         literal!(')'),
         literal!('\n'),
-        indented_statement.clone(),
+        indented_statements.clone(),
         literal!('e'),
         literal!('n'),
         literal!('d'),
@@ -250,7 +255,7 @@ fn fuzz_parser() {
         literal!('e'),
         literal!('n'),
         literal!('\n'),
-        indented_statement.clone(),
+        indented_statements.clone(),
         repetition! {
             concatenation! {
                 literal!('e'),
@@ -266,7 +271,7 @@ fn fuzz_parser() {
                 literal!('e'),
                 literal!('n'),
                 literal!('\n'),
-                indented_statement.clone()
+                indented_statements.clone()
             },
             0..32
         },
@@ -277,7 +282,7 @@ fn fuzz_parser() {
                 literal!('s'),
                 literal!('e'),
                 literal!('\n'),
-                indented_statement.clone()
+                indented_statements.clone()
             },
             0..=1
         },

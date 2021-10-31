@@ -1,0 +1,33 @@
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+name: fuzz
+
+jobs:
+  check:
+    name: Rust project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v1
+      - name: Install cargo-make
+        run: cargo install cargo-make
+      - name: Install fuzzcheck
+        run: cargo install cargo-fuzzcheck
+      - name: Run fuzzer
+        run: (cd logic && cargo make fuzz_ci)
+      - name: Upload results
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: failure
+          path: logic/fuzz/fuzz/**/artifacts
+      # todo: maybe cache the corpus
