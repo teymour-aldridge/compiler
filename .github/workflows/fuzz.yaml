@@ -7,7 +7,7 @@ name: fuzz
 
 jobs:
   check:
-    name: Rust project
+    name: run fuzzer
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,5 +29,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: failure
-          path: logic/fuzz/fuzz/**/artifacts
+          path: logic/fuzz/**/artifacts
       # todo: maybe cache the corpus
