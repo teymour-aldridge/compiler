@@ -7,6 +7,7 @@
  - [ ] Heap allocation and data structures (i.e. lists/vectors/arrays)
  - [ ] Strings (these are just lists of Unicode characters)
  - [ ] Tagged unions (these are definitely not in the specification, but they're great)
+ - [ ] Record types (also not in the specification, but still great)
  - [ ] Pattern matching on tagged unions
  - [ ] Automatic memory management (ideally using
  [Perseus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf),

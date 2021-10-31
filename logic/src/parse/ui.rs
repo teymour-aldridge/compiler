@@ -32,3 +32,13 @@ fn ui_test(string: String) {
 fn test_invalid_operator() {
     ui_test("(a b c)".to_string())
 }
+
+#[test]
+fn test_invalid_brackets_1() {
+    ui_test("( ( ) a".to_string())
+}
+
+#[test]
+fn test_invalid_brackets2() {
+    ui_test("f(x + a * z (( zz".to_string())
+}

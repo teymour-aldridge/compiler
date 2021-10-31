@@ -1,0 +1,8 @@
+---
+source: logic/src/parse/ui.rs
+expression: string
+
+---
+error: Unexpected end of input.
+
+
