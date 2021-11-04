@@ -12,8 +12,9 @@
  - [ ] Automatic memory management (ideally using
  [Perseus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf),
  but I might implement a simple tracing garbage collector to begin with)
- - [ ] Function inlining
- - [ ] Mutual recursion (this isn't major - we'll just inline one of the functions)
+**these two were easier than I though – it turns out that Cranelift can handle them**
+ - [x] Function inlining
+ - [x] Mutual recursion (this isn't major - we'll just inline one of the functions)
 
 ### Planned, but not in the short term
  - [ ] Making the compiler query-based
