@@ -20,7 +20,6 @@ impl<'a> Parse<'a> for If<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         let rec = input.start_recording();
 
-        input.advance_indent()?;
         input.parse_token("if")?;
         let r#if = Branch {
             condition: {
@@ -33,7 +32,6 @@ impl<'a> Parse<'a> for If<'a> {
             },
             block: {
                 let block = Block::parse(input)?;
-                input.skip_whitespace()?;
                 block
             },
         };
@@ -47,12 +45,12 @@ impl<'a> Parse<'a> for If<'a> {
                 let condition =
                     Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("then"))?
                         .ok_or(ParseError::UnexpectedEndOfInput)?;
-                input.parse_token("then")?;
                 input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;
                 input.advance_whitespace_and_new_line()?;
                 elseifs.push(Branch { condition, block });
             } else if input.starts_with("else") {
+                input.parse_token("else")?;
                 input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;
                 input.advance_whitespace_and_new_line()?;
@@ -84,7 +82,8 @@ impl<'a> Parse<'a> for If<'a> {
 
 impl fmt::Display for If<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_indentation(self.indent, f)?;
+        // we don't call `write_indentation` here because this is already called as part of the
+        // `Block::fmt` call.
         f.write_str("if ")?;
         self.r#if.condition.fmt(f)?;
         f.write_str(" then")?;
@@ -108,6 +107,7 @@ impl fmt::Display for If<'_> {
             r#else.fmt(f)?;
             f.write_char('\n')?;
         }
+        write_indentation(self.indent, f)?;
         f.write_str("endif")
     }
 }

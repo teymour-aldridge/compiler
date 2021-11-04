@@ -187,7 +187,14 @@ impl Op {
             "*" => Op::BinOp(BinOp::Multiply),
             "+" if prefix => Op::UnOp(UnOp::Positive),
             "-" if prefix => Op::UnOp(UnOp::Negative),
-            "=" => Op::BinOp(BinOp::SetEquals),
+            "=" => {
+                if input.chars().next() == Some('=') {
+                    input.advance_one()?;
+                    Op::BinOp(BinOp::IsEqual)
+                } else {
+                    Op::BinOp(BinOp::SetEquals)
+                }
+            }
             token => {
                 return Err(ParseError::UnexpectedToken {
                     explanation: format!(
@@ -237,6 +244,7 @@ pub enum BinOp {
     Subtract,
     Divide,
     Multiply,
+    IsEqual,
     SetEquals,
 }
 
@@ -244,7 +252,7 @@ impl BinOp {
     fn bp(&self) -> (u8, u8) {
         match self {
             BinOp::Add | BinOp::Subtract => (5, 6),
-            BinOp::Divide | BinOp::Multiply => (7, 8),
+            BinOp::Divide | BinOp::Multiply | BinOp::IsEqual => (7, 8),
             BinOp::SetEquals => (2, 1),
         }
     }
@@ -258,6 +266,7 @@ impl fmt::Display for BinOp {
             BinOp::Divide => "/",
             BinOp::Multiply => "*",
             BinOp::SetEquals => "=",
+            BinOp::IsEqual => "==",
         })
     }
 }

@@ -188,6 +188,19 @@ fn collect_expr(
                 constraints.extend(collect_expr(&left, definitions, None)?);
                 constraints.extend(collect_expr(&right, definitions, None)?);
             }
+            // todo: add necessary additional type constraints
+            (BinOp::IsEqual, left, right) => {
+                constraints.push(Constraint::IdToId {
+                    id: left.id,
+                    to: right.id,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: left.id,
+                    to: expr.id,
+                });
+                constraints.extend(collect_expr(&left, definitions, None)?);
+                constraints.extend(collect_expr(&right, definitions, None)?);
+            }
             (BinOp::SetEquals, left, right) => {
                 if let TaggedExprInner::Ident(ref ident) = left.token {
                     constraints.push(Constraint::IdToId {

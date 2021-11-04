@@ -351,6 +351,8 @@ impl<'a> Input<'a> {
         if whitespace_units == self.indent {
             Ok(())
         } else {
+            dbg!(whitespace_units);
+            dbg!(self.indent);
             return Err(ParseError::InvalidWhitespace {
                 span: start_recording.finish_recording(&self).into(),
                 explanation: format!(

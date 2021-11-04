@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use cranelift_codegen::{
     binemit::{NullStackMapSink, NullTrapSink},
     entity::EntityRef,
-    ir::{self, AbiParam, InstBuilder},
+    ir::{self, condcodes::IntCC, AbiParam, InstBuilder},
     Context,
 };
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
@@ -244,6 +244,16 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     let lhs = self.compile_expr(left);
                     let rhs = self.compile_expr(right);
                     self.builder.ins().imul(lhs, rhs)
+                }
+                BinOp::IsEqual => {
+                    let lhs = self.compile_expr(left);
+                    let rhs = self.compile_expr(right);
+                    let left_ty = self.ty_env.ty_of(left.id).unwrap();
+                    let right_ty = self.ty_env.ty_of(right.id).unwrap();
+                    match (left_ty, right_ty) {
+                        (Ty::Int, Ty::Int) => self.builder.ins().icmp(IntCC::Equal, lhs, rhs),
+                        _ => unimplemented!(),
+                    }
                 }
                 BinOp::SetEquals => unreachable!(),
             },

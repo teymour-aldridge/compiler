@@ -1,8 +1,12 @@
-function square(n)
-  return n * n * 1
-endfunction
-
 function main()
   print_int(square(3))
   return 0
+endfunction
+
+function factorial(n)
+  if n == 0 then
+    return 1
+  else
+    return n * factorial(n - 1)
+  endif
 endfunction
