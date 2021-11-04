@@ -293,13 +293,10 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                                 .unwrap(),
                         ));
 
-                        let callee = match self.module.get_name(*name.token).unwrap() {
-                            cranelift_module::FuncOrDataId::Func(func_id) => func_id,
-                            cranelift_module::FuncOrDataId::Data(_) => {
-                                unreachable!()
-                                // (or so I believe :D)
-                            }
-                        };
+                        let callee = self
+                            .module
+                            .declare_function(*name.token, Linkage::Import, &sig)
+                            .expect("problem declaring function");
 
                         let local_callee =
                             self.module.declare_func_in_func(callee, self.builder.func);
