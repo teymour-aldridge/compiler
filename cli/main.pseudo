@@ -1,12 +1,11 @@
 function main()
-  print_int(square(3))
+  print_int(factorial(13))
   return 0
 endfunction
 
 function factorial(n)
   if n == 0 then
     return 1
-  else
-    return n * factorial(n - 1)
   endif
+  return 1 * n * factorial(n - 1)
 endfunction

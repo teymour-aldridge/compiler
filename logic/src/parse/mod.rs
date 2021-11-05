@@ -95,6 +95,14 @@ impl<'a, IDENT, EXPR> Node<'a, IDENT, EXPR> {
             None
         }
     }
+
+    pub fn as_if(&self) -> Option<&If<'a, IDENT, EXPR>> {
+        if let Self::If(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> Parse<'a> for Node<'a> {

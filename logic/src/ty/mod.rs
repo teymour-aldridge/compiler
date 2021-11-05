@@ -44,7 +44,6 @@ impl From<ConstraintGatheringError> for TyCheckError {
 pub fn type_check(ast: &TaggedAst) -> Result<TyEnv, TyCheckError> {
     // todo: report errors properly
     let constraints: HashSet<Constraint> = collect(ast)?.into_iter().collect();
-
     unify(constraints, TyEnv::new())
 }
 

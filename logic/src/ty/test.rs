@@ -38,18 +38,29 @@ fn factorial_type_check() {
 
     let ty_env = type_check(&tagged).expect("failed to type check");
 
-    let main = match &tagged.nodes[0] {
+    let main_function = match &tagged.nodes[0] {
         crate::parse::Node::Func(ref func) => func.name.id,
         _ => panic!("failed to find type inferred for `main` function"),
     };
 
-    let factorial = match &tagged.nodes[1] {
-        crate::parse::Node::Func(ref func) => func.name.id,
+    let (factorial_function_ret, factorial_func) = match &tagged.nodes[1] {
+        crate::parse::Node::Func(ref func) => (func.name.id, func),
         _ => panic!("failed to find type inferred for `factorial` function"),
     };
 
-    assert_eq!(ty_env.ty_of(main), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(factorial), Some(Ty::Int))
+    assert_eq!(ty_env.ty_of(main_function), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(factorial_function_ret), Some(Ty::Int));
+
+    let if_branch = &factorial_func.block.inner.nodes[0].as_if().unwrap().r#if;
+
+    assert_eq!(ty_env.ty_of(if_branch.condition.id), Some(Ty::Bool));
+
+    match if_branch.condition.token {
+        crate::id::TaggedExprInner::BinOp(_, ref left, _) => {
+            assert_eq!(ty_env.ty_of(left.id), Some(Ty::Int))
+        }
+        _ => panic!("ast does not match expected structure for expr `n == 0`"),
+    }
 }
 
 #[test]

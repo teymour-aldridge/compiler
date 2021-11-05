@@ -82,13 +82,13 @@ fn collect_node(
             let mut c = vec![];
 
             let branch_constraints =
-                |branch: &TaggedBranch| -> Result<Vec<Constraint>, ConstraintGatheringError> {
+                |_branch: &TaggedBranch| -> Result<Vec<Constraint>, ConstraintGatheringError> {
                     let mut c = vec![];
-                    c.push(Constraint::IdToTy {
-                        id: branch.condition.id,
-                        ty: Ty::Bool,
-                    });
-
+                    c.extend(collect_expr(
+                        &stmt.r#if.condition,
+                        definitions,
+                        Some(Ty::Bool),
+                    )?);
                     c.extend(collect_block(&stmt.r#if.block, definitions, current_func)?);
                     Ok(c)
                 };
@@ -194,9 +194,9 @@ fn collect_expr(
                     id: left.id,
                     to: right.id,
                 });
-                constraints.push(Constraint::IdToId {
-                    id: left.id,
-                    to: expr.id,
+                constraints.push(Constraint::IdToTy {
+                    id: expr.id,
+                    ty: Ty::Bool,
                 });
                 constraints.extend(collect_expr(&left, definitions, None)?);
                 constraints.extend(collect_expr(&right, definitions, None)?);
