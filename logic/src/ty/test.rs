@@ -1,4 +1,4 @@
-use std::{collections::HashSet, iter::FromIterator};
+use std::iter::FromIterator;
 
 use rustc_hash::FxHashSet;
 
