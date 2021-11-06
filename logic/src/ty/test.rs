@@ -1,5 +1,7 @@
 use std::{collections::HashSet, iter::FromIterator};
 
+use rustc_hash::FxHashSet;
+
 use crate::{
     id::{tag, Id},
     ty::{constraints::Constraint, type_check, unify, Ty, TyEnv},
@@ -65,7 +67,7 @@ fn factorial_type_check() {
 
 #[test]
 fn simple_unify_check() {
-    let set = HashSet::from_iter(vec![
+    let set = FxHashSet::from_iter(vec![
         Constraint::IdToTy {
             id: Id::new(1),
             ty: Ty::Int,

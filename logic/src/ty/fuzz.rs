@@ -1,3 +1,4 @@
+use rustc_hash::FxHashSet;
 /// This test tries to ascertain that the order of constraints emitting into the unifier has no
 /// bearing on its output.
 ///
@@ -10,7 +11,7 @@
 /// https://sites.cs.ucsb.edu/~benh/research/papers/dewey15fuzzing.pdf (which seems to be very
 /// neat).
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, iter::FromIterator};
+use std::iter::FromIterator;
 
 use fuzzcheck::{DefaultMutator, SerdeSerializer};
 
@@ -70,7 +71,7 @@ fn fuzz_unifier() {
             })
             .collect::<Vec<_>>();
 
-        let hash_set = HashSet::from_iter(constraints.clone());
+        let hash_set = FxHashSet::from_iter(constraints.clone());
         let solved = unify(hash_set, TyEnv::new());
         match solved {
             Ok(prev) => {
@@ -88,7 +89,7 @@ fn fuzz_unifier() {
                     }
                     new_constraints.swap(*a as usize, *b as usize);
                 }
-                let new = match unify(HashSet::from_iter(new_constraints), TyEnv::new()) {
+                let new = match unify(FxHashSet::from_iter(new_constraints), TyEnv::new()) {
                     Ok(env) => env,
                     Err(_) => return false,
                 };

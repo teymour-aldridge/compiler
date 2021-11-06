@@ -7,7 +7,7 @@ mod test;
 #[cfg(not(disable_fuzzcheck))]
 mod fuzz;
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     id::{Id, TaggedAst},
@@ -20,7 +20,7 @@ mod constraints;
 
 pub struct TyTable {
     #[allow(unused)]
-    table: HashMap<Id, Ty>,
+    table: FxHashMap<Id, Ty>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -43,7 +43,7 @@ impl From<ConstraintGatheringError> for TyCheckError {
 
 pub fn type_check(ast: &TaggedAst) -> Result<TyEnv, TyCheckError> {
     // todo: report errors properly
-    let constraints: HashSet<Constraint> = collect(ast)?.into_iter().collect();
+    let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
     unify(constraints, TyEnv::new())
 }
 
@@ -67,13 +67,13 @@ pub struct Info {
 
 #[derive(Clone, Debug)]
 pub struct TyEnv {
-    map: HashMap<Id, Info>,
+    map: FxHashMap<Id, Info>,
 }
 
 impl TyEnv {
     /// Obtain a reference to the underlying hash map.
     #[allow(unused)]
-    pub(crate) fn map(&self) -> &HashMap<Id, Info> {
+    pub(crate) fn map(&self) -> &FxHashMap<Id, Info> {
         &self.map
     }
 
@@ -123,7 +123,7 @@ impl TyEnv {
 }
 
 /// Unify a set of constraints (i.e. solve them, if that is possible)
-fn unify(set: HashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheckError> {
+fn unify(set: FxHashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheckError> {
     if set.is_empty() {
         return Ok(solved);
     }
@@ -159,7 +159,7 @@ fn unify(set: HashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheckEr
         solved.feed_substitution(u);
 
         // apply the newly generated substitution to the rest of the set
-        let new_set: HashSet<Constraint> = iter
+        let new_set: FxHashSet<Constraint> = iter
             .map(|constraint| match (u, constraint) {
                 // wherever we see y, replace with x
                 (Substitution::XforY(x, y), Constraint::IdToTy { id, ty }) => Constraint::IdToTy {

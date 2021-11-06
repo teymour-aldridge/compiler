@@ -3,7 +3,9 @@
 #[cfg(test)]
 mod test;
 
-use std::{collections::HashMap, fmt, marker::PhantomData, mem};
+use std::{fmt, marker::PhantomData, mem};
+
+use rustc_hash::FxHashMap;
 
 use crate::{
     diagnostics::span::{HasSpan, Span, Spanned},
@@ -79,8 +81,8 @@ impl<T> std::ops::Deref for Tagged<T> {
 
 #[derive(Debug, Default)]
 struct TaggingCtx<'a> {
-    variable_ids: HashMap<Ident<'a>, Id>,
-    id_to_names: HashMap<Id, Ident<'a>>,
+    variable_ids: FxHashMap<Ident<'a>, Id>,
+    id_to_names: FxHashMap<Id, Ident<'a>>,
     monotonic: MonotonicIdGenerator,
     scopes: Vec<Scope<'a>>,
 }
@@ -224,7 +226,7 @@ fn tagged_func<'a>(
 ) -> Func<'a, Tagged<Ident<'a>>, TaggedExpr<'a>> {
     let name = tagged_ident(func.name, ctx);
 
-    let mut local_variables = HashMap::new();
+    let mut local_variables = FxHashMap::default();
     mem::swap(&mut ctx.variable_ids, &mut local_variables);
 
     let parameters = func

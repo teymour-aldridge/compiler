@@ -401,6 +401,7 @@ dependencies = [
  "cranelift-object",
  "fuzzcheck",
  "insta",
+ "rustc-hash",
  "rustversion",
  "serde",
 ]
