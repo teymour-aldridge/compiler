@@ -1,0 +1,14 @@
+function main()
+  print_int(fib(13))
+  return 0
+endfunction
+
+function fib(n)
+  if n == 0 then
+    return 0
+  endif
+  if n == 1 then
+    return 1
+  endif
+  return fib(n - 1) + fib(n - 2)
+endfunction
