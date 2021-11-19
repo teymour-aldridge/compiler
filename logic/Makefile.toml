@@ -7,9 +7,6 @@ toolchain = "nightly"
 args = [
     "fuzzcheck",
     "parse::fuzz::fuzz_parser",
-    "fuzz",
-    "--artifacts",
-    "fuzz/artifacts",
     "-max-duration",
     "300"
 ]
@@ -20,9 +17,6 @@ toolchain = "nightly"
 args = [
     "fuzzcheck",
     "parse::fuzz::fuzz_parser",
-    "fuzz",
-    "--artifacts",
-    "fuzz/artifacts",
 ]
 
 [tasks.fuzz_unifier_ci]
@@ -31,9 +25,6 @@ toolchain = "nightly"
 args = [
     "fuzzcheck",
     "ty::fuzz::fuzz_unifier",
-    "fuzz",
-    "--artifacts",
-    "fuzz/artifacts",
     "-max-duration",
     "300"
 ]
@@ -44,9 +35,6 @@ toolchain = "nightly"
 args = [
     "fuzzcheck",
     "ty::fuzz::fuzz_unifier",
-    "fuzz",
-    "--artifacts",
-    "fuzz/artifacts",
 ]
 
 [tasks.tests]

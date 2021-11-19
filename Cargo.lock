@@ -177,7 +177,7 @@ dependencies = [
  "cranelift-codegen",
  "cranelift-module",
  "log",
- "object 0.27.1",
+ "object",
  "target-lexicon",
 ]
 
@@ -235,9 +235,9 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e18c3e0e5ae398f821a534b1d13943fe1b1e8652f68e5244609191910dd99b53"
+checksum = "7921d7e386c640912a0c8bbef3ba97e6d0fd1a74da0a4d31e6d5d2671be36585"
 dependencies = [
  "ahash",
  "bitflags",
@@ -250,26 +250,27 @@ dependencies = [
  "getopts",
  "libc",
  "md5",
- "object 0.26.2",
- "owo-colors",
+ "nu-ansi-term",
+ "object",
+ "regex-syntax",
  "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "fuzzcheck_common"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb4a4c5f1bd7c979265d34a7f2cd437679d8be801b80924990253b3d5b61a33"
+checksum = "5776d5a8fd41e6602c213734e6fd8f2ae1954ced1bbcb79e3b8f6bdbf9aebc7c"
 dependencies = [
  "getopts",
 ]
 
 [[package]]
 name = "fuzzcheck_mutators_derive"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ab865cbfd1f1f367ff2cd9301e14bb437f591df01c9b569ec4d7d740e720c47"
+checksum = "4f0855bdf616fa9bd0eb371505f96a0f1aee1d1cfa387960239626415b34878b"
 dependencies = [
  "decent-synquote-alternative",
  "proc-macro2",
@@ -429,12 +430,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "object"
-version = "0.26.2"
+name = "nu-ansi-term"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39f37e50073ccad23b6d09bcb5b263f4e76d3bb6038e4a3c08e52162ffa8abc2"
+checksum = "e62e2187cbceeafee9fb7b5e5e182623e0628ebf430a479df4487beb8f92fd7a"
 dependencies = [
- "memchr",
+ "overload",
+ "winapi",
 ]
 
 [[package]]
@@ -455,10 +457,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
 
 [[package]]
-name = "owo-colors"
-version = "2.1.0"
+name = "overload"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a61765925aec40abdb23812a3a1a01fafc6ffb9da22768b2ce665a9e84e527c"
+checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "pkg-config"
@@ -494,6 +496,12 @@ dependencies = [
  "rustc-hash",
  "smallvec",
 ]
+
+[[package]]
+name = "regex-syntax"
+version = "0.6.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
 name = "runtime"

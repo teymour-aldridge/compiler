@@ -48,11 +48,8 @@ struct Shuffle {
 /// Tests to make sure that the unification algorithm generates the same result, regardless of the
 /// order of the constraints.
 fn fuzz_unifier() {
-    let _ = fuzzcheck::fuzz_test(|constraint_set: &ConstraintSet| -> bool {
-        let ConstraintSet {
-            shuffles,
-            constraints,
-        } = constraint_set;
+    let result = fuzzcheck::fuzz_test(|constraint_set: &ConstraintSet| -> bool {
+        let ConstraintSet { shuffles, constraints } = constraint_set;
 
         let constraints = constraints
             .iter()
@@ -105,10 +102,10 @@ fn fuzz_unifier() {
             Err(_) => return true,
         }
     })
-    .mutator(ConstraintSet::default_mutator())
-    .serializer(SerdeSerializer::default())
-    .default_sensor()
-    .default_pool()
+    .default_mutator()
+    .serde_serializer()
+    .default_sensor_and_pool()
     .arguments_from_cargo_fuzzcheck()
     .launch();
+    assert!(!result.found_test_failure);
 }

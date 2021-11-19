@@ -1,8 +1,4 @@
-use fuzzcheck::{
-    alternation, concatenation, literal,
-    mutators::grammar::{ASTMutator, AST},
-    recurse, recursive, repetition, SerdeSerializer,
-};
+use fuzzcheck::mutators::grammar::*;
 
 use super::parse;
 
@@ -22,300 +18,116 @@ fn run_test(input: &str) -> bool {
 
 #[test]
 fn fuzz_parser() {
-    let ident = concatenation! {
-        alternation! {
-            // this range chosen to avoid collisions with keywords
-            literal!('a'..='h'),
-            literal!('A'..='Z')
-        },
-        repetition! {
-            alternation! {
-                // this range chosen to avoid collisions with keywords
-                literal!('a'..='h'),
-                literal!('0'..='9'),
-                literal!('A'..='Z'),
-                literal!('_')
-            },
-            1..50
-        }
-    };
+    let ident = regex("[a-hA-Z]|[a-h0-9A-Z_]+");
 
-    let string = concatenation! {
-        literal!('"'),
-        ident.clone(),
-        literal!('"')
-    };
+    let string = concatenation([literal('"'), ident.clone(), literal('"')]);
 
-    let number = repetition! {
-        literal!('0'..='9'),
-        1..10
-    };
+    let number = regex("[0-9]+");
 
-    let float = concatenation! {
+    let float = concatenation([
         number.clone(),
-        literal!('.'),
+        literal('.'),
         number.clone(),
-        literal!('e'),
-        number.clone()
-    };
+        literal('e'),
+        number.clone(),
+    ]);
 
-    let expression = recursive! {
-        e in alternation! {
+    let expression = recursive(|e| {
+        alternation([
             ident.clone(),
             string.clone(),
             number.clone(),
             float.clone(),
             // function calls
-            concatenation! {
+            concatenation([
                 ident.clone(),
-                literal!('('),
-                repetition! {
-                    concatenation! {
-                        recurse!(e),
-                        literal!(',')
-                    },
-                    1..50
-                },
-                literal!(')')
-            },
-            concatenation! {
-                literal!('('),
-                recurse!(e),
-                literal!(')')
-            },
-            concatenation! {
-                literal!('('),
-                recurse!(e),
-                alternation! {
-                    literal!('+'),
-                    literal!('-'),
-                    literal!('*'),
-                    literal!('/')
-                },
-                recurse!(e),
-                literal!(')')
-            },
-            concatenation! {
-                alternation! {
-                    literal!('+'),
-                    literal!('-')
-                },
-                literal!('('),
-                recurse!(e),
-                literal!(')')
-            }
-        }
-    };
+                literal('('),
+                repetition(concatenation([recurse(e), literal(',')]), 1..),
+                literal(')'),
+            ]),
+            concatenation([literal('('), recurse(e), literal(')')]),
+            concatenation([literal('('), recurse(e), regex("[-+*/]"), recurse(e), literal(')')]),
+            concatenation([regex("[-+]"), literal('('), recurse(e), literal(')')]),
+        ])
+    });
 
-    let statement = alternation! {
-        concatenation! {
+    let statement = concatenation([
+        alternation([
             expression.clone(),
-            literal!('\n')
-        },
-        concatenation! {
-            ident.clone(),
-            literal!('='),
-            expression.clone(),
-            literal!('\n')
-        },
-        concatenation! {
-            literal!('r'),
-            literal!('e'),
-            literal!('t'),
-            literal!('u'),
-            literal!('r'),
-            literal!('n'),
-            literal!(' '),
-            expression.clone(),
-            literal!('\n')
-        }
-    };
+            concatenation([ident.clone(), literal('='), expression.clone()]),
+            concatenation([regex("return "), expression.clone()]),
+        ]),
+        literal('\n'),
+    ]);
 
-    let for_loop_ident = concatenation! {
-        literal!('i')
-    };
+    let for_loop_ident = literal('i');
 
-    let indented_statements = repetition! {
-        concatenation! {
-            repetition! {
-                literal!('\n'),
-                1..20
-            },
-            literal!(' '),
-            literal!(' '),
-            statement.clone()
-        },
-        1..16
-    };
+    let indented_statements = repetition(concatenation([regex("[\n]+  "), statement.clone()]), 1..);
 
-    let for_loop = concatenation! {
-        concatenation! {
-            literal!('f'),
-            literal!('o'),
-            literal!('r'),
-            literal!(' '),
-            for_loop_ident.clone()
-        },
-        concatenation! {
-            literal!('='),
-            literal!(' ')
-        },
+    let for_loop = concatenation([
+        regex("for "),
+        for_loop_ident.clone(),
+        regex("= "),
         expression.clone(),
-        concatenation! {
-            literal!(' '),
-            literal!('t'),
-            literal!('o'),
-            literal!(' ')
-        },
+        regex(" to "),
         expression.clone(),
-        concatenation! {
-            literal!(' '),
-            literal!('s'),
-            literal!('t'),
-            literal!('e'),
-            literal!('p'),
-            literal!(' ')
-        },
+        regex(" step "),
         expression.clone(),
-        literal!('\n'),
+        literal('\n'),
         indented_statements.clone(),
-        literal!('n'),
-        literal!('e'),
-        literal!('x'),
-        literal!('t'),
-        literal!(' '),
+        regex("next "),
         for_loop_ident,
-        literal!('\n')
-    };
+        literal('\n'),
+    ]);
 
-    let while_loop = concatenation! {
-        literal!('w'),
-        literal!('h'),
-        literal!('i'),
-        literal!('l'),
-        literal!('e'),
-        literal!(' '),
+    let while_loop = concatenation([
+        regex("while "),
         expression.clone(),
-        literal!('\n'),
+        literal('\n'),
         indented_statements.clone(),
-        literal!('e'),
-        literal!('n'),
-        literal!('d'),
-        literal!('w'),
-        literal!('h'),
-        literal!('i'),
-        literal!('l'),
-        literal!('e'),
-        literal!('\n')
-    };
+        regex("endwhile\n"),
+    ]);
 
-    let function = concatenation! {
-        literal!('f'),
-        literal!('u'),
-        literal!('n'),
-        literal!('c'),
-        literal!('t'),
-        literal!('i'),
-        literal!('o'),
-        literal!('n'),
-        literal!(' '),
+    let function = concatenation([
+        regex("function "),
         ident.clone(),
-        literal!('('),
-        repetition! {
-            concatenation! {
-                ident.clone(),
-                literal!(',')
-            },
-            1..50
-        },
-        literal!(')'),
-        literal!('\n'),
+        literal('('),
+        repetition(concatenation([ident.clone(), literal(',')]), 1..),
+        literal(')'),
+        literal('\n'),
         indented_statements.clone(),
-        literal!('e'),
-        literal!('n'),
-        literal!('d'),
-        literal!('f'),
-        literal!('u'),
-        literal!('n'),
-        literal!('c'),
-        literal!('t'),
-        literal!('i'),
-        literal!('o'),
-        literal!('n'),
-        literal!('\n')
-    };
+        regex("endfunction\n"),
+    ]);
 
-    let if_statement = concatenation! {
-        literal!('i'),
-        literal!('f'),
-        literal!(' '),
+    let if_statement = concatenation([
+        regex("if "),
         expression.clone(),
-        literal!('t'),
-        literal!('h'),
-        literal!('e'),
-        literal!('n'),
-        literal!('\n'),
+        regex("then\n"),
         indented_statements.clone(),
-        repetition! {
-            concatenation! {
-                literal!('e'),
-                literal!('l'),
-                literal!('s'),
-                literal!('e'),
-                literal!('i'),
-                literal!('f'),
-                literal!(' '),
+        repetition(
+            concatenation([
+                regex("elseif"),
                 expression.clone(),
-                literal!('t'),
-                literal!('h'),
-                literal!('e'),
-                literal!('n'),
-                literal!('\n'),
-                indented_statements.clone()
-            },
-            0..32
-        },
-        repetition! {
-            concatenation! {
-                literal!('e'),
-                literal!('l'),
-                literal!('s'),
-                literal!('e'),
-                literal!('\n'),
-                indented_statements.clone()
-            },
-            0..=1
-        },
-        literal!('e'),
-        literal!('n'),
-        literal!('d'),
-        literal!('i'),
-        literal!('f')
-    };
+                regex("then\n"),
+                indented_statements.clone(),
+            ]),
+            0..,
+        ),
+        repetition(concatenation([regex("else\n"), indented_statements.clone()]), 0..=1),
+        regex("endif"),
+    ]);
 
-    let block = alternation! {
-        for_loop.clone(),
-        while_loop.clone(),
-        function.clone(),
-        if_statement
-    };
+    let block = alternation([for_loop.clone(), while_loop.clone(), function.clone(), if_statement]);
 
-    let ast = repetition! {
-        alternation! {
-            block,
-            statement
-        },
-        0..100
-    };
+    let ast = repetition(alternation([block, statement]), 0..);
 
-    let ast_mutator = ASTMutator::from_grammar(ast);
-    let with_string = ast_mutator.with_string();
+    let ast_mutator = grammar_based_ast_mutator(ast);
 
-    let _ = fuzzcheck::fuzz_test(|(_, string): &(AST, String)| run_test(string))
-        .mutator(with_string)
-        .serializer(SerdeSerializer::default())
-        .default_sensor()
-        .default_pool()
+    let result = fuzzcheck::fuzz_test(|ast: &AST| run_test(&ast.to_string()))
+        .mutator(ast_mutator)
+        .serde_serializer()
+        .default_sensor_and_pool()
         .arguments_from_cargo_fuzzcheck()
         .launch();
+    assert!(!result.found_test_failure);
 }
