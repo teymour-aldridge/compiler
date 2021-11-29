@@ -1,0 +1,5 @@
+if 3 then
+  return 3
+else
+  return 9
+endif

@@ -1,0 +1,9 @@
+if -((ZL)) then
+
+  9
+elseif BW then
+  IY
+else
+
+  return E8
+endif

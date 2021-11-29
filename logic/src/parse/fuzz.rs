@@ -18,7 +18,7 @@ fn run_test(input: &str) -> bool {
 
 #[test]
 fn fuzz_parser() {
-    let ident = regex("[a-hA-Z]|[a-h0-9A-Z_]+");
+    let ident = regex("[a-hA-Z][a-h0-9A-Z_]+");
 
     let string = concatenation([literal('"'), ident.clone(), literal('"')]);
 
@@ -46,7 +46,13 @@ fn fuzz_parser() {
                 literal(')'),
             ]),
             concatenation([literal('('), recurse(e), literal(')')]),
-            concatenation([literal('('), recurse(e), regex("[-+*/]"), recurse(e), literal(')')]),
+            concatenation([
+                literal('('),
+                recurse(e),
+                regex("[-+*/]"),
+                recurse(e),
+                literal(')'),
+            ]),
             concatenation([regex("[-+]"), literal('('), recurse(e), literal(')')]),
         ])
     });
@@ -102,22 +108,30 @@ fn fuzz_parser() {
     let if_statement = concatenation([
         regex("if "),
         expression.clone(),
-        regex("then\n"),
+        regex(" then\n"),
         indented_statements.clone(),
         repetition(
             concatenation([
-                regex("elseif"),
+                regex("elseif "),
                 expression.clone(),
-                regex("then\n"),
+                regex(" then\n"),
                 indented_statements.clone(),
             ]),
             0..,
         ),
-        repetition(concatenation([regex("else\n"), indented_statements.clone()]), 0..=1),
-        regex("endif"),
+        repetition(
+            concatenation([regex("else\n"), indented_statements.clone()]),
+            0..=1,
+        ),
+        regex("endif\n"),
     ]);
 
-    let block = alternation([for_loop.clone(), while_loop.clone(), function.clone(), if_statement]);
+    let block = alternation([
+        for_loop.clone(),
+        while_loop.clone(),
+        function.clone(),
+        if_statement,
+    ]);
 
     let ast = repetition(alternation([block, statement]), 0..);
 

@@ -45,15 +45,14 @@ impl<'a> Parse<'a> for If<'a> {
                 let condition =
                     Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("then"))?
                         .ok_or(ParseError::UnexpectedEndOfInput)?;
+                input.parse_token("then")?;
                 input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;
-                input.advance_whitespace_and_new_line()?;
                 elseifs.push(Branch { condition, block });
             } else if input.starts_with("else") {
                 input.parse_token("else")?;
                 input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;
-                input.advance_whitespace_and_new_line()?;
                 input.advance_indent()?;
                 input.parse_token("endif")?;
                 input.skip_whitespace()?;

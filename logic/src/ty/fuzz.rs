@@ -1,4 +1,3 @@
-use rustc_hash::FxHashSet;
 /// This test tries to ascertain that the order of constraints emitting into the unifier has no
 /// bearing on its output.
 ///
@@ -10,10 +9,11 @@ use rustc_hash::FxHashSet;
 /// At some point I also intend to try to implement some of the ideas outlined in the paper
 /// https://sites.cs.ucsb.edu/~benh/research/papers/dewey15fuzzing.pdf (which seems to be very
 /// neat).
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
-use fuzzcheck::{DefaultMutator, SerdeSerializer};
+use fuzzcheck::DefaultMutator;
 
 use crate::id::Id;
 
@@ -49,7 +49,10 @@ struct Shuffle {
 /// order of the constraints.
 fn fuzz_unifier() {
     let result = fuzzcheck::fuzz_test(|constraint_set: &ConstraintSet| -> bool {
-        let ConstraintSet { shuffles, constraints } = constraint_set;
+        let ConstraintSet {
+            shuffles,
+            constraints,
+        } = constraint_set;
 
         let constraints = constraints
             .iter()
