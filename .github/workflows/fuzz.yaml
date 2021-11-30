@@ -29,5 +29,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: failure
-          path: logic/fuzz/**/artifacts
+          path: logic/fuzz/**/test_failures
       # todo: maybe cache the corpus
