@@ -191,6 +191,7 @@ mod parse_reparse {
             (include_str!("examples/valid-func"), true),
             (include_str!("examples/fuzzcheck/if"), true),
             (include_str!("examples/fuzzcheck/complex-if"), true),
+            (include_str!("examples/fuzzcheck/diverse-cov"), true),
         ]
         // note: examples/invalid-expr and examples/invalid-expr2 are not
         // included here because I haven't figured out what is causing the stack
