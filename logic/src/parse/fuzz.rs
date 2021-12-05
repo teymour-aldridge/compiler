@@ -1,3 +1,6 @@
+//! A fuzz test using Loïc Lecrenier's excellent Fuzzcheck library. It has been exceedingly useful
+//! in detecting faults.
+
 use fuzzcheck::mutators::grammar::*;
 
 use super::parse;

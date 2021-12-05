@@ -1,3 +1,8 @@
+//! The parser for programs. It's a recursive descent parser which I try to make emit friendly and
+//! helpful error messages.
+//!
+//! There is something approaching a formal grammar in [fuzz].
+
 use std::fmt::{self, Write};
 
 use self::{

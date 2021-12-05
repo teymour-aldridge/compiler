@@ -11,6 +11,7 @@ use super::{
 };
 
 #[derive(Debug, Eq, PartialEq)]
+/// A function.
 pub struct Func<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
     pub(crate) name: IDENT,
     pub(crate) parameters: Vec<IDENT>,

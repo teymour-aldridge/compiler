@@ -12,6 +12,7 @@ fn setup_file(file: String) -> (usize, SimpleFiles<String, String>) {
     (id, files)
 }
 
+/// The generic test function (concrete values are provided in the tests lower down).
 fn ui_test(string: String) {
     let err = parse(&string).unwrap_err();
     let (file_id, files) = setup_file(string);

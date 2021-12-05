@@ -5,6 +5,7 @@ use crate::{diagnostics::span::Span, parse::utils::write_indentation};
 use super::{block::Block, expr::Expr, ident::Ident, utils::Parse};
 
 #[derive(Debug, Eq, PartialEq)]
+/// A while loop.
 pub struct While<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
     pub(crate) condition: EXPR,
     pub(crate) block: Block<'a, IDENT, EXPR>,

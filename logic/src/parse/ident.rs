@@ -7,6 +7,7 @@ use crate::diagnostics::span::{HasSpan, IndexOnlySpan, Span};
 
 use super::utils::{Parse, ParseError};
 
+/// These may not be used as identifiers.
 pub const KEYWORDS: &[&'static str] = &[
     &"for",
     &"if",
@@ -19,6 +20,7 @@ pub const KEYWORDS: &[&'static str] = &[
 ];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+/// An identifier.
 pub struct Ident<'a> {
     inner: &'a str,
     span: Span,

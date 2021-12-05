@@ -3,6 +3,10 @@ use std::ops::Range;
 use super::position::Position;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+/// A span that contains the indices of the start and positions of the relevant object in the raw
+/// source code.
+///
+/// [Span] also contains the line numbers.
 pub struct IndexOnlySpan {
     start: usize,
     stop: usize,
@@ -26,6 +30,8 @@ impl From<Span> for IndexOnlySpan {
 }
 
 #[derive(Copy, Clone, Debug, Eq)]
+/// Relates objects in the compiler to the source code positions from which they came. Note that
+/// unlike [IndexOnlySpan] this includes line numbers (this is useful when debugging).
 pub struct Span {
     #[allow(unused)]
     start: Position,
@@ -41,16 +47,20 @@ impl PartialEq for Span {
 }
 
 impl Span {
+    /// Create a new [Span].
     pub fn new(start: Position, stop: Position) -> Self {
         Self { start, stop }
     }
 
+    /// Obtain the range (in terms of string indices) that this item covers. This is returned in the
+    /// form `(start_index, stop_index)`.
     pub fn range(&self) -> (usize, usize) {
         (self.start.index, self.stop.index)
     }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+/// Contains an item `T` alongside its corresponding source code location.
 pub struct Spanned<T> {
     pub(crate) span: Span,
     pub(crate) token: T,
@@ -63,6 +73,7 @@ impl<T> HasSpan for Spanned<T> {
 }
 
 impl<T> Spanned<T> {
+    /// Construct a new spanned object.
     pub fn new(span: Span, token: T) -> Self {
         Self { span, token }
     }
@@ -76,6 +87,7 @@ impl<T> std::ops::Deref for Spanned<T> {
     }
 }
 
+/// An object whose [Span] can be obtained.
 pub trait HasSpan {
     fn span(&self) -> Span;
 }
