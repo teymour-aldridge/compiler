@@ -27,7 +27,7 @@ pub struct TyTable {
 pub enum Ty {
     Int,
     Bool,
-    String
+    String,
 }
 
 #[derive(Debug)]
