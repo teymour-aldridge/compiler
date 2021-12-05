@@ -169,7 +169,7 @@ fn collect_expr(
         }),
         crate::id::TaggedExprInner::Literal(lit) => {
             let ty = match lit.token {
-                crate::parse::lit::Literal::String(_) => todo!(),
+                crate::parse::lit::Literal::String(_) => Ty::String,
                 crate::parse::lit::Literal::Number(_) => Ty::Int,
                 crate::parse::lit::Literal::Bool(_) => Ty::Bool,
             };
@@ -265,6 +265,27 @@ fn collect_expr(
                     to: param.id,
                 });
                 constraints.extend(collect_expr(&param, definitions, Some(Ty::Int))?);
+            } else if *func.token == "print" {
+                if params.len() != 1 {
+                    return Err(ConstraintGatheringError::MismatchedFunctionCall {
+                        span: func.span(),
+                        explanation: format!(
+                            "This function accepts 1
+                            parameter, but you've called it with `{}` arguments.",
+                            params.len()
+                        ),
+                    });
+                }
+                let param = &params[0];
+                constraints.push(Constraint::IdToTy {
+                    id: param.id,
+                    ty: Ty::String,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: expr.id,
+                    to: param.id,
+                });
+                constraints.extend(collect_expr(&param, definitions, Some(Ty::String))?);
             } else if let Some(function) = definitions
                 .iter()
                 .find(|function| function.name.token == func.token)

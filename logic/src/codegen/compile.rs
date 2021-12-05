@@ -11,10 +11,12 @@ use cranelift_codegen::{
     Context,
 };
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
-use cranelift_module::{Linkage, Module};
+use cranelift_module::{DataContext, Linkage, Module};
 use cranelift_object::{ObjectModule, ObjectProduct};
 
-use crate::codegen::make_module::make_module_for_compiler_host_architecture;
+use crate::{
+    codegen::make_module::make_module_for_compiler_host_architecture, parse::lit::Literal,
+};
 use crate::{
     id::{TaggedAst, TaggedBlock, TaggedExpr, TaggedFor, TaggedIf, TaggedReturn, TaggedWhile},
     parse::expr::BinOp,
@@ -28,6 +30,14 @@ pub struct Compiler<'ctx> {
     context: Context,
     ty_env: &'ctx TyEnv,
     module: ObjectModule,
+}
+
+fn cranelift_of_ty_module(module: &ObjectModule, ty: Ty) -> ir::Type {
+    match ty {
+        Ty::Int => ir::Type::int(32).unwrap(),
+        Ty::Bool => ir::Type::int(8).unwrap().as_bool(),
+        Ty::String => module.target_config().pointer_type(),
+    }
 }
 
 impl<'ctx> Compiler<'ctx> {
@@ -44,11 +54,8 @@ impl<'ctx> Compiler<'ctx> {
     /// Convert the given type into the corresponding Cranelift type.
     ///
     /// TODO: add support for more complex objects
-    fn cranelift_of_ty(ty: Ty) -> ir::Type {
-        match ty {
-            Ty::Int => ir::Type::int(32).unwrap(),
-            Ty::Bool => ir::Type::int(8).unwrap().as_bool(),
-        }
+    fn cranelift_of_ty(&self, ty: Ty) -> ir::Type {
+        cranelift_of_ty_module(&self.module, ty)
     }
 
     /// Transforms the provided AST into Cranelift IR, and then returns a finished module.
@@ -63,11 +70,13 @@ impl<'ctx> Compiler<'ctx> {
         for func in functions {
             // set up the signature
             let returns = if *func.name.token == "print_int" {
-                Self::cranelift_of_ty(Ty::Int)
+                self.cranelift_of_ty(Ty::Int)
+            } else if *func.name.token == "print" {
+                self.cranelift_of_ty(Ty::Int)
             } else {
                 self.ty_env
                     .ty_of(func.name.id)
-                    .map(Self::cranelift_of_ty)
+                    .map(|x| self.cranelift_of_ty(x))
                     .unwrap()
             };
             let returns = AbiParam::new(returns);
@@ -77,7 +86,7 @@ impl<'ctx> Compiler<'ctx> {
                 .parameters
                 .iter()
                 .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
-                .map(Self::cranelift_of_ty)
+                .map(|x| self.cranelift_of_ty(x))
                 .map(AbiParam::new)
                 .collect::<Vec<_>>();
             for param in parameters {
@@ -110,7 +119,7 @@ impl<'ctx> Compiler<'ctx> {
                     var,
                     self.ty_env
                         .ty_of(param.id)
-                        .map(Compiler::cranelift_of_ty)
+                        .map(|x| cranelift_of_ty_module(&self.module, x))
                         .unwrap(),
                 );
 
@@ -194,7 +203,19 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 .builder
                 .use_var(Variable::with_u32(ident.id.raw_id().try_into().unwrap())),
             crate::id::TaggedExprInner::Literal(lit) => match &lit.token {
-                crate::parse::lit::Literal::String(_) => todo!(),
+                crate::parse::lit::Literal::String(lit) => {
+                    let mut data_ctx = DataContext::new();
+                    data_ctx.define(lit.as_bytes().to_vec().into_boxed_slice());
+                    let id = self
+                        .module
+                        .declare_data(&format!("__data_{}", expr.id), Linkage::Local, true, false)
+                        .unwrap();
+                    self.module.define_data(id, &data_ctx).unwrap();
+                    drop(data_ctx);
+                    let local_id = self.module.declare_data_in_func(id, self.builder.func);
+                    let pointer = self.module.target_config().pointer_type();
+                    self.builder.ins().symbol_value(pointer, local_id)
+                }
                 crate::parse::lit::Literal::Number(number) => {
                     if let Some(_) = number.float {
                         panic!("Floats are not yet supported.")
@@ -263,9 +284,9 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     "print_int" => {
                         let mut sig = self.module.make_signature();
                         sig.params
-                            .push(AbiParam::new(Compiler::cranelift_of_ty(Ty::Int)));
+                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
                         sig.returns
-                            .push(AbiParam::new(Compiler::cranelift_of_ty(Ty::Int)));
+                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
                         let func_id = self
                             .module
                             .declare_function("print_int", Linkage::Import, &sig)
@@ -274,6 +295,40 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                             self.module.declare_func_in_func(func_id, self.builder.func);
                         local_callee
                     }
+                    "print" => {
+                        let mut sig = self.module.make_signature();
+                        sig.params
+                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            &self.module,
+                            Ty::String,
+                        )));
+                        sig.returns
+                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
+
+                        let func_id = self
+                            .module
+                            .declare_function("print", Linkage::Import, &sig)
+                            .unwrap();
+                        let local_callee =
+                            self.module.declare_func_in_func(func_id, self.builder.func);
+
+                        let string = params.iter().next().unwrap();
+
+                        let lit = match string.token {
+                            crate::id::TaggedExprInner::Literal(ref x) => match x.token {
+                                Literal::String(ref string) => string,
+                                _ => panic!("Only string literals can be printed (for now)."),
+                            },
+                            _ => panic!("Only string literals can be printed (for now)."),
+                        };
+
+                        let string = self.compile_expr(string);
+                        let len = self.builder.ins().iconst(ir::types::I32, lit.len() as i64);
+
+                        let call = self.builder.ins().call(local_callee, &[len, string]);
+                        return self.builder.inst_results(call)[0];
+                    }
                     _ => {
                         let mut sig = self.module.make_signature();
 
@@ -281,7 +336,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                             sig.params.push(AbiParam::new(
                                 self.ty_env
                                     .ty_of(param.id)
-                                    .map(Compiler::cranelift_of_ty)
+                                    .map(|x| cranelift_of_ty_module(&self.module, x))
                                     .unwrap(),
                             ))
                         }
@@ -289,7 +344,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         sig.returns.push(AbiParam::new(
                             self.ty_env
                                 .ty_of(name.id)
-                                .map(Compiler::cranelift_of_ty)
+                                .map(|x| cranelift_of_ty_module(self.module, x))
                                 .unwrap(),
                         ));
 
