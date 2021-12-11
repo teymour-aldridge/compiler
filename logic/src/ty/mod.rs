@@ -7,6 +7,9 @@ mod test;
 #[cfg(not(disable_fuzzcheck))]
 mod fuzz;
 
+#[cfg(test)]
+mod fuzz2;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -24,6 +27,9 @@ pub struct TyTable {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+// when using fuzzcheck it is necessary to implement some additional traits
+#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(not(disable_fuzzcheck), derive(fuzzcheck::DefaultMutator))]
 pub enum Ty {
     Int,
     Bool,

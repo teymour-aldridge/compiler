@@ -1,5 +1,9 @@
 [tasks.fuzz_ci]
-run_task = [{ name = "fuzz_parser_ci" }, { name = "fuzz_unifier_ci" }]
+run_task = [
+    { name = "fuzz_parser_ci" },
+    { name = "fuzz_unifier_ci" },
+    { name = "fuzz_ty_checker_ci" },
+]
 
 [tasks.fuzz_parser_ci]
 command = "cargo"
@@ -20,6 +24,22 @@ args = ["fuzzcheck", "ty::fuzz::fuzz_unifier", "--stop-after-duration", "300"]
 command = "cargo"
 toolchain = "nightly"
 args = ["fuzzcheck", "ty::fuzz::fuzz_unifier"]
+
+[tasks.fuzz_ty_checker_ci]
+command = "cargo"
+toolchain = "nightly"
+args = [
+    "fuzzcheck",
+    "ty::fuzz2::test_type_checker",
+    "--stop-after-duration",
+    "300",
+]
+
+[tasks.fuzz_ty_checker]
+command = "cargo"
+toolchain = "nightly"
+args = ["fuzzcheck", "ty::fuzz2::test_type_checker"]
+
 
 [tasks.tests]
 command = "cargo"
