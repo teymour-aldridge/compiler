@@ -1,46 +1,28 @@
 [tasks.fuzz_ci]
-run_task = [{name="fuzz_parser_ci"}, {name="fuzz_unifier_ci"}]
+run_task = [{ name = "fuzz_parser_ci" }, { name = "fuzz_unifier_ci" }]
 
 [tasks.fuzz_parser_ci]
 command = "cargo"
 toolchain = "nightly"
-args = [
-    "fuzzcheck",
-    "parse::fuzz::fuzz_parser",
-    "-max-duration",
-    "300"
-]
+args = ["fuzzcheck", "parse::fuzz::fuzz_parser", "--stop-after-duration", "300"]
 
 [tasks.fuzz_parser]
 command = "cargo"
 toolchain = "nightly"
-args = [
-    "fuzzcheck",
-    "parse::fuzz::fuzz_parser",
-]
+args = ["fuzzcheck", "parse::fuzz::fuzz_parser"]
 
 [tasks.fuzz_unifier_ci]
 command = "cargo"
 toolchain = "nightly"
-args = [
-    "fuzzcheck",
-    "ty::fuzz::fuzz_unifier",
-    "-max-duration",
-    "300"
-]
+args = ["fuzzcheck", "ty::fuzz::fuzz_unifier", "--stop-after-duration", "300"]
 
 [tasks.fuzz_unifier]
 command = "cargo"
 toolchain = "nightly"
-args = [
-    "fuzzcheck",
-    "ty::fuzz::fuzz_unifier",
-]
+args = ["fuzzcheck", "ty::fuzz::fuzz_unifier"]
 
 [tasks.tests]
 command = "cargo"
 toolchain = "nightly"
-args = [
-    "test"
-]
+args = ["test"]
 env = { "RUSTFLAGS" = "--cfg=disable_fuzzcheck" }
