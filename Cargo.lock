@@ -235,9 +235,9 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck"
-version = "0.9.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7921d7e386c640912a0c8bbef3ba97e6d0fd1a74da0a4d31e6d5d2671be36585"
+checksum = "8628743751e5307d2309c7226e907120f6b99852afb1904c367693572e587e9a"
 dependencies = [
  "ahash",
  "bitflags",
@@ -259,18 +259,18 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck_common"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5776d5a8fd41e6602c213734e6fd8f2ae1954ced1bbcb79e3b8f6bdbf9aebc7c"
+checksum = "0f07c2f769fee7e6db99659f88af36646b7145e9533c396d2327e0ae2b3aafaf"
 dependencies = [
  "getopts",
 ]
 
 [[package]]
 name = "fuzzcheck_mutators_derive"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f0855bdf616fa9bd0eb371505f96a0f1aee1d1cfa387960239626415b34878b"
+checksum = "8a561c80a6f2c3430798f71c1c939df2a7930c27d80caa34dfaef172d60b6ff5"
 dependencies = [
  "decent-synquote-alternative",
  "proc-macro2",
@@ -515,9 +515,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustversion"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b3909d758bb75c79f23d4736fac9433868679d3ad2ea7a61e3c25cfda9a088"
+checksum = "f2cc38e8fa666e2de3c4aba7edeb5ffc5246c1c2ed0e3d17e560aeeba736b23f"
 
 [[package]]
 name = "ryu"
@@ -527,18 +527,18 @@ checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
 
 [[package]]
 name = "serde"
-version = "1.0.130"
+version = "1.0.131"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f12d06de37cf59146fbdecab66aa99f9fe4f78722e3607577a5375d66bd0c913"
+checksum = "b4ad69dfbd3e45369132cc64e6748c2d65cdfb001a2b1c232d128b4ad60561c1"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.130"
+version = "1.0.131"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7bc1a1ab1961464eae040d96713baa5a724a8152c1222492465b54322ec508b"
+checksum = "b710a83c4e0dff6a3d511946b95274ad9ca9e5d3ae497b63fda866ac955358d2"
 dependencies = [
  "proc-macro2",
  "quote",

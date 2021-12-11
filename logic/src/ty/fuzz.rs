@@ -13,7 +13,9 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
-use fuzzcheck::DefaultMutator;
+use fuzzcheck::{
+    make_mutator, mutators::integer_within_range::U8WithinRangeMutator, DefaultMutator,
+};
 
 use crate::id::Id;
 
@@ -26,7 +28,6 @@ enum MutatorTy {
 }
 
 #[derive(Clone, DefaultMutator, Deserialize, Serialize)]
-#[allow(non_snake_case)]
 enum ConstraintMutator {
     IdToId { x: usize, y: usize },
     IdToTy { id: usize, ty: MutatorTy },
@@ -38,10 +39,23 @@ struct ConstraintSet {
     shuffles: Vec<Shuffle>,
 }
 
-#[derive(Clone, DefaultMutator, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct Shuffle {
     a: u8,
     b: u8,
+}
+
+make_mutator! {
+    name: ShuffleMutator
+    recursive: false,
+    default: true,
+    type:
+        pub struct Shuffle {
+            #[field_mutator(U8WithinRangeMutator = { U8WithinRangeMutator::new(0 ..= 100) })]
+            a: u8,
+            #[field_mutator(U8WithinRangeMutator = { U8WithinRangeMutator::new(0 ..= 100) })]
+            b: u8
+        }
 }
 
 #[test]

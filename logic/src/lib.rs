@@ -1,4 +1,4 @@
-#![cfg_attr(test, feature(no_coverage))]
+#![cfg_attr(test, feature(no_coverage, trivial_bounds))]
 
 pub mod codegen;
 pub mod diagnostics;
