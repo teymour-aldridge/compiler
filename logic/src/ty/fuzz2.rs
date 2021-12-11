@@ -231,3 +231,14 @@ fn regression_1() {
         }],
     }))
 }
+
+#[test]
+fn regression_2() {
+    assert!(perform_test(&Start::Ty {
+        name: VarName {
+            inner: "B".to_string()
+        },
+        ty: Ty::Bool,
+        transforms: vec![]
+    }));
+}
