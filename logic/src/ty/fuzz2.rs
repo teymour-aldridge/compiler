@@ -52,13 +52,12 @@ impl Start {
                     }
                 }
                 program += &format!("{}={}", name.inner, prev);
-                dbg!(program)
+                program
             }
         }
     }
 
     fn check(&self, env: TyEnv, ast: &TaggedAst) -> bool {
-        dbg!(&env);
         struct VariableVisitor {
             /// Maps the names of variables to their corresponding ids.
             map: HashMap<String, Id>,

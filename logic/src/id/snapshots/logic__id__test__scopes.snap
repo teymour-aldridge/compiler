@@ -217,30 +217,27 @@ Ast {
         While(
             While {
                 condition: Tagged {
-                    token: Ident(
-                        Tagged {
-                            token: Ident {
-                                inner: "True",
-                                span: Span {
-                                    start: Position {
-                                        column: 6,
-                                        line: 4,
-                                        index: 44,
-                                    },
-                                    stop: Position {
-                                        column: 10,
-                                        line: 4,
-                                        index: 48,
-                                    },
+                    token: Literal(
+                        Spanned {
+                            span: Span {
+                                start: Position {
+                                    column: 6,
+                                    line: 4,
+                                    index: 44,
+                                },
+                                stop: Position {
+                                    column: 10,
+                                    line: 4,
+                                    index: 48,
                                 },
                             },
-                            id: Id {
-                                inner: 11,
-                            },
+                            token: Bool(
+                                true,
+                            ),
                         },
                     ),
                     id: Id {
-                        inner: 12,
+                        inner: 11,
                     },
                 },
                 block: Block {
@@ -288,7 +285,7 @@ Ast {
                                                 },
                                             ),
                                             id: Id {
-                                                inner: 13,
+                                                inner: 12,
                                             },
                                         },
                                         Tagged {
@@ -316,12 +313,12 @@ Ast {
                                                 },
                                             ),
                                             id: Id {
-                                                inner: 14,
+                                                inner: 13,
                                             },
                                         },
                                     ),
                                     id: Id {
-                                        inner: 15,
+                                        inner: 14,
                                     },
                                 },
                             ),
@@ -363,7 +360,7 @@ Ast {
                         },
                     },
                     id: Id {
-                        inner: 16,
+                        inner: 15,
                     },
                 },
                 parameters: [
@@ -384,7 +381,7 @@ Ast {
                             },
                         },
                         id: Id {
-                            inner: 17,
+                            inner: 16,
                         },
                     },
                 ],
@@ -428,12 +425,12 @@ Ast {
                                                         },
                                                     },
                                                     id: Id {
-                                                        inner: 17,
+                                                        inner: 16,
                                                     },
                                                 },
                                             ),
                                             id: Id {
-                                                inner: 18,
+                                                inner: 17,
                                             },
                                         },
                                         Tagged {
@@ -461,12 +458,12 @@ Ast {
                                                 },
                                             ),
                                             id: Id {
-                                                inner: 19,
+                                                inner: 18,
                                             },
                                         },
                                     ),
                                     id: Id {
-                                        inner: 20,
+                                        inner: 19,
                                     },
                                 },
                             ),

@@ -17,6 +17,8 @@ pub const KEYWORDS: &[&'static str] = &[
     &"endfunction",
     &"endwhile",
     &"endif",
+    &"True",
+    &"False",
 ];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

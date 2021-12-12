@@ -36,8 +36,10 @@ impl<'a> Parse<'a> for Literal<'a> {
         } else if let Some('0'..='9') = input.chars().next() {
             Ok(Self::Number(Number::parse(input)?))
         } else if input.starts_with("True") {
+            input.parse_token("True")?;
             Ok(Self::Bool(true))
         } else if input.starts_with("False") {
+            input.parse_token("False")?;
             Ok(Self::Bool(false))
         } else {
             Err(ParseError::__NonExhaustive)
