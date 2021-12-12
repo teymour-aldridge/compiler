@@ -68,7 +68,9 @@ impl<'a> Expr<'a> {
         input.skip_whitespace()?;
         let mut lhs = {
             if input.starts_with('(') {
+                let opening_bracket_span = input.start_recording();
                 input.advance_one()?;
+                let opening_bracket_span = opening_bracket_span.finish_recording(input);
                 let expr = Self::parse_bp_stop_if(input, 0, stop_if)?;
                 input.skip_whitespace()?;
                 if input.starts_with(')') {
@@ -76,7 +78,21 @@ impl<'a> Expr<'a> {
                     expr
                 } else {
                     // todo: make a proper error about mismatched brackets
-                    return Err(ParseError::UnexpectedEndOfInput);
+                    return if !input.is_empty() {
+                        let mut input2 = input.clone();
+                        let closing_bracket_span = input2.start_recording();
+                        input2.advance_one()?;
+                        let closing_bracket_span = closing_bracket_span.finish_recording(&input2);
+                        Err(ParseError::MismatchedBrackets {
+                            opening_span: IndexOnlySpan::from(opening_bracket_span),
+                            expected_closing_span: Some(IndexOnlySpan::from(closing_bracket_span)),
+                        })
+                    } else {
+                        Err(ParseError::MismatchedBrackets {
+                            opening_span: IndexOnlySpan::from(opening_bracket_span),
+                            expected_closing_span: None,
+                        })
+                    };
                 }
             } else if Ident::parse(&mut input.clone()).is_ok() {
                 let ident = Ident::parse(input)?;

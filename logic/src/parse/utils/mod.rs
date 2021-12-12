@@ -20,6 +20,10 @@ pub trait Parse<'a>: Sized {
 // todo: convert this into a `Diagnostic` (also create that struct as well)
 #[derive(Debug)]
 pub enum ParseError {
+    MismatchedBrackets {
+        opening_span: IndexOnlySpan,
+        expected_closing_span: Option<IndexOnlySpan>,
+    },
     UnexpectedToken {
         explanation: String,
         span: IndexOnlySpan,
@@ -61,6 +65,23 @@ impl ParseError {
                 You're welcome for this unhelpful message. Fear not – a proper error message will
                 (hopefully) replace it soon.",
             ),
+            ParseError::MismatchedBrackets {
+                opening_span,
+                expected_closing_span,
+            } => Diagnostic::error()
+                .with_message("Mismatching brackets!")
+                .with_labels(if let Some(closing) = expected_closing_span {
+                    vec![
+                        Label::primary(id, opening_span.range())
+                            .with_message("This bracket is opened, but it is never closed"),
+                        Label::secondary(id, closing.range()).with_message(
+                            "note: perhaps the missing closing bracket should go here",
+                        ),
+                    ]
+                } else {
+                    vec![Label::primary(id, opening_span.range())
+                        .with_message("This bracket is opened, but it is never closed")]
+                }),
         }
     }
 }

@@ -1,0 +1,12 @@
+---
+source: logic/src/parse/ui.rs
+expression: string
+
+---
+error: Mismatching brackets!
+  ┌─ file:1:5
+  │
+1 │ (((((((()))
+  │     ^ This bracket is opened, but it is never closed
+
+

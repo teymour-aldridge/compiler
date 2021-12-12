@@ -3,6 +3,10 @@ source: logic/src/parse/ui.rs
 expression: string
 
 ---
-error: Unexpected end of input.
+error: Mismatching brackets!
+  ┌─ file:1:14
+  │
+1 │ f(x + a * z (( zz
+  │              ^ This bracket is opened, but it is never closed
 
 

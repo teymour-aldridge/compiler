@@ -44,9 +44,14 @@ fn test_invalid_brackets_1() {
 
 #[test]
 fn test_invalid_brackets2() {
-    // this ideally should also mention what token it expects (rather than just saying "unexpected
-    // end of input")
     ui_test("f(x + a * z (( zz".to_string())
+}
+
+#[test]
+fn test_invalid_brackets3() {
+    ui_test("(((((((()".to_string());
+    ui_test("(((((((())".to_string());
+    ui_test("(((((((()))".to_string());
 }
 
 #[test]
