@@ -1,0 +1,3 @@
+record SW
+  RK of Int
+endrecord

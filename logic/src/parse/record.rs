@@ -30,9 +30,10 @@ impl fmt::Display for Record<'_> {
         for each in &self.fields {
             write_indentation(self.indent + 2, f)?;
             each.fmt(f)?;
+            f.write_char('\n')?;
         }
 
-        Ok(())
+        f.write_str("endrecord")
     }
 }
 
@@ -63,6 +64,8 @@ impl<'a> Parse<'a> for Record<'a> {
                 || (input.indent >= 2 && input.count_indent()? == input.indent - 2)
                 || input.chars().all(|char| char.is_whitespace())
             {
+                input.decrement_indent(2);
+                input.parse_token("endrecord")?;
                 return Ok(Self {
                     name,
                     fields,

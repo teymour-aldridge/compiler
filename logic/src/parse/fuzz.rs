@@ -1,5 +1,8 @@
 //! A fuzz test using Loïc Lecrenier's excellent Fuzzcheck library. It has been exceedingly useful
 //! in detecting faults.
+//!
+//! This also doubles as a formal grammar for the language, and helps with finding input values that
+//! are well-suited to being used for benchmarks.
 
 use fuzzcheck::mutators::grammar::*;
 
@@ -101,7 +104,7 @@ fn fuzz_parser() {
         regex("function "),
         ident.clone(),
         literal('('),
-        repetition(concatenation([ident, literal(',')]), 1..),
+        repetition(concatenation([ident.clone(), literal(',')]), 1..),
         literal(')'),
         literal('\n'),
         indented_statements.clone(),
@@ -126,7 +129,27 @@ fn fuzz_parser() {
         regex("endif\n"),
     ]);
 
-    let block = alternation([for_loop, while_loop, function, if_statement]);
+    let record = concatenation([
+        regex("record "),
+        ident.clone(),
+        literal('\n'),
+        repetition(
+            concatenation([
+                regex("  "),
+                ident,
+                regex(" of "),
+                alternation([
+                    regex("Bool"),
+                    regex("Int"),
+                    regex("String")
+                ]),
+                literal('\n')
+            ]), 1..100
+        ),
+        regex("endrecord")
+    ]);
+
+    let block = alternation([for_loop, while_loop, function, if_statement, record]);
 
     let ast = repetition(alternation([block, statement]), 0..);
 
