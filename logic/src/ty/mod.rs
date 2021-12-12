@@ -29,7 +29,7 @@ pub struct TyTable {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 // when using fuzzcheck it is necessary to implement some additional traits
 #[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(not(disable_fuzzcheck), derive(fuzzcheck::DefaultMutator))]
+#[cfg_attr(all(test, not(disable_fuzzcheck)), derive(fuzzcheck::DefaultMutator))]
 pub enum Ty {
     Int,
     Bool,
