@@ -1,3 +1,5 @@
+//! Collects constraints from an AST.
+
 use crate::{
     diagnostics::span::{HasSpan, Span},
     id::{
@@ -10,21 +12,19 @@ use crate::{
 use super::Ty;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+/// The possible constraints.
 pub(crate) enum Constraint {
     #[allow(unused)]
-    IdToTy {
-        id: Id,
-        ty: Ty,
-    },
+    /// A specific item with the given [crate::id::Id] must have the given base type.
+    IdToTy { id: Id, ty: Ty },
+    /// A specific item with the given [crate::id::Id] must have the same type as a different item.
     #[allow(unused)]
-    IdToId {
-        id: Id,
-        to: Id,
-    },
-    TyToTy {
-        ty: Ty,
-        to: Ty,
-    },
+    IdToId { id: Id, to: Id },
+    /// A specific type must be the same as a different item.
+    ///
+    /// Note that this is used later, while solving the constraints and not while collecting
+    /// constraints from the AST.
+    TyToTy { ty: Ty, to: Ty },
 }
 
 pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGatheringError> {
