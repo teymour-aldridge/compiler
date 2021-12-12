@@ -217,6 +217,7 @@ fn tagged_node<'a>(
         Node::While(block) => Node::While(tagged_while(block, ctx)),
         Node::Return(ret) => Node::Return(tagged_ret(ret, ctx)),
         Node::Func(func) => Node::Func(tagged_func(func, ctx)),
+        Node::Record(_) => todo!(),
     }
 }
 

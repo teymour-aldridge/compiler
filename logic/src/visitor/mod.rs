@@ -22,6 +22,7 @@ pub trait Visitor<'a, 'ctx> {
             crate::parse::Node::While(stmt) => self.visit_while(stmt),
             crate::parse::Node::Return(ret) => self.visit_ret(ret),
             crate::parse::Node::Func(func) => self.visit_func(func),
+            crate::parse::Node::Record(_) => todo!(),
         }
     }
 

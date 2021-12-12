@@ -187,6 +187,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 crate::parse::Node::Func(_) => {
                     panic!("should have checked this error before now!");
                 }
+                crate::parse::Node::Record(_) => todo!(),
             };
         }
     }

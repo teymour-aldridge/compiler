@@ -10,6 +10,8 @@ mod fuzz;
 #[cfg(test)]
 mod fuzz2;
 
+use std::fmt;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -34,6 +36,16 @@ pub enum Ty {
     Int,
     Bool,
     String,
+}
+
+impl fmt::Display for Ty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Ty::Int => "Int",
+            Ty::Bool => "Bool",
+            Ty::String => "String",
+        })
+    }
 }
 
 #[derive(Debug)]

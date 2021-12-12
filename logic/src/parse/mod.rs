@@ -12,6 +12,7 @@ use self::{
     r#for::ForLoop,
     r#if::If,
     r#while::While,
+    record::Record,
     utils::{write_indentation, Input, Parse, ParseError},
 };
 
@@ -22,6 +23,7 @@ pub mod func;
 pub mod ident;
 pub mod r#if;
 pub mod lit;
+pub mod record;
 pub mod utils;
 pub mod r#while;
 
@@ -90,6 +92,7 @@ pub enum Node<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
     While(While<'a, IDENT, EXPR>),
     Return(Return<'a, EXPR>),
     Func(Func<'a, IDENT, EXPR>),
+    Record(Record<'a, IDENT>),
 }
 
 impl<'a, IDENT, EXPR> Node<'a, IDENT, EXPR> {
@@ -122,6 +125,8 @@ impl<'a> Parse<'a> for Node<'a> {
             While::parse(input).map(Self::While)
         } else if input.starts_with("function ") {
             Func::parse(input).map(Self::Func)
+        } else if input.starts_with("record") {
+            Record::parse(input).map(Self::Record)
         } else {
             Expr::parse(input).map(Self::Expr)
         }
@@ -137,6 +142,7 @@ impl fmt::Display for Node<'_> {
             Node::While(w) => w.fmt(f),
             Node::Return(r) => r.fmt(f),
             Node::Func(func) => func.fmt(f),
+            Node::Record(rec) => rec.fmt(f),
         }
     }
 }
