@@ -2,11 +2,9 @@
 
 use crate::{
     diagnostics::span::{HasSpan, Span},
-    id::{
-        Id, TaggedAst, TaggedBlock, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc,
-        TaggedNode,
-    },
+    id::{Id, TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode},
     parse::{expr::BinOp, Node},
+    visitor::Visitor,
 };
 
 use super::Ty;
@@ -28,12 +26,18 @@ pub(crate) enum Constraint {
 }
 
 pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGatheringError> {
-    let mut c = vec![];
-    let definitions = gather_function_definitions(ast);
-    for node in &ast.nodes {
-        c.extend(collect_node(node, &definitions, None)?)
-    }
-    Ok(c)
+    let mut visitor = ConstraintVisitor::new(ast);
+    visitor
+        .visit_ast(&ast)
+        .into_iter()
+        .collect::<Result<_, _>>()?;
+    Ok(visitor.take_constraints())
+}
+
+struct ConstraintVisitor<'a, 'ctx> {
+    constraints: Vec<Constraint>,
+    definitions: Vec<&'a TaggedFunc<'ctx>>,
+    current_func: Option<&'a TaggedFunc<'ctx>>,
 }
 
 fn gather_function_definitions<'a, 'collect>(
@@ -48,109 +52,130 @@ fn gather_function_definitions<'a, 'collect>(
         .collect()
 }
 
-fn collect_node(
-    node: &TaggedNode,
-    definitions: &Vec<&TaggedFunc>,
-    current_func: Option<&TaggedFunc>,
-) -> Result<Vec<Constraint>, ConstraintGatheringError> {
-    match node {
-        Node::Expr(expr) => collect_expr(expr, definitions, None),
-        Node::For(block) => {
-            let mut constraints = vec![];
-            constraints.push(Constraint::IdToTy {
-                id: block.var.id,
-                ty: Ty::Int,
-            });
-            constraints.push(Constraint::IdToTy {
-                id: block.between.start.id,
-                ty: Ty::Int,
-            });
-            constraints.push(Constraint::IdToTy {
-                id: block.between.stop.id,
-                ty: Ty::Int,
-            });
-            if let Some(ref step) = block.between.step {
-                constraints.push(Constraint::IdToTy {
-                    id: step.id,
-                    ty: Ty::Int,
-                });
-            }
-            constraints.extend(collect_block(&block.block, definitions, current_func)?);
-            Ok(constraints)
+impl<'a, 'ctx> ConstraintVisitor<'a, 'ctx> {
+    fn new(ast: &'a TaggedAst<'ctx>) -> Self {
+        Self {
+            constraints: vec![],
+            definitions: gather_function_definitions(ast),
+            current_func: None,
         }
-        Node::If(stmt) => {
-            let mut c = vec![];
+    }
 
-            let branch_constraints =
-                |_branch: &TaggedBranch| -> Result<Vec<Constraint>, ConstraintGatheringError> {
-                    let mut c = vec![];
-                    c.extend(collect_expr(
-                        &stmt.r#if.condition,
-                        definitions,
-                        Some(Ty::Bool),
-                    )?);
-                    c.extend(collect_block(&stmt.r#if.block, definitions, current_func)?);
-                    Ok(c)
-                };
-
-            let val = (branch_constraints)(&stmt.r#if)?;
-            c.extend(val);
-
-            for each in &stmt.else_ifs {
-                let val = (branch_constraints)(&each)?;
-                c.extend(val)
-            }
-
-            if let Some(ref r#else) = stmt.r#else {
-                c.extend(collect_block(r#else, definitions, current_func)?);
-            }
-
-            Ok(c)
-        }
-        Node::While(block) => {
-            let mut c = vec![];
-
-            c.push(Constraint::IdToTy {
-                id: block.condition.id,
-                ty: Ty::Bool,
-            });
-
-            c.extend(collect_block(&block.block, definitions, current_func)?);
-
-            Ok(c)
-        }
-        Node::Return(ret) => {
-            let mut c = vec![];
-            if let Some(func) = current_func {
-                c.push(Constraint::IdToId {
-                    id: func.name.id,
-                    to: ret.expr.id,
-                });
-                c.extend(collect_expr(&ret.expr, definitions, None)?);
-                Ok(c)
-            } else {
-                return Err(ConstraintGatheringError::ReturnOutsideFunction {
-                    span: ret.expr.span(),
-                    explanation: "Return statements can only be used inside functions".to_string(),
-                });
-            }
-        }
-        Node::Func(func) => collect_block(&func.block, definitions, Some(func)),
+    fn take_constraints(self) -> Vec<Constraint> {
+        self.constraints
     }
 }
 
-fn collect_block(
-    block: &TaggedBlock,
-    definitions: &Vec<&TaggedFunc>,
-    current_func: Option<&TaggedFunc>,
-) -> Result<Vec<Constraint>, ConstraintGatheringError> {
-    let mut c = vec![];
-    for node in &block.inner.nodes {
-        c.extend(collect_node(node, definitions, current_func)?);
+impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
+    type Output = Result<(), ConstraintGatheringError>;
+
+    fn visit_expr(&mut self, expr: &'a TaggedExpr<'ctx>) -> Self::Output {
+        self.constraints
+            .extend(collect_expr(expr, &self.definitions, None)?);
+        Ok(())
     }
-    Ok(c)
+
+    fn visit_for(&mut self, stmt: &'a crate::id::TaggedFor<'ctx>) -> Self::Output {
+        self.constraints.push(Constraint::IdToTy {
+            id: stmt.var.id,
+            ty: Ty::Int,
+        });
+        self.constraints.push(Constraint::IdToTy {
+            id: stmt.between.start.id,
+            ty: Ty::Int,
+        });
+        self.constraints.push(Constraint::IdToTy {
+            id: stmt.between.stop.id,
+            ty: Ty::Int,
+        });
+        if let Some(ref step) = stmt.between.step {
+            self.constraints.push(Constraint::IdToTy {
+                id: step.id,
+                ty: Ty::Int,
+            });
+        }
+        self.visit_block(&stmt.block)
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        Ok(())
+    }
+
+    fn visit_if(&mut self, stmt: &'a crate::id::TaggedIf<'ctx>) -> Self::Output {
+        fn branch_constraints<'a, 'ctx>(
+            branch: &'a TaggedBranch<'ctx>,
+            visitor: &mut ConstraintVisitor<'a, 'ctx>,
+        ) -> Result<(), ConstraintGatheringError> {
+            visitor.visit_expr(&branch.condition)?;
+            visitor
+                .visit_block(&branch.block)
+                .into_iter()
+                .collect::<Result<_, _>>()?;
+            Ok(())
+        }
+
+        branch_constraints(&stmt.r#if, self)?;
+
+        for each in &stmt.else_ifs {
+            branch_constraints(&each, self)?;
+        }
+
+        if let Some(ref r#else) = stmt.r#else {
+            self.visit_block(r#else)
+                .into_iter()
+                .collect::<Result<_, _>>()?;
+        }
+
+        Ok(())
+    }
+
+    fn visit_while(&mut self, stmt: &'a crate::id::TaggedWhile<'ctx>) -> Self::Output {
+        self.constraints.push(Constraint::IdToTy {
+            id: stmt.condition.id,
+            ty: Ty::Bool,
+        });
+
+        self.visit_block(&stmt.block)
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+
+        Ok(())
+    }
+
+    fn visit_ret(&mut self, ret: &'a crate::id::TaggedReturn<'ctx>) -> Self::Output {
+        if let Some(func) = self.current_func {
+            self.constraints.push(Constraint::IdToId {
+                id: func.name.id,
+                to: ret.expr.id,
+            });
+            self.visit_expr(&ret.expr)
+        } else {
+            Err(ConstraintGatheringError::ReturnOutsideFunction {
+                span: ret.expr.span(),
+                explanation: "Return statements can only be used inside functions".to_string(),
+            })
+        }
+    }
+
+    fn visit_func(&mut self, func: &'a TaggedFunc<'ctx>) -> Self::Output {
+        let prev = self.current_func;
+        self.current_func = Some(func);
+        self.visit_block(&func.block)
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        self.current_func = prev;
+        Ok(())
+    }
+
+    /// Doesn't do anything.
+    fn visit_ident(&mut self, _: &crate::id::TaggedIdent) -> Self::Output {
+        Ok(())
+    }
 }
 
+/// Collects constraints from a given expression.
+///
+/// The type that this expression should conform to. The function will insert constraints as
+/// needed.
 fn collect_expr(
     expr: &TaggedExpr,
     definitions: &Vec<&TaggedFunc>,

@@ -63,7 +63,7 @@ impl Start {
             map: HashMap<String, Id>,
         }
 
-        impl Visitor for VariableVisitor {
+        impl<'a, 'ctx> Visitor<'a, 'ctx> for VariableVisitor {
             type Output = ();
 
             fn visit_for(&mut self, stmt: &crate::id::TaggedFor) -> Self::Output {

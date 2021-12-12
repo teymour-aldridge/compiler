@@ -3,10 +3,10 @@ use crate::id::{
     TaggedReturn, TaggedWhile,
 };
 
-pub trait Visitor {
+pub trait Visitor<'a, 'ctx> {
     type Output;
 
-    fn visit_ast(&mut self, ast: &TaggedAst) -> Vec<Self::Output> {
+    fn visit_ast(&mut self, ast: &'a TaggedAst<'ctx>) -> Vec<Self::Output> {
         let mut res = vec![];
         for node in &ast.nodes {
             res.push(self.visit_node(&node));
@@ -14,7 +14,7 @@ pub trait Visitor {
         res
     }
 
-    fn visit_node(&mut self, node: &TaggedNode) -> Self::Output {
+    fn visit_node(&mut self, node: &'a TaggedNode<'ctx>) -> Self::Output {
         match node {
             crate::parse::Node::Expr(expr) => self.visit_expr(expr),
             crate::parse::Node::For(stmt) => self.visit_for(stmt),
@@ -25,21 +25,21 @@ pub trait Visitor {
         }
     }
 
-    fn visit_expr(&mut self, expr: &TaggedExpr) -> Self::Output;
+    fn visit_expr(&mut self, expr: &'a TaggedExpr<'ctx>) -> Self::Output;
 
-    fn visit_for(&mut self, stmt: &TaggedFor) -> Self::Output;
+    fn visit_for(&mut self, stmt: &'a TaggedFor<'ctx>) -> Self::Output;
 
-    fn visit_if(&mut self, stmt: &TaggedIf) -> Self::Output;
+    fn visit_if(&mut self, stmt: &'a TaggedIf<'ctx>) -> Self::Output;
 
-    fn visit_while(&mut self, stmt: &TaggedWhile) -> Self::Output;
+    fn visit_while(&mut self, stmt: &'a TaggedWhile<'ctx>) -> Self::Output;
 
-    fn visit_ret(&mut self, ret: &TaggedReturn) -> Self::Output;
+    fn visit_ret(&mut self, ret: &'a TaggedReturn<'ctx>) -> Self::Output;
 
-    fn visit_func(&mut self, func: &TaggedFunc) -> Self::Output;
+    fn visit_func(&mut self, func: &'a TaggedFunc<'ctx>) -> Self::Output;
 
-    fn visit_ident(&mut self, ident: &TaggedIdent) -> Self::Output;
+    fn visit_ident(&mut self, ident: &'a TaggedIdent<'ctx>) -> Self::Output;
 
-    fn visit_block(&mut self, block: &TaggedBlock) -> Vec<Self::Output> {
+    fn visit_block(&mut self, block: &'a TaggedBlock<'ctx>) -> Vec<Self::Output> {
         self.visit_ast(&block.inner)
     }
 }
