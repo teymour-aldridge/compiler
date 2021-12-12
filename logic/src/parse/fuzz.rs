@@ -138,15 +138,12 @@ fn fuzz_parser() {
                 regex("  "),
                 ident,
                 regex(" of "),
-                alternation([
-                    regex("Bool"),
-                    regex("Int"),
-                    regex("String")
-                ]),
-                literal('\n')
-            ]), 1..100
+                alternation([regex("Bool"), regex("Int"), regex("String")]),
+                literal('\n'),
+            ]),
+            1..100,
         ),
-        regex("endrecord")
+        regex("endrecord"),
     ]);
 
     let block = alternation([for_loop, while_loop, function, if_statement, record]);

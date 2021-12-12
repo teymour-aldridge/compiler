@@ -18,6 +18,7 @@ use crate::{
         r#for::{Between, ForLoop},
         r#if::{Branch, If},
         r#while::While,
+        record::{Field, Record},
         Ast, Node,
     },
 };
@@ -178,6 +179,7 @@ pub type TaggedFor<'a> = ForLoop<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedIf<'a> = If<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedWhile<'a> = While<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedReturn<'a> = Return<'a, TaggedExpr<'a>>;
+pub type TaggedRecord<'a> = Record<'a, TaggedIdent<'a>>;
 
 fn tagged_ast<'a>(ast: Ast<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedAst<'a> {
     ctx.push_scope();
@@ -217,7 +219,7 @@ fn tagged_node<'a>(
         Node::While(block) => Node::While(tagged_while(block, ctx)),
         Node::Return(ret) => Node::Return(tagged_ret(ret, ctx)),
         Node::Func(func) => Node::Func(tagged_func(func, ctx)),
-        Node::Record(_) => todo!(),
+        Node::Record(rec) => Node::Record(tagged_rec(rec, ctx)),
     }
 }
 
@@ -305,6 +307,22 @@ fn tagged_block<'a>(
     let ret = Block { inner: tagged };
     ctx.pop_scope(remove_additions);
     ret
+}
+
+fn tagged_rec<'a>(rec: Record<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedRecord<'a> {
+    Record {
+        name: tagged_ident(rec.name, ctx),
+        fields: rec
+            .fields
+            .into_iter()
+            .map(|field| Field {
+                name: tagged_ident(field.name, ctx),
+                ty: field.ty,
+                _a: PhantomData,
+            })
+            .collect(),
+        indent: rec.indent,
+    }
 }
 
 fn tagged_expr<'a>(expr: Expr<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedExpr<'a> {

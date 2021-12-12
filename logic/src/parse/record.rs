@@ -1,5 +1,4 @@
 /// Parses records.
-
 use std::{
     fmt::{self, Write},
     marker::PhantomData,
@@ -17,7 +16,7 @@ use super::{
 pub struct Record<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,
     pub(crate) fields: Vec<Field<'a, IDENT>>,
-    indent: usize,
+    pub(crate) indent: usize,
 }
 
 impl fmt::Display for Record<'_> {
@@ -84,7 +83,7 @@ impl<'a> Parse<'a> for Record<'a> {
 pub struct Field<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,
     pub(crate) ty: Ty,
-    _a: PhantomData<&'a IDENT>,
+    pub(crate) _a: PhantomData<&'a IDENT>,
 }
 
 impl<'a> Parse<'a> for Field<'a> {
