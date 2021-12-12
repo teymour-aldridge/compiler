@@ -217,10 +217,10 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     self.builder.ins().symbol_value(pointer, local_id)
                 }
                 crate::parse::lit::Literal::Number(number) => {
-                    if let Some(_) = number.float {
+                    if number.float.is_some() {
                         panic!("Floats are not yet supported.")
                     }
-                    if let Some(_) = number.exp {
+                    if number.exp.is_some() {
                         panic!("Exponents are not yet supported!")
                     }
 
@@ -284,27 +284,26 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     "print_int" => {
                         let mut sig = self.module.make_signature();
                         sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
                         sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
                         let func_id = self
                             .module
                             .declare_function("print_int", Linkage::Import, &sig)
                             .unwrap();
-                        let local_callee =
-                            self.module.declare_func_in_func(func_id, self.builder.func);
-                        local_callee
+
+                        self.module.declare_func_in_func(func_id, self.builder.func)
                     }
                     "print" => {
                         let mut sig = self.module.make_signature();
                         sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
                         sig.params.push(AbiParam::new(cranelift_of_ty_module(
-                            &self.module,
+                            self.module,
                             Ty::String,
                         )));
                         sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(&self.module, Ty::Int)));
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
 
                         let func_id = self
                             .module
@@ -336,7 +335,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                             sig.params.push(AbiParam::new(
                                 self.ty_env
                                     .ty_of(param.id)
-                                    .map(|x| cranelift_of_ty_module(&self.module, x))
+                                    .map(|x| cranelift_of_ty_module(self.module, x))
                                     .unwrap(),
                             ))
                         }
@@ -353,9 +352,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                             .declare_function(*name.token, Linkage::Import, &sig)
                             .expect("problem declaring function");
 
-                        let local_callee =
-                            self.module.declare_func_in_func(callee, self.builder.func);
-                        local_callee
+                        self.module.declare_func_in_func(callee, self.builder.func)
                     }
                 };
                 let arg_values = params
@@ -392,7 +389,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         self.builder.seal_block(else_block);
 
         if let Some(else_block) = &stmt.r#else {
-            self.compile_block(&else_block);
+            self.compile_block(else_block);
         }
     }
 

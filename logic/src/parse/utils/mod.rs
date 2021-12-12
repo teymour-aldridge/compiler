@@ -99,7 +99,7 @@ impl<'a> Input<'a> {
     pub fn parse_token(&mut self, token: &str) -> Result<&'a str, ParseError> {
         let peek = self
             .peek_n(token.len())
-            .ok_or_else(|| ParseError::UnexpectedEndOfInput)?;
+            .ok_or(ParseError::UnexpectedEndOfInput)?;
         let ret = if peek == token {
             self.advance_n(token.len())?;
             Ok(peek)
@@ -152,8 +152,7 @@ impl<'a> Input<'a> {
         self.inner
             .char_indices()
             .nth(n - 1)
-            .map(|(index, _)| self.inner.get(..=index))
-            .flatten()
+            .and_then(|(index, _)| self.inner.get(..=index))
     }
 
     /// Attempts to advance the stream by one character.
@@ -352,7 +351,7 @@ impl<'a> Input<'a> {
             Ok(())
         } else {
             return Err(ParseError::InvalidWhitespace {
-                span: start_recording.finish_recording(&self).into(),
+                span: start_recording.finish_recording(self).into(),
                 explanation: format!(
                     "Expected exactly {} spaces here, but instead found {} spaces.",
                     self.indent, whitespace_units

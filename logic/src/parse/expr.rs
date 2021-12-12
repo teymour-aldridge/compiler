@@ -78,7 +78,7 @@ impl<'a> Expr<'a> {
                     // todo: make a proper error about mismatched brackets
                     return Err(ParseError::UnexpectedEndOfInput);
                 }
-            } else if let Ok(_) = Ident::parse(&mut input.clone()) {
+            } else if Ident::parse(&mut input.clone()).is_ok() {
                 let ident = Ident::parse(input)?;
 
                 input.skip_whitespace()?;
@@ -86,7 +86,7 @@ impl<'a> Expr<'a> {
                 if let Some('(') = input.peek_char() {
                     fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError> {
                         Expr::parse_bp_stop_if(input, 0, |input| {
-                            input.starts_with(")") || input.starts_with(",")
+                            input.starts_with(')') || input.starts_with(',')
                         })
                         .and_then(|ok| ok.ok_or(ParseError::__NonExhaustive))
                     }
@@ -98,7 +98,7 @@ impl<'a> Expr<'a> {
                 } else {
                     Some(Self::Ident(ident))
                 }
-            } else if let Ok(_) = Literal::parse(&mut input.clone()) {
+            } else if Literal::parse(&mut input.clone()).is_ok() {
                 let rec = input.start_recording();
                 let lit = Literal::parse(input)?;
 
@@ -154,15 +154,13 @@ impl<'a> Expr<'a> {
                     }
                     _ => return Err(ParseError::__NonExhaustive),
                 }
+            } else if let Some(rhs) = rhs {
+                lhs = Some(Self::UnOp(
+                    Spanned::new(op_span, op.try_into_un_op().unwrap()),
+                    Box::new(rhs),
+                ))
             } else {
-                if let Some(rhs) = rhs {
-                    lhs = Some(Self::UnOp(
-                        Spanned::new(op_span, op.try_into_un_op().unwrap()),
-                        Box::new(rhs),
-                    ))
-                } else {
-                    return Err(ParseError::__NonExhaustive);
-                }
+                return Err(ParseError::__NonExhaustive);
             }
         }
 
@@ -188,7 +186,7 @@ impl Op {
             "+" if prefix => Op::UnOp(UnOp::Positive),
             "-" if prefix => Op::UnOp(UnOp::Negative),
             "=" => {
-                if input.chars().next() == Some('=') {
+                if input.starts_with('=') {
                     input.advance_one()?;
                     Op::BinOp(BinOp::IsEqual)
                 } else {

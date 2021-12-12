@@ -8,17 +8,17 @@ use crate::diagnostics::span::{HasSpan, IndexOnlySpan, Span};
 use super::utils::{Parse, ParseError};
 
 /// These may not be used as identifiers.
-pub const KEYWORDS: &[&'static str] = &[
-    &"for",
-    &"if",
-    &"while",
-    &"function",
-    &"return",
-    &"endfunction",
-    &"endwhile",
-    &"endif",
-    &"True",
-    &"False",
+pub const KEYWORDS: &[&str] = &[
+    "for",
+    "if",
+    "while",
+    "function",
+    "return",
+    "endfunction",
+    "endwhile",
+    "endif",
+    "True",
+    "False",
 ];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

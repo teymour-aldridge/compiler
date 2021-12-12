@@ -30,7 +30,7 @@ impl<'a> Parse<'a> for Func<'a> {
 
         input.skip_whitespace()?;
 
-        let parameters = if !input.starts_with(")") {
+        let parameters = if !input.starts_with(')') {
             input.delimited_list(Ident::parse, ')', ",")?
         } else {
             vec![]

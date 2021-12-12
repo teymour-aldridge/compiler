@@ -56,7 +56,7 @@ impl<'a> Parse<'a> for Ast<'a> {
         let mut nodes = vec![];
         loop {
             loop {
-                let mut tmp = input.clone();
+                let mut tmp = *input;
                 tmp.skip_whitespace()?;
                 if tmp.starts_with('\n') {
                     input.skip_whitespace()?;

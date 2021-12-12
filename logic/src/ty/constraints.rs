@@ -28,7 +28,7 @@ pub(crate) enum Constraint {
 pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGatheringError> {
     let mut visitor = ConstraintVisitor::new(ast);
     visitor
-        .visit_ast(&ast)
+        .visit_ast(ast)
         .into_iter()
         .collect::<Result<_, _>>()?;
     Ok(visitor.take_constraints())
@@ -116,7 +116,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         branch_constraints(&stmt.r#if, self)?;
 
         for each in &stmt.else_ifs {
-            branch_constraints(&each, self)?;
+            branch_constraints(each, self)?;
         }
 
         if let Some(ref r#else) = stmt.r#else {
@@ -210,8 +210,8 @@ fn collect_expr(
                     id: left.id,
                     to: expr.id,
                 });
-                constraints.extend(collect_expr(&left, definitions, None)?);
-                constraints.extend(collect_expr(&right, definitions, None)?);
+                constraints.extend(collect_expr(left, definitions, None)?);
+                constraints.extend(collect_expr(right, definitions, None)?);
             }
             // todo: add necessary additional type constraints
             (BinOp::IsEqual, left, right) => {
@@ -223,8 +223,8 @@ fn collect_expr(
                     id: expr.id,
                     ty: Ty::Bool,
                 });
-                constraints.extend(collect_expr(&left, definitions, None)?);
-                constraints.extend(collect_expr(&right, definitions, None)?);
+                constraints.extend(collect_expr(left, definitions, None)?);
+                constraints.extend(collect_expr(right, definitions, None)?);
             }
             (BinOp::SetEquals, left, right) => {
                 if let TaggedExprInner::Ident(ref ident) = left.token {
@@ -248,8 +248,8 @@ fn collect_expr(
                         id: expr.id,
                         to: right.id,
                     });
-                    constraints.extend(collect_expr(&left, definitions, None)?);
-                    constraints.extend(collect_expr(&right, definitions, None)?);
+                    constraints.extend(collect_expr(left, definitions, None)?);
+                    constraints.extend(collect_expr(right, definitions, None)?);
                 } else {
                     return Err(ConstraintGatheringError::CannotAssignToExpression {
                         span: expr.token.span(),
@@ -289,7 +289,7 @@ fn collect_expr(
                     id: expr.id,
                     to: param.id,
                 });
-                constraints.extend(collect_expr(&param, definitions, Some(Ty::Int))?);
+                constraints.extend(collect_expr(param, definitions, Some(Ty::Int))?);
             } else if *func.token == "print" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
@@ -310,7 +310,7 @@ fn collect_expr(
                     id: expr.id,
                     to: param.id,
                 });
-                constraints.extend(collect_expr(&param, definitions, Some(Ty::String))?);
+                constraints.extend(collect_expr(param, definitions, Some(Ty::String))?);
             } else if let Some(function) = definitions
                 .iter()
                 .find(|function| function.name.token == func.token)
@@ -337,12 +337,7 @@ fn collect_expr(
             } else {
                 return Err(ConstraintGatheringError::UnresolvableFunction {
                     span: func.span(),
-                    explanation: {
-                        format!(
-                            "A function with name `{}` cannot be found.",
-                            func.to_string()
-                        )
-                    },
+                    explanation: { format!("A function with name `{}` cannot be found.", **func) },
                 });
             }
         }

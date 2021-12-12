@@ -30,10 +30,7 @@ impl<'a> Parse<'a> for If<'a> {
                 input.skip_whitespace()?;
                 cond
             },
-            block: {
-                let block = Block::parse(input)?;
-                block
-            },
+            block: { Block::parse(input)? },
         };
 
         let mut elseifs = vec![];

@@ -80,7 +80,7 @@ impl Start {
                     self.visit_block(&else_if.block);
                 }
 
-                stmt.r#else.as_ref().map(|x| self.visit_block(&x));
+                stmt.r#else.as_ref().map(|x| self.visit_block(x));
             }
 
             fn visit_expr(&mut self, expr: &crate::id::TaggedExpr) -> Self::Output {
@@ -178,7 +178,7 @@ impl VarName {
             VecMutator::new(U8WithinRangeMutator::new(65..=90), 1..=100),
             |name: &VarName| Some(name.inner.as_bytes().to_vec()),
             |xs| VarName {
-                inner: String::from_utf8_lossy(&xs).to_string(),
+                inner: String::from_utf8_lossy(xs).to_string(),
             },
             |_, complexity| complexity,
         )

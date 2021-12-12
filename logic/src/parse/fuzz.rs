@@ -101,7 +101,7 @@ fn fuzz_parser() {
         regex("function "),
         ident.clone(),
         literal('('),
-        repetition(concatenation([ident.clone(), literal(',')]), 1..),
+        repetition(concatenation([ident, literal(',')]), 1..),
         literal(')'),
         literal('\n'),
         indented_statements.clone(),
@@ -116,25 +116,17 @@ fn fuzz_parser() {
         repetition(
             concatenation([
                 regex("elseif "),
-                expression.clone(),
+                expression,
                 regex(" then\n"),
                 indented_statements.clone(),
             ]),
             0..,
         ),
-        repetition(
-            concatenation([regex("else\n"), indented_statements.clone()]),
-            0..=1,
-        ),
+        repetition(concatenation([regex("else\n"), indented_statements]), 0..=1),
         regex("endif\n"),
     ]);
 
-    let block = alternation([
-        for_loop.clone(),
-        while_loop.clone(),
-        function.clone(),
-        if_statement,
-    ]);
+    let block = alternation([for_loop, while_loop, function, if_statement]);
 
     let ast = repetition(alternation([block, statement]), 0..);
 

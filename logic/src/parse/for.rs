@@ -53,7 +53,7 @@ impl<'a> Parse<'a> for ForLoop<'a> {
 
         input.skip_whitespace()?;
 
-        if !input.is_empty() && input.chars().next() != Some('\n') {
+        if !input.is_empty() && !input.starts_with('\n') {
             return Err(ParseError::UnexpectedToken {
                 explanation: "Expected a new line here.".to_string(),
                 span: {

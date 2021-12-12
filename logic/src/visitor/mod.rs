@@ -9,7 +9,7 @@ pub trait Visitor<'a, 'ctx> {
     fn visit_ast(&mut self, ast: &'a TaggedAst<'ctx>) -> Vec<Self::Output> {
         let mut res = vec![];
         for node in &ast.nodes {
-            res.push(self.visit_node(&node));
+            res.push(self.visit_node(node));
         }
         res
     }

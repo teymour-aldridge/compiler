@@ -114,9 +114,9 @@ fn fuzz_unifier() {
                     }
                 }
 
-                return true;
+                true
             }
-            Err(_) => return true,
+            Err(_) => true,
         }
     })
     .default_mutator()
