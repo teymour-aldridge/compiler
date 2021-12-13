@@ -170,6 +170,10 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
     fn visit_ident(&mut self, _: &crate::id::TaggedIdent) -> Self::Output {
         Ok(())
     }
+
+    fn visit_rec(&mut self, _rec: &'a crate::id::TaggedRecord<'ctx>) -> Self::Output {
+        todo!()
+    }
 }
 
 /// Collects constraints from a given expression.

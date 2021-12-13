@@ -1,6 +1,6 @@
 use crate::id::{
     TaggedAst, TaggedBlock, TaggedExpr, TaggedFor, TaggedFunc, TaggedIdent, TaggedIf, TaggedNode,
-    TaggedReturn, TaggedWhile,
+    TaggedRecord, TaggedReturn, TaggedWhile,
 };
 
 pub trait Visitor<'a, 'ctx> {
@@ -22,10 +22,11 @@ pub trait Visitor<'a, 'ctx> {
             crate::parse::Node::While(stmt) => self.visit_while(stmt),
             crate::parse::Node::Return(ret) => self.visit_ret(ret),
             crate::parse::Node::Func(func) => self.visit_func(func),
-            crate::parse::Node::Record(_) => todo!(),
+            crate::parse::Node::Record(rec) => self.visit_rec(rec),
         }
     }
 
+    fn visit_rec(&mut self, rec: &'a TaggedRecord<'ctx>) -> Self::Output;
     fn visit_expr(&mut self, expr: &'a TaggedExpr<'ctx>) -> Self::Output;
 
     fn visit_for(&mut self, stmt: &'a TaggedFor<'ctx>) -> Self::Output;

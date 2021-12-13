@@ -122,6 +122,10 @@ impl Start {
                 self.visit_expr(&stmt.condition);
                 self.visit_block(&stmt.block);
             }
+
+            fn visit_rec(&mut self, _rec: &'a crate::id::TaggedRecord<'ctx>) -> Self::Output {
+                todo!()
+            }
         }
 
         let mut visitor = VariableVisitor {
