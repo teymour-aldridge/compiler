@@ -278,6 +278,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     }
                 }
                 BinOp::SetEquals => unreachable!(),
+                BinOp::Dot => todo!(),
             },
             crate::id::TaggedExprInner::UnOp(_, _) => todo!(),
             crate::id::TaggedExprInner::FunctionCall(name, params) => {

@@ -199,6 +199,7 @@ impl Op {
             "-" if !prefix => Op::BinOp(BinOp::Subtract),
             "/" => Op::BinOp(BinOp::Divide),
             "*" => Op::BinOp(BinOp::Multiply),
+            "." => Op::BinOp(BinOp::Dot),
             "+" if prefix => Op::UnOp(UnOp::Positive),
             "-" if prefix => Op::UnOp(UnOp::Negative),
             "=" => {
@@ -260,13 +261,14 @@ pub enum BinOp {
     Multiply,
     IsEqual,
     SetEquals,
+    Dot,
 }
 
 impl BinOp {
     fn bp(&self) -> (u8, u8) {
         match self {
             BinOp::Add | BinOp::Subtract => (5, 6),
-            BinOp::Divide | BinOp::Multiply | BinOp::IsEqual => (7, 8),
+            BinOp::Divide | BinOp::Multiply | BinOp::IsEqual | BinOp::Dot => (7, 8),
             BinOp::SetEquals => (2, 1),
         }
     }
@@ -281,6 +283,7 @@ impl fmt::Display for BinOp {
             BinOp::Multiply => "*",
             BinOp::SetEquals => "=",
             BinOp::IsEqual => "==",
+            BinOp::Dot => ".",
         })
     }
 }

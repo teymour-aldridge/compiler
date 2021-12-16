@@ -11,7 +11,7 @@ use super::{
     utils::{write_indentation, Parse},
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 /// A "record" (aka struct).
 pub struct Record<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,
@@ -78,7 +78,7 @@ impl<'a> Parse<'a> for Record<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 /// A field of a [Record].
 pub struct Field<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,

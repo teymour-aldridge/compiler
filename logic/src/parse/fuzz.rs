@@ -51,7 +51,26 @@ fn fuzz_parser() {
                 repetition(concatenation([recurse(e), literal(',')]), 1..),
                 literal(')'),
             ]),
+            // field accesses
+            concatenation([
+                ident.clone(),
+                literal('.'),
+                alternation([
+                    // methods
+                    concatenation([
+                        ident.clone(),
+                        literal('('),
+                        regex("self,"),
+                        repetition(concatenation([recurse(e), literal(',')]), 1..),
+                        literal(')'),
+                    ]),
+                    // fields
+                    ident.clone(),
+                ]),
+            ]),
+            // expressions with brackets
             concatenation([literal('('), recurse(e), literal(')')]),
+            // binary operators
             concatenation([
                 literal('('),
                 recurse(e),
@@ -59,6 +78,7 @@ fn fuzz_parser() {
                 recurse(e),
                 literal(')'),
             ]),
+            // unary operators
             concatenation([regex("[-+]"), literal('('), recurse(e), literal(')')]),
         ])
     });

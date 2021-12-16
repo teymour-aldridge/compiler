@@ -60,7 +60,7 @@ impl fmt::Display for Id {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Tagged<T> {
     pub(crate) token: T,
     pub(crate) id: Id,

@@ -217,6 +217,9 @@ fn collect_expr(
                 constraints.extend(collect_expr(left, definitions, None)?);
                 constraints.extend(collect_expr(right, definitions, None)?);
             }
+            (BinOp::Dot, ..) => {
+                todo!()
+            }
             // todo: add necessary additional type constraints
             (BinOp::IsEqual, left, right) => {
                 constraints.push(Constraint::IdToId {
