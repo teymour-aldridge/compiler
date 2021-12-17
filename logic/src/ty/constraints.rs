@@ -217,8 +217,8 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
 /// needed.
 fn collect_expr<'a, 'ctx>(
     expr: &'a TaggedExpr<'ctx>,
-    definitions: &Vec<&'a TaggedFunc<'ctx>>,
-    record_definitions: &Vec<&'a TaggedRecord<'ctx>>,
+    definitions: &[&'a TaggedFunc<'ctx>],
+    record_definitions: &[&'a TaggedRecord<'ctx>],
     ty: Option<Ty>,
 ) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
     let mut constraints = vec![];

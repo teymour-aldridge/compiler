@@ -29,7 +29,7 @@ pub struct TyTable {
 }
 
 /// An atomic type - all other types are expressed in terms of these.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, Debug)]
 // when using fuzzcheck it is necessary to implement some additional traits
 #[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
 pub enum Ty {
@@ -47,6 +47,15 @@ impl Hash for Ty {
                 key.hash(state);
                 value.hash(state);
             }
+        }
+    }
+}
+
+impl PartialEq for Ty {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Record(l0), Self::Record(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }

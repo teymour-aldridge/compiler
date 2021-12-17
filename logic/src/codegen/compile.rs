@@ -71,9 +71,7 @@ impl<'ctx> Compiler<'ctx> {
 
         for func in functions {
             // set up the signature
-            let returns = if *func.name.token == "print_int" {
-                self.cranelift_of_ty(Ty::Int)
-            } else if *func.name.token == "print" {
+            let returns = if *func.name.token == "print_int" || *func.name.token == "print" {
                 self.cranelift_of_ty(Ty::Int)
             } else {
                 self.ty_env

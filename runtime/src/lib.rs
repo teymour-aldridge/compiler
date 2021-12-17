@@ -4,6 +4,10 @@
 /// Prints the provided string to the standard output.
 ///
 /// This function will at some point be replaced with a unified API.
+///
+/// # Safety
+/// Safe provided that the len is the length of the string, and the pointer is the address of the
+/// first byte of the string.
 pub unsafe extern "C" fn print(len: i32, ptr: *const u8) {
     let mut string = vec![];
     for i in 0isize..len as isize {

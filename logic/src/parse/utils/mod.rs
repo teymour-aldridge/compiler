@@ -349,22 +349,17 @@ impl<'a> Input<'a> {
         let start_recording = self.start_recording();
         let mut whitespace_units = 0;
 
-        loop {
-            match self.inner.chars().next() {
-                Some(char) => match char {
-                    ' ' | '\u{C}' | '\u{B}' => {
-                        whitespace_units += 1;
-                        self.advance_one()?;
-                    }
-                    '\t' => {
-                        whitespace_units += 4;
-                        self.advance_one()?;
-                    }
-                    _ => break,
-                },
-                None => {
-                    break;
+        while let Some(char) = self.inner.chars().next() {
+            match char {
+                ' ' | '\u{C}' | '\u{B}' => {
+                    whitespace_units += 1;
+                    self.advance_one()?;
                 }
+                '\t' => {
+                    whitespace_units += 4;
+                    self.advance_one()?;
+                }
+                _ => break,
             }
         }
 

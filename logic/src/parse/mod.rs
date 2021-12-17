@@ -187,7 +187,7 @@ impl fmt::Display for Node<'_> {
     }
 }
 
-pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseError> {
+pub fn parse(input: &str) -> Result<Ast<'_>, ParseError> {
     let mut input = Input::new(input);
     Ast::parse(&mut input)
 }

@@ -29,7 +29,7 @@ pub struct MonotonicIdGenerator {
 }
 
 impl MonotonicIdGenerator {
-    pub fn new(&mut self) -> AtomicId {
+    pub fn generate_id(&mut self) -> AtomicId {
         let ret = AtomicId {
             inner: self.current,
         };
@@ -139,11 +139,11 @@ impl<'a> TaggingCtx<'a> {
             self.variable_ids
                 .iter_mut()
                 .map(|(key, val)| {
-                    match scope.edits.iter().find(|edit| match edit {
+                    if let Some(edit) = scope.edits.iter().find(|edit| match edit {
                         Edit::Overwrite { ident, id, with: _ } => ident == key && val != id,
                         Edit::Add(tagged) => tagged.token == *key,
                     }) {
-                        Some(edit) => match edit {
+                        match edit {
                             Edit::Overwrite {
                                 ident: _,
                                 id,
@@ -153,8 +153,7 @@ impl<'a> TaggingCtx<'a> {
                                 for_removal.push(ident.token);
                             }
                             _ => {}
-                        },
-                        _ => (),
+                        }
                     }
                 })
                 .for_each(drop);
@@ -203,12 +202,12 @@ impl<'a> TaggingCtx<'a> {
     fn tag<T>(&mut self, token: T) -> Tagged<T> {
         Tagged {
             token,
-            id: self.monotonic.new(),
+            id: self.monotonic.generate_id(),
         }
     }
 }
 
-pub fn tag<'a>(ast: Ast<'a>) -> Ast<'a, Tagged<Ident<'a>>, TaggedExpr<'a>> {
+pub fn tag(ast: Ast) -> TaggedAst {
     let mut ctx = TaggingCtx::new();
     tagged_ast(ast, &mut ctx)
 }
@@ -439,13 +438,7 @@ impl<'a, IDENT> TaggedExprInner<'a, IDENT>
 where
     IDENT: std::hash::Hash + std::cmp::Eq,
 {
-    pub fn as_bin_op(
-        &self,
-    ) -> Option<(
-        &Spanned<BinOp>,
-        &Box<Tagged<TaggedExprInner<Tagged<Ident>>>>,
-        &Box<Tagged<TaggedExprInner<Tagged<Ident>>>>,
-    )> {
+    pub fn as_bin_op(&self) -> Option<(&Spanned<BinOp>, &TaggedExpr, &TaggedExpr)> {
         if let Self::BinOp(op, a, b) = self {
             Some((op, a, b))
         } else {

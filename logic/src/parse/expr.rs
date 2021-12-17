@@ -28,7 +28,7 @@ where
 }
 
 impl<'a, IDENT: std::cmp::Eq + std::hash::Hash> Expr<'a, IDENT> {
-    pub fn as_bin_op(&self) -> Option<(&BinOp, &Box<Expr<IDENT>>, &Box<Expr<IDENT>>)> {
+    pub fn as_bin_op(&self) -> Option<(&BinOp, &Expr<IDENT>, &Expr<IDENT>)> {
         if let Self::BinOp(op, a, b) = self {
             Some((op, a, b))
         } else {
@@ -304,7 +304,7 @@ pub enum Op {
 }
 
 impl Op {
-    fn parse<'a>(input: &mut Input<'a>, prefix: bool) -> Result<Self, ParseError> {
+    fn parse(input: &mut Input<'_>, prefix: bool) -> Result<Self, ParseError> {
         let rec = input.start_recording();
         input.skip_whitespace()?;
         Ok(match input.advance_one()? {
