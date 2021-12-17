@@ -1,5 +1,7 @@
 function main()
   new = NewRecord { a: 1 }
+  x = new.a
+  print_int(x)
 endfunction
 
 record NewRecord

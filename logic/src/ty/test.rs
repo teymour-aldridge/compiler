@@ -92,12 +92,8 @@ fn test_record_type_check() {
     let ty_env = type_check(&tagged).unwrap();
 
     let main = tagged.nodes.get(0).unwrap();
-    let (_, left, right) = main
-        .as_func()
-        .unwrap()
-        .block
-        .inner
-        .nodes
+    let main_nodes = &main.as_func().unwrap().block.inner.nodes;
+    let (_, left, right) = main_nodes
         .get(0)
         .unwrap()
         .as_expr()
@@ -106,6 +102,16 @@ fn test_record_type_check() {
         .unwrap();
     assert_eq!(ty_env.ty_of(right.id.into()), expected_record_type);
     assert_eq!(ty_env.ty_of(left.id.into()), expected_record_type);
+
+    let (_, x, expr) = main_nodes
+        .get(1)
+        .unwrap()
+        .as_expr()
+        .unwrap()
+        .as_bin_op()
+        .unwrap();
+    assert_eq!(ty_env.ty_of(x.id.into()), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(expr.id.into()), Some(Ty::Int));
 
     let record = tagged.nodes.get(1).unwrap().as_record().unwrap();
     let record_id = record.fields.get(0).unwrap().name.id;
