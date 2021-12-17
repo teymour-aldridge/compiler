@@ -92,7 +92,7 @@ impl<'a> Parse<'a> for Constructor<'a> {
             })?
             .unwrap();
             input.skip_whitespace()?;
-            if input.starts_with(",") {
+            if input.starts_with(',') {
                 input.parse_token(",")?;
             }
 
@@ -181,7 +181,7 @@ impl<'a> Expr<'a> {
                 } else {
                     // todo: make a proper error about mismatched brackets
                     return if !input.is_empty() {
-                        let mut input2 = input.clone();
+                        let mut input2 = *input;
                         let closing_bracket_span = input2.start_recording();
                         input2.advance_one()?;
                         let closing_bracket_span = closing_bracket_span.finish_recording(&input2);
@@ -198,7 +198,7 @@ impl<'a> Expr<'a> {
                 }
             } else if Ident::parse(&mut input.clone()).is_ok() {
                 let is_constructor = {
-                    let mut peek = input.clone();
+                    let mut peek = *input;
                     Ident::parse(&mut peek)?;
                     peek.skip_whitespace()?;
                     peek.starts_with('{')
