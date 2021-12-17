@@ -11,7 +11,7 @@ use crate::{
     diagnostics::span::{HasSpan, Span, Spanned},
     parse::{
         block::Block,
-        expr::{BinOp, Expr, UnOp},
+        expr::{BinOp, Constructor, Expr, UnOp},
         func::{Func, Return},
         ident::Ident,
         lit::Literal,
@@ -180,6 +180,7 @@ pub type TaggedIf<'a> = If<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedWhile<'a> = While<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 pub type TaggedReturn<'a> = Return<'a, TaggedExpr<'a>>;
 pub type TaggedRecord<'a> = Record<'a, TaggedIdent<'a>>;
+pub type TaggedConstructor<'a> = Constructor<'a, TaggedIdent<'a>, TaggedExpr<'a>>;
 
 fn tagged_ast<'a>(ast: Ast<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedAst<'a> {
     ctx.push_scope();
@@ -362,6 +363,19 @@ fn tagged_expr<'a>(expr: Expr<'a>, ctx: &mut TaggingCtx<'a>) -> TaggedExpr<'a> {
             );
             ctx.tag(res)
         }
+        Expr::Constructor(c) => {
+            let Constructor { name, fields, _a }: Constructor = c;
+
+            let res = TaggedExprInner::Constructor(Constructor {
+                name: tagged_ident(name, ctx),
+                fields: fields
+                    .into_iter()
+                    .map(|(ident, expr)| (tagged_ident(ident, ctx), tagged_expr(expr, ctx)))
+                    .collect(),
+                _a: PhantomData,
+            });
+            ctx.tag(res)
+        }
     }
 }
 
@@ -374,6 +388,7 @@ pub enum TaggedExprInner<'a, IDENT = Ident<'a>> {
     BinOp(Spanned<BinOp>, Box<TaggedExpr<'a>>, Box<TaggedExpr<'a>>),
     UnOp(Spanned<UnOp>, Box<TaggedExpr<'a>>),
     FunctionCall(IDENT, Vec<TaggedExpr<'a>>),
+    Constructor(TaggedConstructor<'a>),
 }
 
 impl<IDENT: HasSpan> HasSpan for TaggedExprInner<'_, IDENT> {

@@ -80,6 +80,16 @@ fn fuzz_parser() {
             ]),
             // unary operators
             concatenation([regex("[-+]"), literal('('), recurse(e), literal(')')]),
+            // constructor
+            concatenation([
+                ident.clone(),
+                literal('{'),
+                repetition(
+                    concatenation([ident.clone(), literal(':'), recurse(e), literal(',')]),
+                    1..100,
+                ),
+                literal('}'),
+            ]),
         ])
     });
 

@@ -2,7 +2,10 @@
 
 use crate::{
     diagnostics::span::{HasSpan, Span},
-    id::{Id, TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode},
+    id::{
+        Id, TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode,
+        TaggedRecord,
+    },
     parse::{expr::BinOp, Node},
     visitor::Visitor,
 };
@@ -23,6 +26,10 @@ pub(crate) enum Constraint {
     /// Note that this is used later, while solving the constraints and not while collecting
     /// constraints from the AST.
     TyToTy { ty: Ty, to: Ty },
+    #[allow(dead_code)]
+    RecordTy { id: Id, record_id: Id },
+    #[allow(dead_code)]
+    FieldAccess { id: Id, field_id: Id, to: Id },
 }
 
 pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGatheringError> {
@@ -37,6 +44,7 @@ pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGath
 struct ConstraintVisitor<'a, 'ctx> {
     constraints: Vec<Constraint>,
     definitions: Vec<&'a TaggedFunc<'ctx>>,
+    records: Vec<&'a TaggedRecord<'ctx>>,
     current_func: Option<&'a TaggedFunc<'ctx>>,
 }
 
@@ -52,11 +60,27 @@ fn gather_function_definitions<'a, 'collect>(
         .collect()
 }
 
+/// Collects a reference to every records in a file.
+///
+/// todo: add a name resolution algorithm
+fn gather_record_definitions<'a, 'collect>(
+    ast: &'collect TaggedAst<'a>,
+) -> Vec<&'collect TaggedRecord<'a>> {
+    ast.nodes
+        .iter()
+        .filter_map(|node: &TaggedNode| match node {
+            Node::Record(r) => Some(r),
+            _ => None,
+        })
+        .collect()
+}
+
 impl<'a, 'ctx> ConstraintVisitor<'a, 'ctx> {
     fn new(ast: &'a TaggedAst<'ctx>) -> Self {
         Self {
             constraints: vec![],
             definitions: gather_function_definitions(ast),
+            records: gather_record_definitions(ast),
             current_func: None,
         }
     }
@@ -71,7 +95,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
 
     fn visit_expr(&mut self, expr: &'a TaggedExpr<'ctx>) -> Self::Output {
         self.constraints
-            .extend(collect_expr(expr, &self.definitions, None)?);
+            .extend(collect_expr(expr, &self.definitions, &self.records, None)?);
         Ok(())
     }
 
@@ -171,8 +195,14 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         Ok(())
     }
 
-    fn visit_rec(&mut self, _rec: &'a crate::id::TaggedRecord<'ctx>) -> Self::Output {
-        todo!()
+    fn visit_rec(&mut self, rec: &'a crate::id::TaggedRecord<'ctx>) -> Self::Output {
+        for field in &rec.fields {
+            self.constraints.push(Constraint::IdToTy {
+                id: field.name.id,
+                ty: field.ty,
+            })
+        }
+        Ok(())
     }
 }
 
@@ -183,6 +213,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
 fn collect_expr(
     expr: &TaggedExpr,
     definitions: &Vec<&TaggedFunc>,
+    record_definitions: &Vec<&TaggedRecord>,
     ty: Option<Ty>,
 ) -> Result<Vec<Constraint>, ConstraintGatheringError> {
     let mut constraints = vec![];
@@ -214,10 +245,10 @@ fn collect_expr(
                     id: left.id,
                     to: expr.id,
                 });
-                constraints.extend(collect_expr(left, definitions, None)?);
-                constraints.extend(collect_expr(right, definitions, None)?);
+                constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
             }
-            (BinOp::Dot, ..) => {
+            (BinOp::Dot, _left, _right) => {
                 todo!()
             }
             // todo: add necessary additional type constraints
@@ -230,8 +261,8 @@ fn collect_expr(
                     id: expr.id,
                     ty: Ty::Bool,
                 });
-                constraints.extend(collect_expr(left, definitions, None)?);
-                constraints.extend(collect_expr(right, definitions, None)?);
+                constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
             }
             (BinOp::SetEquals, left, right) => {
                 if let TaggedExprInner::Ident(ref ident) = left.token {
@@ -255,8 +286,8 @@ fn collect_expr(
                         id: expr.id,
                         to: right.id,
                     });
-                    constraints.extend(collect_expr(left, definitions, None)?);
-                    constraints.extend(collect_expr(right, definitions, None)?);
+                    constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
+                    constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
                 } else {
                     return Err(ConstraintGatheringError::CannotAssignToExpression {
                         span: expr.token.span(),
@@ -274,6 +305,7 @@ fn collect_expr(
                     ty: Ty::Int,
                 }),
         },
+        crate::id::TaggedExprInner::Constructor(_) => todo!(),
         crate::id::TaggedExprInner::FunctionCall(func, params) => {
             if *func.token == "print_int" {
                 if params.len() != 1 {
@@ -296,7 +328,12 @@ fn collect_expr(
                     id: expr.id,
                     to: param.id,
                 });
-                constraints.extend(collect_expr(param, definitions, Some(Ty::Int))?);
+                constraints.extend(collect_expr(
+                    param,
+                    definitions,
+                    record_definitions,
+                    Some(Ty::Int),
+                )?);
             } else if *func.token == "print" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
@@ -317,7 +354,12 @@ fn collect_expr(
                     id: expr.id,
                     to: param.id,
                 });
-                constraints.extend(collect_expr(param, definitions, Some(Ty::String))?);
+                constraints.extend(collect_expr(
+                    param,
+                    definitions,
+                    record_definitions,
+                    Some(Ty::String),
+                )?);
             } else if let Some(function) = definitions
                 .iter()
                 .find(|function| function.name.token == func.token)
@@ -335,7 +377,7 @@ fn collect_expr(
                 }
                 for (a, b) in function.parameters.iter().zip(params) {
                     constraints.push(Constraint::IdToId { id: b.id, to: a.id });
-                    constraints.extend(collect_expr(b, definitions, None)?);
+                    constraints.extend(collect_expr(b, definitions, record_definitions, None)?);
                 }
                 constraints.push(Constraint::IdToId {
                     id: func.id,

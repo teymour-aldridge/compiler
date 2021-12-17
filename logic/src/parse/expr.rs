@@ -1,4 +1,10 @@
-use std::fmt::{self, Display, Write};
+use std::{
+    cmp,
+    collections::HashMap,
+    fmt::{self, Display, Write},
+    hash,
+    marker::PhantomData,
+};
 
 use crate::diagnostics::span::{IndexOnlySpan, Spanned};
 
@@ -9,12 +15,63 @@ use super::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Expr<'a, IDENT = Ident<'a>> {
+pub enum Expr<'a, IDENT = Ident<'a>>
+where
+    IDENT: cmp::PartialEq + hash::Hash + cmp::Eq,
+{
     Ident(IDENT),
     Literal(Spanned<Literal<'a>>),
     BinOp(Spanned<BinOp>, Box<Expr<'a, IDENT>>, Box<Expr<'a, IDENT>>),
     UnOp(Spanned<UnOp>, Box<Expr<'a, IDENT>>),
     FunctionCall(IDENT, Vec<Expr<'a, IDENT>>),
+    Constructor(Constructor<'a, IDENT>),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Constructor<'a, IDENT = Ident<'a>, EXPR = Expr<'a>>
+where
+    IDENT: cmp::PartialEq + cmp::Eq + hash::Hash,
+{
+    pub(crate) name: IDENT,
+    pub(crate) fields: HashMap<IDENT, EXPR>,
+    pub(crate) _a: PhantomData<&'a ()>,
+}
+
+impl<'a> Parse<'a> for Constructor<'a> {
+    fn parse(input: &mut Input<'a>) -> Result<Self, ParseError> {
+        let name = Ident::parse(input)?;
+        input.skip_whitespace()?;
+        input.parse_token("{")?;
+        let mut fields = vec![];
+        loop {
+            input.skip_whitespace()?;
+            if input.starts_with('}') {
+                break;
+            }
+
+            let field_name = Ident::parse(input)?;
+            input.skip_whitespace()?;
+            input.parse_token(":")?;
+            input.skip_whitespace()?;
+            let expr = Expr::parse_bp_stop_if(input, 0, |input| {
+                input.starts_with(',') || input.starts_with('}')
+            })?
+            .unwrap();
+            input.skip_whitespace()?;
+            if input.starts_with(",") {
+                input.parse_token(",")?;
+            }
+
+            fields.push((field_name, expr));
+        }
+        input.parse_token("}")?;
+
+        Ok(Constructor {
+            name,
+            fields: fields.into_iter().collect(),
+            _a: PhantomData,
+        })
+    }
 }
 
 impl<'a> Parse<'a> for Expr<'a> {
@@ -49,6 +106,17 @@ impl fmt::Display for Expr<'_> {
                     f.write_char(',')?;
                 }
                 f.write_char(')')
+            }
+            Expr::Constructor(c) => {
+                c.name.fmt(f)?;
+                f.write_str(" {")?;
+                for (name, expr) in &c.fields {
+                    name.fmt(f)?;
+                    f.write_str(": ")?;
+                    expr.fmt(f)?;
+                    f.write_str(", ")?;
+                }
+                f.write_char('}')
             }
         }?;
         f.write_char(')')
@@ -95,24 +163,35 @@ impl<'a> Expr<'a> {
                     };
                 }
             } else if Ident::parse(&mut input.clone()).is_ok() {
-                let ident = Ident::parse(input)?;
+                let is_constructor = {
+                    let mut peek = input.clone();
+                    Ident::parse(&mut peek)?;
+                    peek.skip_whitespace()?;
+                    peek.starts_with('{')
+                };
 
-                input.skip_whitespace()?;
-
-                if let Some('(') = input.peek_char() {
-                    fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError> {
-                        Expr::parse_bp_stop_if(input, 0, |input| {
-                            input.starts_with(')') || input.starts_with(',')
-                        })
-                        .and_then(|ok| ok.ok_or(ParseError::__NonExhaustive))
-                    }
-
-                    input.parse_token("(")?;
-                    let args = input.delimited_list(parse, ')', ",")?;
-                    input.parse_token(")")?;
-                    Some(Self::FunctionCall(ident, args))
+                if is_constructor {
+                    Some(Self::Constructor(Constructor::parse(input)?))
                 } else {
-                    Some(Self::Ident(ident))
+                    let ident = Ident::parse(input)?;
+
+                    input.skip_whitespace()?;
+
+                    if let Some('(') = input.peek_char() {
+                        fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError> {
+                            Expr::parse_bp_stop_if(input, 0, |input| {
+                                input.starts_with(')') || input.starts_with(',')
+                            })
+                            .and_then(|ok| ok.ok_or(ParseError::__NonExhaustive))
+                        }
+
+                        input.parse_token("(")?;
+                        let args = input.delimited_list(parse, ')', ",")?;
+                        input.parse_token(")")?;
+                        Some(Self::FunctionCall(ident, args))
+                    } else {
+                        Some(Self::Ident(ident))
+                    }
                 }
             } else if Literal::parse(&mut input.clone()).is_ok() {
                 let rec = input.start_recording();

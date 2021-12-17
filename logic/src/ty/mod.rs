@@ -28,6 +28,7 @@ pub struct TyTable {
     table: FxHashMap<Id, Ty>,
 }
 
+/// An atomic type - all other types are expressed in terms of these.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 // when using fuzzcheck it is necessary to implement some additional traits
 #[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
@@ -171,6 +172,15 @@ fn unify(set: FxHashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheck
                 None
             }
         }
+        Constraint::RecordTy {
+            record_id: _,
+            id: _,
+        } => todo!(),
+        Constraint::FieldAccess {
+            id: _,
+            field_id: _,
+            to: _,
+        } => todo!(),
     };
 
     if let Some(u) = u {

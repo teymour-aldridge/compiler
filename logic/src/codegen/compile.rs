@@ -365,6 +365,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 let call = self.builder.ins().call(local_callee, &arg_values);
                 self.builder.inst_results(call)[0]
             }
+            crate::id::TaggedExprInner::Constructor(_) => todo!(),
         }
     }
 
