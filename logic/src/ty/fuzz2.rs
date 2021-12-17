@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    id::{tag, Id, TaggedAst},
+    id::{tag, AtomicId, TaggedAst},
     parse::parse,
     ty::type_check,
     visitor::Visitor,
@@ -40,6 +40,7 @@ impl Start {
                     Ty::Int => "1",
                     Ty::Bool => "False",
                     Ty::String => "\"some string\"",
+                    Ty::Record(_) => unimplemented!(),
                 }
                 .to_string();
                 for tranform in transforms {
@@ -60,7 +61,7 @@ impl Start {
     fn check(&self, env: TyEnv, ast: &TaggedAst) -> bool {
         struct VariableVisitor {
             /// Maps the names of variables to their corresponding ids.
-            map: HashMap<String, Id>,
+            map: HashMap<String, AtomicId>,
         }
 
         impl<'a, 'ctx> Visitor<'a, 'ctx> for VariableVisitor {
@@ -137,14 +138,17 @@ impl Start {
         let map = visitor.map;
 
         for (_, value) in map {
-            let right = env.ty_of(value)
-                == Some(*match self {
-                    Start::Ty {
-                        name: _,
-                        ty,
-                        transforms: _,
-                    } => ty,
-                });
+            let right = env.ty_of(value.into())
+                == Some(
+                    match self {
+                        Start::Ty {
+                            name: _,
+                            ty,
+                            transforms: _,
+                        } => ty,
+                    }
+                    .clone(),
+                );
             if !right {
                 return false;
             }

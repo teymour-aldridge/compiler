@@ -28,7 +28,7 @@ use crate::{
 /// Note that the callee must satisfy the lifetime `'ctx`.
 pub struct Compiler<'ctx> {
     context: Context,
-    ty_env: &'ctx TyEnv,
+    ty_env: &'ctx TyEnv<'ctx>,
     module: ObjectModule,
 }
 
@@ -37,6 +37,8 @@ fn cranelift_of_ty_module(module: &ObjectModule, ty: Ty) -> ir::Type {
         Ty::Int => ir::Type::int(32).unwrap(),
         Ty::Bool => ir::Type::int(8).unwrap().as_bool(),
         Ty::String => module.target_config().pointer_type(),
+        // todo: compile structs (using stack slots)
+        Ty::Record(_) => todo!(),
     }
 }
 
@@ -75,7 +77,7 @@ impl<'ctx> Compiler<'ctx> {
                 self.cranelift_of_ty(Ty::Int)
             } else {
                 self.ty_env
-                    .ty_of(func.name.id)
+                    .ty_of(func.name.id.into())
                     .map(|x| self.cranelift_of_ty(x))
                     .unwrap()
             };
@@ -85,7 +87,7 @@ impl<'ctx> Compiler<'ctx> {
             let parameters = func
                 .parameters
                 .iter()
-                .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
+                .map(|ident| self.ty_env.ty_of(ident.id.into()).unwrap())
                 .map(|x| self.cranelift_of_ty(x))
                 .map(AbiParam::new)
                 .collect::<Vec<_>>();
@@ -118,7 +120,7 @@ impl<'ctx> Compiler<'ctx> {
                 function_builder.declare_var(
                     var,
                     self.ty_env
-                        .ty_of(param.id)
+                        .ty_of(param.id.into())
                         .map(|x| cranelift_of_ty_module(&self.module, x))
                         .unwrap(),
                 );
@@ -156,7 +158,7 @@ impl<'ctx> Compiler<'ctx> {
 /// Compiles one specific function.
 struct FunctionCompiler<'ctx, 'builder> {
     builder: &'builder mut FunctionBuilder<'ctx>,
-    ty_env: &'ctx TyEnv,
+    ty_env: &'ctx TyEnv<'ctx>,
     module: &'builder mut ObjectModule,
 }
 
@@ -270,8 +272,8 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 BinOp::IsEqual => {
                     let lhs = self.compile_expr(left);
                     let rhs = self.compile_expr(right);
-                    let left_ty = self.ty_env.ty_of(left.id).unwrap();
-                    let right_ty = self.ty_env.ty_of(right.id).unwrap();
+                    let left_ty = self.ty_env.ty_of(left.id.into()).unwrap();
+                    let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
                     match (left_ty, right_ty) {
                         (Ty::Int, Ty::Int) => self.builder.ins().icmp(IntCC::Equal, lhs, rhs),
                         _ => unimplemented!(),
@@ -336,7 +338,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         for param in params {
                             sig.params.push(AbiParam::new(
                                 self.ty_env
-                                    .ty_of(param.id)
+                                    .ty_of(param.id.into())
                                     .map(|x| cranelift_of_ty_module(self.module, x))
                                     .unwrap(),
                             ))
@@ -344,7 +346,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
 
                         sig.returns.push(AbiParam::new(
                             self.ty_env
-                                .ty_of(name.id)
+                                .ty_of(name.id.into())
                                 .map(|x| cranelift_of_ty_module(self.module, x))
                                 .unwrap(),
                         ));

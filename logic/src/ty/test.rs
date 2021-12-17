@@ -1,9 +1,9 @@
-use std::iter::FromIterator;
+use std::{collections::HashMap, iter::FromIterator};
 
 use rustc_hash::FxHashSet;
 
 use crate::{
-    id::{tag, Id},
+    id::{tag, AtomicId},
     ty::{constraints::Constraint, type_check, unify, Ty, TyEnv},
 };
 
@@ -29,8 +29,8 @@ fn simple_type_check() {
         },
         _ => panic!(),
     };
-    assert_eq!(ty_env.ty_of(x), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(y), Some(Ty::Int))
+    assert_eq!(ty_env.ty_of(x.into()), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(y.into()), Some(Ty::Int))
 }
 
 #[test]
@@ -50,16 +50,16 @@ fn factorial_type_check() {
         _ => panic!("failed to find type inferred for `factorial` function"),
     };
 
-    assert_eq!(ty_env.ty_of(main_function), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(factorial_function_ret), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(main_function.into()), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(factorial_function_ret.into()), Some(Ty::Int));
 
     let if_branch = &factorial_func.block.inner.nodes[0].as_if().unwrap().r#if;
 
-    assert_eq!(ty_env.ty_of(if_branch.condition.id), Some(Ty::Bool));
+    assert_eq!(ty_env.ty_of(if_branch.condition.id.into()), Some(Ty::Bool));
 
     match if_branch.condition.token {
         crate::id::TaggedExprInner::BinOp(_, ref left, _) => {
-            assert_eq!(ty_env.ty_of(left.id), Some(Ty::Int))
+            assert_eq!(ty_env.ty_of(left.id.into()), Some(Ty::Int))
         }
         _ => panic!("ast does not match expected structure for expr `n == 0`"),
     }
@@ -69,6 +69,25 @@ fn factorial_type_check() {
 fn test_record_type_check() {
     let tree = crate::parse::parse(include_str!("examples/record")).unwrap();
     let tagged = tag(tree);
+
+    let expected_record_type = Some(Ty::Record({
+        let mut map = HashMap::new();
+        map.insert(
+            tagged
+                .nodes
+                .get(1)
+                .unwrap()
+                .as_record()
+                .unwrap()
+                .fields
+                .get(0)
+                .unwrap()
+                .name
+                .id,
+            Ty::Int,
+        );
+        map
+    }));
 
     let ty_env = type_check(&tagged).unwrap();
 
@@ -85,38 +104,38 @@ fn test_record_type_check() {
         .unwrap()
         .as_bin_op()
         .unwrap();
-    assert_eq!(ty_env.ty_of(left.id), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(right.id), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(right.id.into()), expected_record_type);
+    assert_eq!(ty_env.ty_of(left.id.into()), expected_record_type);
 
     let record = tagged.nodes.get(1).unwrap().as_record().unwrap();
     let record_id = record.fields.get(0).unwrap().name.id;
-    assert_eq!(ty_env.ty_of(record_id), Some(Ty::Int))
+    assert_eq!(ty_env.ty_of(record_id.into()), Some(Ty::Int))
 }
 
 #[test]
 fn simple_unify_check() {
     let set = FxHashSet::from_iter(vec![
         Constraint::IdToTy {
-            id: Id::new(1),
+            id: AtomicId::new(1).into(),
             ty: Ty::Int,
         },
         Constraint::IdToId {
-            id: Id::new(2),
-            to: Id::new(1),
+            id: AtomicId::new(2).into(),
+            to: AtomicId::new(1).into(),
         },
         Constraint::IdToId {
-            id: Id::new(3),
-            to: Id::new(1),
+            id: AtomicId::new(3).into(),
+            to: AtomicId::new(1).into(),
         },
         Constraint::IdToTy {
-            id: Id::new(3),
+            id: AtomicId::new(3).into(),
             ty: Ty::Int,
         },
     ]);
 
     let env = unify(set, TyEnv::new()).unwrap();
 
-    assert_eq!(env.ty_of(Id::new(1)).unwrap(), Ty::Int);
-    assert_eq!(env.ty_of(Id::new(2)).unwrap(), Ty::Int);
-    assert_eq!(env.ty_of(Id::new(3)).unwrap(), Ty::Int);
+    assert_eq!(env.ty_of(AtomicId::new(1).into()).unwrap(), Ty::Int);
+    assert_eq!(env.ty_of(AtomicId::new(2).into()).unwrap(), Ty::Int);
+    assert_eq!(env.ty_of(AtomicId::new(3).into()).unwrap(), Ty::Int);
 }

@@ -17,7 +17,7 @@ use fuzzcheck::{
     make_mutator, mutators::integer_within_range::U8WithinRangeMutator, DefaultMutator,
 };
 
-use crate::id::Id;
+use crate::id::AtomicId;
 
 use super::{constraints::Constraint, unify, Ty, TyEnv};
 
@@ -72,11 +72,11 @@ fn fuzz_unifier() {
             .iter()
             .map(|constraint| match constraint {
                 ConstraintMutator::IdToId { x, y } => Constraint::IdToId {
-                    id: Id::new(*x),
-                    to: Id::new(*y),
+                    id: AtomicId::new(*x).into(),
+                    to: AtomicId::new(*y).into(),
                 },
                 ConstraintMutator::IdToTy { id, ty } => Constraint::IdToTy {
-                    id: Id::new(*id),
+                    id: AtomicId::new(*id).into(),
                     ty: match ty {
                         MutatorTy::Int => Ty::Int,
                         MutatorTy::Bool => Ty::Bool,

@@ -23,7 +23,7 @@ Ast {
                             },
                         },
                     },
-                    id: Id {
+                    id: AtomicId {
                         inner: 0,
                     },
                 },
@@ -46,12 +46,12 @@ Ast {
                                         },
                                     },
                                 },
-                                id: Id {
+                                id: AtomicId {
                                     inner: 1,
                                 },
                             },
                         ),
-                        id: Id {
+                        id: AtomicId {
                             inner: 2,
                         },
                     },
@@ -73,12 +73,12 @@ Ast {
                                         },
                                     },
                                 },
-                                id: Id {
+                                id: AtomicId {
                                     inner: 3,
                                 },
                             },
                         ),
-                        id: Id {
+                        id: AtomicId {
                             inner: 4,
                         },
                     },
@@ -101,12 +101,12 @@ Ast {
                                             },
                                         },
                                     },
-                                    id: Id {
+                                    id: AtomicId {
                                         inner: 5,
                                     },
                                 },
                             ),
-                            id: Id {
+                            id: AtomicId {
                                 inner: 6,
                             },
                         },
@@ -152,12 +152,12 @@ Ast {
                                                             },
                                                         },
                                                     },
-                                                    id: Id {
+                                                    id: AtomicId {
                                                         inner: 7,
                                                     },
                                                 },
                                             ),
-                                            id: Id {
+                                            id: AtomicId {
                                                 inner: 8,
                                             },
                                         },
@@ -185,12 +185,12 @@ Ast {
                                                     ),
                                                 },
                                             ),
-                                            id: Id {
+                                            id: AtomicId {
                                                 inner: 9,
                                             },
                                         },
                                     ),
-                                    id: Id {
+                                    id: AtomicId {
                                         inner: 10,
                                     },
                                 },
@@ -236,7 +236,7 @@ Ast {
                             ),
                         },
                     ),
-                    id: Id {
+                    id: AtomicId {
                         inner: 11,
                     },
                 },
@@ -279,12 +279,12 @@ Ast {
                                                             },
                                                         },
                                                     },
-                                                    id: Id {
+                                                    id: AtomicId {
                                                         inner: 7,
                                                     },
                                                 },
                                             ),
-                                            id: Id {
+                                            id: AtomicId {
                                                 inner: 12,
                                             },
                                         },
@@ -312,12 +312,12 @@ Ast {
                                                     ),
                                                 },
                                             ),
-                                            id: Id {
+                                            id: AtomicId {
                                                 inner: 13,
                                             },
                                         },
                                     ),
-                                    id: Id {
+                                    id: AtomicId {
                                         inner: 14,
                                     },
                                 },
@@ -359,7 +359,7 @@ Ast {
                             },
                         },
                     },
-                    id: Id {
+                    id: AtomicId {
                         inner: 15,
                     },
                 },
@@ -380,7 +380,7 @@ Ast {
                                 },
                             },
                         },
-                        id: Id {
+                        id: AtomicId {
                             inner: 16,
                         },
                     },
@@ -424,12 +424,12 @@ Ast {
                                                             },
                                                         },
                                                     },
-                                                    id: Id {
+                                                    id: AtomicId {
                                                         inner: 16,
                                                     },
                                                 },
                                             ),
-                                            id: Id {
+                                            id: AtomicId {
                                                 inner: 17,
                                             },
                                         },
@@ -457,12 +457,12 @@ Ast {
                                                     ),
                                                 },
                                             ),
-                                            id: Id {
+                                            id: AtomicId {
                                                 inner: 18,
                                             },
                                         },
                                     ),
-                                    id: Id {
+                                    id: AtomicId {
                                         inner: 19,
                                     },
                                 },

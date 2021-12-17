@@ -10,12 +10,12 @@ mod fuzz;
 #[cfg(test)]
 mod fuzz2;
 
-use std::fmt;
+use std::{collections::HashMap, fmt, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    id::{Id, TaggedAst},
+    id::{AtomicId, TaggedAst, UniversalId},
     ty::constraints::collect,
 };
 
@@ -25,18 +25,67 @@ mod constraints;
 
 pub struct TyTable {
     #[allow(unused)]
-    table: FxHashMap<Id, Ty>,
+    table: FxHashMap<AtomicId, Ty>,
 }
 
 /// An atomic type - all other types are expressed in terms of these.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 // when using fuzzcheck it is necessary to implement some additional traits
 #[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(all(test, not(disable_fuzzcheck)), derive(fuzzcheck::DefaultMutator))]
 pub enum Ty {
     Int,
     Bool,
     String,
+    Record(HashMap<AtomicId, Ty>),
+}
+
+impl Hash for Ty {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        if let Ty::Record(rec) = self {
+            for (key, value) in rec {
+                key.hash(state);
+                value.hash(state);
+            }
+        }
+    }
+}
+
+#[cfg(all(test, not(disable_fuzzcheck)))]
+impl Ty {
+    pub fn mutator() -> impl fuzzcheck::Mutator<Ty> {
+        use fuzzcheck::DefaultMutator;
+        #[derive(fuzzcheck::DefaultMutator, Clone, Copy)]
+        enum LocalTy {
+            Int,
+            Bool,
+            String,
+        }
+        fuzzcheck::mutators::map::MapMutator::new(
+            LocalTy::default_mutator(),
+            |ty: &Ty| match ty {
+                Ty::Int => Some(LocalTy::Int),
+                Ty::Bool => Some(LocalTy::Bool),
+                Ty::String => Some(LocalTy::String),
+                Ty::Record(_) => None,
+            },
+            |local_ty| match local_ty {
+                LocalTy::Int => Ty::Int,
+                LocalTy::Bool => Ty::Bool,
+                LocalTy::String => Ty::String,
+            },
+            |_, cplx| cplx,
+        )
+    }
+}
+
+#[cfg(all(test, not(disable_fuzzcheck)))]
+impl fuzzcheck::DefaultMutator for Ty {
+    type Mutator = impl fuzzcheck::Mutator<Ty>;
+
+    fn default_mutator() -> Self::Mutator {
+        Self::mutator()
+    }
 }
 
 impl fmt::Display for Ty {
@@ -45,6 +94,9 @@ impl fmt::Display for Ty {
             Ty::Int => "Int",
             Ty::Bool => "Bool",
             Ty::String => "String",
+            Ty::Record(_) => {
+                unimplemented!()
+            }
         })
     }
 }
@@ -61,42 +113,42 @@ impl From<ConstraintGatheringError> for TyCheckError {
     }
 }
 
-pub fn type_check(ast: &TaggedAst) -> Result<TyEnv, TyCheckError> {
+pub fn type_check<'ctx>(ast: &'ctx TaggedAst<'ctx>) -> Result<TyEnv<'ctx>, TyCheckError> {
     // todo: report errors properly
     let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
     unify(constraints, TyEnv::new())
 }
 
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash)]
 /// A substitution to be made as part of type inference.
-enum Substitution {
+enum Substitution<'ctx> {
     /// Substitute the first id `X`, for the second id `Y`.
-    XforY(Id, Id),
+    XforY(UniversalId<'ctx>, UniversalId<'ctx>),
     /// Substitute a concrete type for the given id.
-    ConcreteForX(Ty, Id),
+    ConcreteForX(Ty, UniversalId<'ctx>),
 }
 
-#[derive(Hash, Copy, Clone, Debug)]
-pub enum TyInfo {
-    EqId(Id),
+#[derive(Hash, Clone, Debug)]
+pub enum TyInfo<'ctx> {
+    EqId(UniversalId<'ctx>),
     EqTy(Ty),
 }
 
-#[derive(Hash, Copy, Clone, Debug)]
+#[derive(Hash, Clone, Debug)]
 
-pub struct Info {
-    ty: TyInfo,
+pub struct Info<'ctx> {
+    ty: TyInfo<'ctx>,
 }
 
 #[derive(Clone, Debug)]
-pub struct TyEnv {
-    map: FxHashMap<Id, Info>,
+pub struct TyEnv<'ctx> {
+    map: FxHashMap<UniversalId<'ctx>, Info<'ctx>>,
 }
 
-impl TyEnv {
+impl<'ctx> TyEnv<'ctx> {
     /// Obtain a reference to the underlying hash map.
     #[allow(unused)]
-    pub(crate) fn map(&self) -> &FxHashMap<Id, Info> {
+    pub(crate) fn map(&'ctx self) -> &'ctx FxHashMap<UniversalId<'ctx>, Info<'ctx>> {
         &self.map
     }
 
@@ -112,8 +164,8 @@ impl TyEnv {
 
     /// Obtain the type of the item in question (if it exists).
     #[allow(unused)]
-    pub(crate) fn ty_of(&self, id: Id) -> Option<Ty> {
-        self.map.get(&id).and_then(|info| match info.ty {
+    pub(crate) fn ty_of(&self, id: UniversalId) -> Option<Ty> {
+        self.map.get(&id).and_then(|info| match info.ty.clone() {
             TyInfo::EqId(equal_to) => self.ty_of(equal_to),
             TyInfo::EqTy(ty) => Some(ty),
         })
@@ -125,7 +177,7 @@ impl TyEnv {
         }
     }
 
-    fn feed_substitution(&mut self, u: Substitution) {
+    fn feed_substitution(&mut self, u: Substitution<'ctx>) {
         match u {
             // we remove y from the system by equating it to x
             Substitution::XforY(x, y) => self.map.insert(
@@ -146,7 +198,10 @@ impl TyEnv {
 }
 
 /// Unify a set of constraints (i.e. solve them, if that is possible)
-fn unify(set: FxHashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheckError> {
+fn unify<'ctx>(
+    set: FxHashSet<Constraint<'ctx>>,
+    mut solved: TyEnv<'ctx>,
+) -> Result<TyEnv<'ctx>, TyCheckError> {
     if set.is_empty() {
         return Ok(solved);
     }
@@ -179,11 +234,11 @@ fn unify(set: FxHashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheck
 
     if let Some(u) = u {
         // add the substitution to the list of substitutions
-        solved.feed_substitution(u);
+        solved.feed_substitution(u.clone());
 
         // apply the newly generated substitution to the rest of the set
         let new_set: FxHashSet<Constraint> = iter
-            .map(|constraint| match (u, constraint) {
+            .map(|constraint| match (u.clone(), constraint) {
                 // wherever we see y, replace with x
                 (Substitution::XforY(x, y), Constraint::IdToTy { id, ty }) => Constraint::IdToTy {
                     id: if id == y { x } else { id },

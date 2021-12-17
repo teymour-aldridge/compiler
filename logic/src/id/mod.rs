@@ -29,8 +29,8 @@ pub struct MonotonicIdGenerator {
 }
 
 impl MonotonicIdGenerator {
-    pub fn new(&mut self) -> Id {
-        let ret = Id {
+    pub fn new(&mut self) -> AtomicId {
+        let ret = AtomicId {
             inner: self.current,
         };
         self.current += 1;
@@ -38,13 +38,53 @@ impl MonotonicIdGenerator {
     }
 }
 
-/// Uniquely identifies an item within a single file.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub struct Id {
+/// The simplest posssible, indivisible, id.
+///
+/// Other ids are built by composing this id together.
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
+#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
+pub struct AtomicId {
     inner: usize,
 }
 
-impl Id {
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
+#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
+/// An item which identifies any item.
+pub enum UniversalId<'ctx> {
+    /// Identifies a field within a struct.
+    Field {
+        record_id: AtomicId,
+        /// A reference to the string from the input.
+        field_name: &'ctx str,
+    },
+    /// An atomic identifier.
+    AtomicId(AtomicId),
+}
+
+impl<'ctx> From<AtomicId> for UniversalId<'ctx> {
+    fn from(id: AtomicId) -> UniversalId<'ctx> {
+        UniversalId::AtomicId(id)
+    }
+}
+
+impl<'ctx> UniversalId<'ctx> {
+    pub fn as_atomic_id(&self) -> Option<&AtomicId> {
+        if let Self::AtomicId(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn field(record_id: AtomicId, field_name: &'ctx str) -> UniversalId<'ctx> {
+        UniversalId::Field {
+            record_id,
+            field_name,
+        }
+    }
+}
+
+impl AtomicId {
     pub fn new(inner: usize) -> Self {
         Self { inner }
     }
@@ -54,7 +94,7 @@ impl Id {
     }
 }
 
-impl fmt::Display for Id {
+impl fmt::Display for AtomicId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }
@@ -63,7 +103,7 @@ impl fmt::Display for Id {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Tagged<T> {
     pub(crate) token: T,
-    pub(crate) id: Id,
+    pub(crate) id: AtomicId,
 }
 
 impl<T: HasSpan> HasSpan for Tagged<T> {
@@ -82,8 +122,8 @@ impl<T> std::ops::Deref for Tagged<T> {
 
 #[derive(Debug, Default)]
 struct TaggingCtx<'a> {
-    variable_ids: FxHashMap<Ident<'a>, Id>,
-    id_to_names: FxHashMap<Id, Ident<'a>>,
+    variable_ids: FxHashMap<Ident<'a>, AtomicId>,
+    id_to_names: FxHashMap<AtomicId, Ident<'a>>,
     monotonic: MonotonicIdGenerator,
     scopes: Vec<Scope<'a>>,
 }
@@ -127,7 +167,7 @@ impl<'a> TaggingCtx<'a> {
 
 fn tagged_ident<'a>(ident: Ident<'a>, ctx: &mut TaggingCtx<'a>) -> Tagged<Ident<'a>> {
     if let Some(id) = ctx.variable_ids.get(&ident) {
-        let id: Id = *id;
+        let id: AtomicId = *id;
         Tagged { token: ident, id }
     } else {
         let tagged = ctx.tag(ident);
@@ -147,7 +187,11 @@ pub struct Scope<'a> {
 
 #[derive(Debug)]
 pub enum Edit<'a> {
-    Overwrite { ident: Ident<'a>, id: Id, with: Id },
+    Overwrite {
+        ident: Ident<'a>,
+        id: AtomicId,
+        with: AtomicId,
+    },
     Add(Tagged<Ident<'a>>),
 }
 
