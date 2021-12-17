@@ -111,6 +111,46 @@ impl<'a, IDENT, EXPR> Node<'a, IDENT, EXPR> {
             None
         }
     }
+
+    pub fn as_func(&self) -> Option<&Func<'a, IDENT, EXPR>> {
+        if let Self::Func(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_record(&self) -> Option<&Record<'a, IDENT>> {
+        if let Self::Record(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_return(&self) -> Option<&Return<'a, EXPR>> {
+        if let Self::Return(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_while(&self) -> Option<&While<'a, IDENT, EXPR>> {
+        if let Self::While(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_for(&self) -> Option<&ForLoop<'a, IDENT, EXPR>> {
+        if let Self::For(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> Parse<'a> for Node<'a> {

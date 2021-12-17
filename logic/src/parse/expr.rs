@@ -27,6 +27,40 @@ where
     Constructor(Constructor<'a, IDENT>),
 }
 
+impl<'a, IDENT: std::cmp::Eq + std::hash::Hash> Expr<'a, IDENT> {
+    pub fn as_bin_op(&self) -> Option<(&BinOp, &Box<Expr<IDENT>>, &Box<Expr<IDENT>>)> {
+        if let Self::BinOp(op, a, b) = self {
+            Some((op, a, b))
+        } else {
+            None
+        }
+    }
+
+    pub fn as_constructor(&self) -> Option<&Constructor<'a, IDENT>> {
+        if let Self::Constructor(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_ident(&self) -> Option<&IDENT> {
+        if let Self::Ident(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_literal(&self) -> Option<&Spanned<Literal<'a>>> {
+        if let Self::Literal(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Constructor<'a, IDENT = Ident<'a>, EXPR = Expr<'a>>
 where

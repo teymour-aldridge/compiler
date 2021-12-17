@@ -66,6 +66,34 @@ fn factorial_type_check() {
 }
 
 #[test]
+fn test_record_type_check() {
+    let tree = crate::parse::parse(include_str!("examples/record")).unwrap();
+    let tagged = tag(tree);
+
+    let ty_env = type_check(&tagged).unwrap();
+
+    let main = tagged.nodes.get(0).unwrap();
+    let (_, left, right) = main
+        .as_func()
+        .unwrap()
+        .block
+        .inner
+        .nodes
+        .get(0)
+        .unwrap()
+        .as_expr()
+        .unwrap()
+        .as_bin_op()
+        .unwrap();
+    assert_eq!(ty_env.ty_of(left.id), Some(Ty::Int));
+    assert_eq!(ty_env.ty_of(right.id), Some(Ty::Int));
+
+    let record = tagged.nodes.get(1).unwrap().as_record().unwrap();
+    let record_id = record.fields.get(0).unwrap().name.id;
+    assert_eq!(ty_env.ty_of(record_id), Some(Ty::Int))
+}
+
+#[test]
 fn simple_unify_check() {
     let set = FxHashSet::from_iter(vec![
         Constraint::IdToTy {

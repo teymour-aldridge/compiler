@@ -68,8 +68,11 @@ pub fn type_check(ast: &TaggedAst) -> Result<TyEnv, TyCheckError> {
 }
 
 #[derive(Copy, Clone, Debug, Hash)]
+/// A substitution to be made as part of type inference.
 enum Substitution {
+    /// Substitute the first id `X`, for the second id `Y`.
     XforY(Id, Id),
+    /// Substitute a concrete type for the given id.
     ConcreteForX(Ty, Id),
 }
 
@@ -172,15 +175,6 @@ fn unify(set: FxHashSet<Constraint>, mut solved: TyEnv) -> Result<TyEnv, TyCheck
                 None
             }
         }
-        Constraint::RecordTy {
-            record_id: _,
-            id: _,
-        } => todo!(),
-        Constraint::FieldAccess {
-            id: _,
-            field_id: _,
-            to: _,
-        } => todo!(),
     };
 
     if let Some(u) = u {

@@ -391,6 +391,25 @@ pub enum TaggedExprInner<'a, IDENT = Ident<'a>> {
     Constructor(TaggedConstructor<'a>),
 }
 
+impl<'a, IDENT> TaggedExprInner<'a, IDENT>
+where
+    IDENT: std::hash::Hash + std::cmp::Eq,
+{
+    pub fn as_bin_op(
+        &self,
+    ) -> Option<(
+        &Spanned<BinOp>,
+        &Box<Tagged<TaggedExprInner<Tagged<Ident>>>>,
+        &Box<Tagged<TaggedExprInner<Tagged<Ident>>>>,
+    )> {
+        if let Self::BinOp(op, a, b) = self {
+            Some((op, a, b))
+        } else {
+            None
+        }
+    }
+}
+
 impl<IDENT: HasSpan> HasSpan for TaggedExprInner<'_, IDENT> {
     fn span(&self) -> Span {
         todo!()

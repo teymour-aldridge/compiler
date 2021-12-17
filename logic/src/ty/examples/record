@@ -1,0 +1,7 @@
+function main()
+  new = NewRecord { a: 1 }
+endfunction
+
+record NewRecord
+  a of Int
+endrecord

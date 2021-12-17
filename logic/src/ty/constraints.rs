@@ -6,7 +6,11 @@ use crate::{
         Id, TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode,
         TaggedRecord,
     },
-    parse::{expr::BinOp, Node},
+    parse::{
+        expr::{BinOp, UnOp},
+        lit::Literal,
+        Node,
+    },
     visitor::Visitor,
 };
 
@@ -26,10 +30,6 @@ pub(crate) enum Constraint {
     /// Note that this is used later, while solving the constraints and not while collecting
     /// constraints from the AST.
     TyToTy { ty: Ty, to: Ty },
-    #[allow(dead_code)]
-    RecordTy { id: Id, record_id: Id },
-    #[allow(dead_code)]
-    FieldAccess { id: Id, field_id: Id, to: Id },
 }
 
 pub(crate) fn collect(ast: &TaggedAst) -> Result<Vec<Constraint>, ConstraintGatheringError> {
@@ -210,10 +210,10 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
 ///
 /// The type that this expression should conform to. The function will insert constraints as
 /// needed.
-fn collect_expr(
-    expr: &TaggedExpr,
-    definitions: &Vec<&TaggedFunc>,
-    record_definitions: &Vec<&TaggedRecord>,
+fn collect_expr<'a, 'ctx>(
+    expr: &'a TaggedExpr<'ctx>,
+    definitions: &Vec<&'a TaggedFunc<'ctx>>,
+    record_definitions: &Vec<&'a TaggedRecord<'ctx>>,
     ty: Option<Ty>,
 ) -> Result<Vec<Constraint>, ConstraintGatheringError> {
     let mut constraints = vec![];
@@ -223,19 +223,19 @@ fn collect_expr(
     }
 
     match &expr.token {
-        crate::id::TaggedExprInner::Ident(ident) => constraints.push(Constraint::IdToId {
+        TaggedExprInner::Ident(ident) => constraints.push(Constraint::IdToId {
             id: ident.id,
             to: expr.id,
         }),
-        crate::id::TaggedExprInner::Literal(lit) => {
+        TaggedExprInner::Literal(lit) => {
             let ty = match lit.token {
-                crate::parse::lit::Literal::String(_) => Ty::String,
-                crate::parse::lit::Literal::Number(_) => Ty::Int,
-                crate::parse::lit::Literal::Bool(_) => Ty::Bool,
+                Literal::String(_) => Ty::String,
+                Literal::Number(_) => Ty::Int,
+                Literal::Bool(_) => Ty::Bool,
             };
             constraints.push(Constraint::IdToTy { id: expr.id, ty });
         }
-        crate::id::TaggedExprInner::BinOp(op, left, right) => match (op.token, left, right) {
+        TaggedExprInner::BinOp(op, left, right) => match (op.token, left, right) {
             (BinOp::Add | BinOp::Divide | BinOp::Multiply | BinOp::Subtract, left, right) => {
                 constraints.push(Constraint::IdToId {
                     id: left.id,
@@ -248,9 +248,24 @@ fn collect_expr(
                 constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                 constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
             }
-            (BinOp::Dot, _left, _right) => {
-                todo!()
-            }
+            (BinOp::Dot, _left, right) => match right.token {
+                TaggedExprInner::Ident(ref ident) => {
+                    constraints.push(Constraint::IdToId {
+                        id: ident.id,
+                        to: right.id,
+                    });
+                    constraints.push(Constraint::IdToId {
+                        id: ident.id,
+                        to: expr.id,
+                    });
+                    constraints.push(Constraint::IdToId {
+                        id: right.id,
+                        to: expr.id,
+                    });
+                }
+                // todo: methods
+                _ => todo!(),
+            },
             // todo: add necessary additional type constraints
             (BinOp::IsEqual, left, right) => {
                 constraints.push(Constraint::IdToId {
@@ -298,15 +313,49 @@ fn collect_expr(
                 }
             }
         },
-        crate::id::TaggedExprInner::UnOp(op, arg) => match op.token {
-            crate::parse::expr::UnOp::Positive | crate::parse::expr::UnOp::Negative => constraints
-                .push(Constraint::IdToTy {
-                    id: arg.id,
-                    ty: Ty::Int,
-                }),
+        TaggedExprInner::UnOp(op, arg) => match op.token {
+            UnOp::Positive | UnOp::Negative => constraints.push(Constraint::IdToTy {
+                id: arg.id,
+                ty: Ty::Int,
+            }),
         },
-        crate::id::TaggedExprInner::Constructor(_) => todo!(),
-        crate::id::TaggedExprInner::FunctionCall(func, params) => {
+        TaggedExprInner::Constructor(rec) => {
+            let definition = record_definitions
+                .iter()
+                .find(|candidate| rec.name.token == candidate.name.token)
+                .unwrap();
+
+            // todo: proper checks for matching fields
+            for (struct_field, (constructor_name, constructor_expr)) in
+                definition.fields.iter().zip(rec.fields.iter())
+            {
+                constraints.push(Constraint::IdToId {
+                    id: struct_field.name.id,
+                    to: constructor_name.id,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: struct_field.name.id,
+                    to: constructor_expr.id,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: constructor_name.id,
+                    to: constructor_expr.id,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: constructor_name.id,
+                    to: expr.id,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: struct_field.name.id,
+                    to: expr.id,
+                });
+                constraints.push(Constraint::IdToTy {
+                    id: expr.id,
+                    ty: struct_field.ty,
+                });
+            }
+        }
+        TaggedExprInner::FunctionCall(func, params) => {
             if *func.token == "print_int" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
