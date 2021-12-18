@@ -154,10 +154,10 @@ impl<'ctx> Compiler<'ctx> {
 }
 
 /// Compiles one specific function.
-struct FunctionCompiler<'ctx, 'builder> {
-    builder: &'builder mut FunctionBuilder<'ctx>,
-    ty_env: &'ctx TyEnv<'ctx>,
-    module: &'builder mut ObjectModule,
+pub(crate) struct FunctionCompiler<'ctx, 'builder> {
+    pub(crate) builder: &'builder mut FunctionBuilder<'ctx>,
+    pub(crate) ty_env: &'ctx TyEnv<'ctx>,
+    pub(crate) module: &'builder mut ObjectModule,
 }
 
 impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
@@ -198,7 +198,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
     }
 
     /// Compiles an expression into the appropriate (that's my hope, at least) Cranelift IR.
-    fn compile_expr(&mut self, expr: &TaggedExpr) -> ir::Value {
+    pub(crate) fn compile_expr(&mut self, expr: &TaggedExpr) -> ir::Value {
         match &expr.token {
             crate::id::TaggedExprInner::Ident(ident) => self
                 .builder
@@ -365,7 +365,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 let call = self.builder.ins().call(local_callee, &arg_values);
                 self.builder.inst_results(call)[0]
             }
-            crate::id::TaggedExprInner::Constructor(_) => todo!(),
+            crate::id::TaggedExprInner::Constructor(con) => self.compile_constructor(con),
         }
     }
 

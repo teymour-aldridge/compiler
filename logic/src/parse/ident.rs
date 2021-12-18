@@ -28,6 +28,13 @@ pub struct Ident<'a> {
     span: Span,
 }
 
+impl<'a> Ident<'a> {
+    /// Get a reference to the ident's inner.
+    pub fn inner(&self) -> &str {
+        self.inner
+    }
+}
+
 impl HasSpan for Ident<'_> {
     fn span(&self) -> Span {
         self.span

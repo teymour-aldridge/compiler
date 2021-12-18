@@ -106,6 +106,13 @@ pub struct Tagged<T> {
     pub(crate) id: AtomicId,
 }
 
+impl<T> Tagged<T> {
+    /// Get a reference to the tagged's token.
+    pub fn token(&self) -> &T {
+        &self.token
+    }
+}
+
 impl<T: HasSpan> HasSpan for Tagged<T> {
     fn span(&self) -> Span {
         self.token.span()

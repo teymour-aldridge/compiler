@@ -67,6 +67,10 @@ where
     IDENT: cmp::PartialEq + cmp::Eq + hash::Hash,
 {
     pub(crate) name: IDENT,
+    /// The fields of the constructor.
+    ///
+    /// todo: the parser should always sort fields alphabetically to ensure correctness in later
+    /// stages of the compiler
     pub(crate) fields: HashMap<IDENT, EXPR>,
     pub(crate) _a: PhantomData<&'a ()>,
 }

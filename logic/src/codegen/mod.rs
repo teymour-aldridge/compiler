@@ -4,7 +4,9 @@ use self::compile::Compiler;
 
 /// Performs the actual AST -> Cranelift IR pass
 mod compile;
-mod make_module;
+/// Layouts of objects in memory.
+pub(self) mod layout;
+pub(self) mod make_module;
 
 pub fn compile<'compiler>(ast: &'compiler TaggedAst, env: &'compiler TyEnv) {
     let mut compiler = Compiler::new(env);
