@@ -94,8 +94,8 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         ));
 
         let mut offset = 0;
-        for (_, expr) in &con.fields {
-            let expr_value = self.compile_expr(&expr);
+        for expr in con.fields.values() {
+            let expr_value = self.compile_expr(expr);
             self.builder.ins().stack_store(expr_value, slot, offset);
             offset += type_size(self.ty_env.ty_of(expr.id.into()).unwrap()) as i32;
         }
