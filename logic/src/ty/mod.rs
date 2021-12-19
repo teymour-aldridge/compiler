@@ -23,23 +23,23 @@ use self::constraints::{Constraint, ConstraintGatheringError};
 
 mod constraints;
 
-pub struct TyTable {
+pub struct TyTable<'ctx> {
     #[allow(unused)]
-    table: FxHashMap<AtomicId, Ty>,
+    table: FxHashMap<AtomicId, Ty<'ctx>>,
 }
 
 /// An atomic type - all other types are expressed in terms of these.
 #[derive(Clone, Eq, Debug)]
 // when using fuzzcheck it is necessary to implement some additional traits
-#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
-pub enum Ty {
+#[cfg_attr(test, derive(serde::Serialize))]
+pub enum Ty<'ctx> {
     Int,
     Bool,
     String,
-    Record(HashMap<AtomicId, Ty>),
+    Record(HashMap<&'ctx str, Ty<'ctx>>),
 }
 
-impl Hash for Ty {
+impl Hash for Ty<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
         if let Ty::Record(rec) = self {
@@ -51,7 +51,7 @@ impl Hash for Ty {
     }
 }
 
-impl PartialEq for Ty {
+impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Record(l0), Self::Record(r0)) => l0 == r0,
@@ -60,44 +60,7 @@ impl PartialEq for Ty {
     }
 }
 
-#[cfg(all(test, not(disable_fuzzcheck)))]
-impl Ty {
-    pub fn mutator() -> impl fuzzcheck::Mutator<Ty> {
-        use fuzzcheck::DefaultMutator;
-        #[derive(fuzzcheck::DefaultMutator, Clone, Copy)]
-        enum LocalTy {
-            Int,
-            Bool,
-            String,
-        }
-        fuzzcheck::mutators::map::MapMutator::new(
-            LocalTy::default_mutator(),
-            |ty: &Ty| match ty {
-                Ty::Int => Some(LocalTy::Int),
-                Ty::Bool => Some(LocalTy::Bool),
-                Ty::String => Some(LocalTy::String),
-                Ty::Record(_) => None,
-            },
-            |local_ty| match local_ty {
-                LocalTy::Int => Ty::Int,
-                LocalTy::Bool => Ty::Bool,
-                LocalTy::String => Ty::String,
-            },
-            |_, cplx| cplx,
-        )
-    }
-}
-
-#[cfg(all(test, not(disable_fuzzcheck)))]
-impl fuzzcheck::DefaultMutator for Ty {
-    type Mutator = impl fuzzcheck::Mutator<Ty>;
-
-    fn default_mutator() -> Self::Mutator {
-        Self::mutator()
-    }
-}
-
-impl fmt::Display for Ty {
+impl fmt::Display for Ty<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Ty::Int => "Int",
@@ -134,13 +97,13 @@ enum Substitution<'ctx> {
     /// Substitute the first id `X`, for the second id `Y`.
     XforY(UniversalId<'ctx>, UniversalId<'ctx>),
     /// Substitute a concrete type for the given id.
-    ConcreteForX(Ty, UniversalId<'ctx>),
+    ConcreteForX(Ty<'ctx>, UniversalId<'ctx>),
 }
 
 #[derive(Hash, Clone, Debug)]
 pub enum TyInfo<'ctx> {
     EqId(UniversalId<'ctx>),
-    EqTy(Ty),
+    EqTy(Ty<'ctx>),
 }
 
 #[derive(Hash, Clone, Debug)]

@@ -83,7 +83,7 @@ fn test_record_type_check() {
                 .get(0)
                 .unwrap()
                 .name
-                .id,
+                .inner(),
             Ty::Int,
         );
         map

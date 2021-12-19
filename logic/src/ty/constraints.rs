@@ -21,7 +21,7 @@ use super::Ty;
 pub(crate) enum Constraint<'ctx> {
     #[allow(unused)]
     /// A specific item with the given [crate::id::Id] must have the given base type.
-    IdToTy { id: UniversalId<'ctx>, ty: Ty },
+    IdToTy { id: UniversalId<'ctx>, ty: Ty<'ctx> },
     /// A specific item with the given [crate::id::Id] must have the same type as a different item.
     #[allow(unused)]
     IdToId {
@@ -32,12 +32,12 @@ pub(crate) enum Constraint<'ctx> {
     ///
     /// Note that this is used later, while solving the constraints and not while collecting
     /// constraints from the AST.
-    TyToTy { ty: Ty, to: Ty },
+    TyToTy { ty: Ty<'ctx>, to: Ty<'ctx> },
 }
 
-pub(crate) fn collect<'a>(
-    ast: &'a TaggedAst,
-) -> Result<Vec<Constraint<'a>>, ConstraintGatheringError> {
+pub(crate) fn collect<'ctx>(
+    ast: &'ctx TaggedAst,
+) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
     let mut visitor = ConstraintVisitor::new(ast);
     visitor
         .visit_ast(ast)
@@ -46,11 +46,11 @@ pub(crate) fn collect<'a>(
     Ok(visitor.take_constraints())
 }
 
-struct ConstraintVisitor<'a, 'ctx> {
+struct ConstraintVisitor<'ctx> {
     constraints: Vec<Constraint<'ctx>>,
-    definitions: Vec<&'a TaggedFunc<'ctx>>,
-    records: Vec<&'a TaggedRecord<'ctx>>,
-    current_func: Option<&'a TaggedFunc<'ctx>>,
+    definitions: Vec<&'ctx TaggedFunc<'ctx>>,
+    records: Vec<&'ctx TaggedRecord<'ctx>>,
+    current_func: Option<&'ctx TaggedFunc<'ctx>>,
 }
 
 fn gather_function_definitions<'a, 'collect>(
@@ -68,9 +68,9 @@ fn gather_function_definitions<'a, 'collect>(
 /// Collects a reference to every records in a file.
 ///
 /// todo: add a name resolution algorithm
-fn gather_record_definitions<'a, 'collect>(
-    ast: &'collect TaggedAst<'a>,
-) -> Vec<&'collect TaggedRecord<'a>> {
+fn gather_record_definitions<'collect>(
+    ast: &'collect TaggedAst<'collect>,
+) -> Vec<&'collect TaggedRecord<'collect>> {
     ast.nodes
         .iter()
         .filter_map(|node: &TaggedNode| match node {
@@ -80,8 +80,8 @@ fn gather_record_definitions<'a, 'collect>(
         .collect()
 }
 
-impl<'a, 'ctx> ConstraintVisitor<'a, 'ctx> {
-    fn new(ast: &'a TaggedAst<'ctx>) -> Self {
+impl<'ctx> ConstraintVisitor<'ctx> {
+    fn new(ast: &'ctx TaggedAst<'ctx>) -> Self {
         Self {
             constraints: vec![],
             definitions: gather_function_definitions(ast),
@@ -95,16 +95,16 @@ impl<'a, 'ctx> ConstraintVisitor<'a, 'ctx> {
     }
 }
 
-impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
+impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     type Output = Result<(), ConstraintGatheringError>;
 
-    fn visit_expr(&mut self, expr: &'a TaggedExpr<'ctx>) -> Self::Output {
+    fn visit_expr(&mut self, expr: &'ctx TaggedExpr<'ctx>) -> Self::Output {
         self.constraints
             .extend(collect_expr(expr, &self.definitions, &self.records, None)?);
         Ok(())
     }
 
-    fn visit_for(&mut self, stmt: &'a crate::id::TaggedFor<'ctx>) -> Self::Output {
+    fn visit_for(&mut self, stmt: &'ctx crate::id::TaggedFor<'ctx>) -> Self::Output {
         self.constraints.push(Constraint::IdToTy {
             id: stmt.var.id.into(),
             ty: Ty::Int,
@@ -129,10 +129,10 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         Ok(())
     }
 
-    fn visit_if(&mut self, stmt: &'a crate::id::TaggedIf<'ctx>) -> Self::Output {
-        fn branch_constraints<'a, 'ctx>(
-            branch: &'a TaggedBranch<'ctx>,
-            visitor: &mut ConstraintVisitor<'a, 'ctx>,
+    fn visit_if(&mut self, stmt: &'ctx crate::id::TaggedIf<'ctx>) -> Self::Output {
+        fn branch_constraints<'ctx>(
+            branch: &'ctx TaggedBranch<'ctx>,
+            visitor: &mut ConstraintVisitor<'ctx>,
         ) -> Result<(), ConstraintGatheringError> {
             visitor.visit_expr(&branch.condition)?;
             visitor
@@ -157,7 +157,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         Ok(())
     }
 
-    fn visit_while(&mut self, stmt: &'a crate::id::TaggedWhile<'ctx>) -> Self::Output {
+    fn visit_while(&mut self, stmt: &'ctx crate::id::TaggedWhile<'ctx>) -> Self::Output {
         self.constraints.push(Constraint::IdToTy {
             id: stmt.condition.id.into(),
             ty: Ty::Bool,
@@ -170,7 +170,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         Ok(())
     }
 
-    fn visit_ret(&mut self, ret: &'a crate::id::TaggedReturn<'ctx>) -> Self::Output {
+    fn visit_ret(&mut self, ret: &'ctx crate::id::TaggedReturn<'ctx>) -> Self::Output {
         if let Some(func) = self.current_func {
             self.constraints.push(Constraint::IdToId {
                 id: func.name.id.into(),
@@ -185,7 +185,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         }
     }
 
-    fn visit_func(&mut self, func: &'a TaggedFunc<'ctx>) -> Self::Output {
+    fn visit_func(&mut self, func: &'ctx TaggedFunc<'ctx>) -> Self::Output {
         let prev = self.current_func;
         self.current_func = Some(func);
         self.visit_block(&func.block)
@@ -200,7 +200,7 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
         Ok(())
     }
 
-    fn visit_rec(&mut self, rec: &'a crate::id::TaggedRecord<'ctx>) -> Self::Output {
+    fn visit_rec(&mut self, rec: &'ctx crate::id::TaggedRecord<'ctx>) -> Self::Output {
         for field in &rec.fields {
             self.constraints.push(Constraint::IdToTy {
                 id: field.name.id.into(),
@@ -215,11 +215,11 @@ impl<'a, 'ctx> Visitor<'a, 'ctx> for ConstraintVisitor<'a, 'ctx> {
 ///
 /// The type that this expression should conform to. The function will insert constraints as
 /// needed.
-fn collect_expr<'a, 'ctx>(
-    expr: &'a TaggedExpr<'ctx>,
-    definitions: &[&'a TaggedFunc<'ctx>],
-    record_definitions: &[&'a TaggedRecord<'ctx>],
-    ty: Option<Ty>,
+fn collect_expr<'ctx>(
+    expr: &'ctx TaggedExpr<'ctx>,
+    definitions: &[&'ctx TaggedFunc<'ctx>],
+    record_definitions: &[&'ctx TaggedRecord<'ctx>],
+    ty: Option<Ty<'ctx>>,
 ) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
     let mut constraints = vec![];
 
@@ -342,7 +342,7 @@ fn collect_expr<'a, 'ctx>(
                     definition
                         .fields
                         .iter()
-                        .map(|field| (field.name.id, field.ty.clone()))
+                        .map(|field| (field.name.token.inner(), field.ty.clone()))
                         .collect(),
                 ),
             });

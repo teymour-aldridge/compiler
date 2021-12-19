@@ -6,7 +6,7 @@ use crate::{id::TaggedConstructor, ty::Ty};
 
 use super::compile::FunctionCompiler;
 
-fn type_size(ty: Ty) -> u32 {
+pub(crate) fn type_size(ty: Ty) -> u32 {
     match ty {
         // integers are 32 bits (maybe)
         Ty::Int => 32 / 8,

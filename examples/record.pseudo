@@ -1,0 +1,10 @@
+record WithInteger
+  integer of Int
+endrecord
+
+function main()
+  x = WithInteger {integer: 12}
+  print_int(x.integer)
+
+  return 0
+endfunction

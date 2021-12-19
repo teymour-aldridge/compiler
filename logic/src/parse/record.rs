@@ -39,7 +39,6 @@ impl fmt::Display for Record<'_> {
 impl<'a> Parse<'a> for Record<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
         let indent = input.indent;
-        input.advance_indent()?;
         input.parse_token("record")?;
         input.skip_whitespace()?;
         let name = Ident::parse(input)?;
@@ -64,6 +63,7 @@ impl<'a> Parse<'a> for Record<'a> {
                 || input.chars().all(|char| char.is_whitespace())
             {
                 input.decrement_indent(2);
+                input.advance_indent()?;
                 input.parse_token("endrecord")?;
                 return Ok(Self {
                     name,
@@ -82,7 +82,7 @@ impl<'a> Parse<'a> for Record<'a> {
 /// A field of a [Record].
 pub struct Field<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,
-    pub(crate) ty: Ty,
+    pub(crate) ty: Ty<'a>,
     pub(crate) _a: PhantomData<&'a IDENT>,
 }
 

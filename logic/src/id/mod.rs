@@ -47,6 +47,22 @@ pub struct AtomicId {
     inner: usize,
 }
 
+impl AtomicId {
+    pub fn new(inner: usize) -> Self {
+        Self { inner }
+    }
+
+    pub fn raw_id(&self) -> usize {
+        self.inner
+    }
+}
+
+impl fmt::Display for AtomicId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 #[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
 /// An item which identifies any item.
@@ -81,22 +97,6 @@ impl<'ctx> UniversalId<'ctx> {
             record_id,
             field_name,
         }
-    }
-}
-
-impl AtomicId {
-    pub fn new(inner: usize) -> Self {
-        Self { inner }
-    }
-
-    pub fn raw_id(&self) -> usize {
-        self.inner
-    }
-}
-
-impl fmt::Display for AtomicId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
     }
 }
 
@@ -448,6 +448,14 @@ where
     pub fn as_bin_op(&self) -> Option<(&Spanned<BinOp>, &TaggedExpr, &TaggedExpr)> {
         if let Self::BinOp(op, a, b) = self {
             Some((op, a, b))
+        } else {
+            None
+        }
+    }
+
+    pub fn as_ident(&self) -> Option<&IDENT> {
+        if let Self::Ident(v) = self {
+            Some(v)
         } else {
             None
         }

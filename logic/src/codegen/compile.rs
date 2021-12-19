@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, env};
 
 /// Emits machine code from the provided instructions.
 ///
@@ -135,6 +135,10 @@ impl<'ctx> Compiler<'ctx> {
 
             function_compiler.builder.finalize();
 
+            if env::var("PRINT_IR").is_ok() {
+                println!("{}", function_compiler.builder.func);
+            }
+
             self.module
                 .define_function(
                     func_id,
@@ -238,8 +242,17 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 };
 
                 let new_value = self.compile_expr(right);
-                self.builder
-                    .def_var(Variable::with_u32(id.raw_id() as u32), new_value);
+
+                let cranelift_ty = match self.ty_env.ty_of(right.id.into()).unwrap() {
+                    Ty::Int => cranelift_of_ty_module(&self.module, Ty::Int),
+                    Ty::Bool | Ty::String => todo!(),
+                    Ty::Record(_) => self.module.target_config().pointer_type(),
+                };
+
+                let var = Variable::with_u32(id.raw_id() as u32);
+
+                self.builder.declare_var(var, cranelift_ty);
+                self.builder.def_var(var, new_value);
                 new_value
             }
             /*
@@ -278,7 +291,47 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     }
                 }
                 BinOp::SetEquals => unreachable!(),
-                BinOp::Dot => todo!(),
+                BinOp::Dot => {
+                    if let (Some(record), Some(field)) =
+                        (left.token.as_ident(), right.token.as_ident())
+                    {
+                        let record_ty = match self.ty_env.ty_of(record.id.into()).unwrap() {
+                            Ty::Record(rec) => rec,
+                            _ => {
+                                // todo: report the correct error
+                                todo!()
+                            }
+                        };
+
+                        let mut offset = 0;
+                        for (key, value) in &record_ty {
+                            if key != &field.token().inner() {
+                                offset += super::layout::type_size(value.clone());
+                            } else {
+                                break;
+                            }
+                        }
+
+                        let field_type = {
+                            // todo: resolve fields properly
+                            let ty = self.ty_env.ty_of(field.id.into()).unwrap();
+                            cranelift_of_ty_module(&self.module, ty)
+                        };
+
+                        let pointer = self
+                            .builder
+                            .use_var(Variable::with_u32(record.id.raw_id() as u32));
+                        self.builder.ins().load(
+                            field_type,
+                            ir::MemFlags::new(),
+                            pointer,
+                            offset as i32,
+                        )
+                    } else {
+                        // report a proper error
+                        todo!()
+                    }
+                }
             },
             crate::id::TaggedExprInner::UnOp(_, _) => todo!(),
             crate::id::TaggedExprInner::FunctionCall(name, params) => {
@@ -375,6 +428,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         let if_block = self.builder.create_block();
 
         if !stmt.else_ifs.is_empty() {
+            // todo: proper warning API
             println!("WARNING: else if is not yet supported!");
         }
 
