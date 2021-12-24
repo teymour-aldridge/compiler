@@ -1,7 +1,7 @@
 //! Collects constraints from an AST.
 
 use crate::{
-    diagnostics::span::{HasSpan, Span},
+    diagnostics::span::HasSpan,
     id::{
         TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode, TaggedRecord,
         UniversalId,
@@ -14,7 +14,7 @@ use crate::{
     visitor::Visitor,
 };
 
-use super::Ty;
+use super::{error::ConstraintGatheringError, Ty};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 /// The possible constraints.
@@ -189,7 +189,7 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
             self.visit_expr(&ret.expr)
         } else {
             Err(ConstraintGatheringError::ReturnOutsideFunction {
-                span: ret.expr.span(),
+                span: ret.expr.span().into(),
                 explanation: "Return statements can only be used inside functions".to_string(),
             })
         }
@@ -316,7 +316,7 @@ fn collect_expr<'ctx>(
                     constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
                 } else {
                     return Err(ConstraintGatheringError::CannotAssignToExpression {
-                        span: expr.token.span(),
+                        span: expr.token.span().into(),
                         explanation:
                             "Values can only be assigned to variables, not to expressions!"
                                 .to_string(),
@@ -369,7 +369,7 @@ fn collect_expr<'ctx>(
             if *func.token == "print_int" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span(),
+                        span: func.span().into(),
                         explanation: format!(
                             "This function accepts 1
                             parameter, but you've called it with `{}` arguments.",
@@ -396,7 +396,7 @@ fn collect_expr<'ctx>(
             } else if *func.token == "print" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span(),
+                        span: func.span().into(),
                         explanation: format!(
                             "This function accepts 1
                             parameter, but you've called it with `{}` arguments.",
@@ -425,7 +425,7 @@ fn collect_expr<'ctx>(
             {
                 if function.parameters.len() != params.len() {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span(),
+                        span: func.span().into(),
                         explanation: format!(
                             "This function accepts `{}`
                             parameters, but you've called it with `{}` arguments.",
@@ -447,7 +447,7 @@ fn collect_expr<'ctx>(
                 });
             } else {
                 return Err(ConstraintGatheringError::UnresolvableFunction {
-                    span: func.span(),
+                    span: func.span().into(),
                     explanation: { format!("A function with name `{}` cannot be found.", **func) },
                 });
             }
@@ -455,12 +455,4 @@ fn collect_expr<'ctx>(
     }
 
     Ok(constraints)
-}
-
-#[derive(Debug)]
-pub enum ConstraintGatheringError {
-    CannotAssignToExpression { span: Span, explanation: String },
-    UnresolvableFunction { span: Span, explanation: String },
-    MismatchedFunctionCall { span: Span, explanation: String },
-    ReturnOutsideFunction { span: Span, explanation: String },
 }

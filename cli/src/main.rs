@@ -9,6 +9,10 @@ use codespan_reporting::{
 };
 use logic::{codegen::compile, id::tag, parse, ty::type_check};
 
+/// Runs the compiler.
+///
+/// todo: some sort of incremental computation
+/// todo: emit multiple errors
 fn main() {
     let args = env::args().collect::<Vec<_>>();
 
@@ -39,7 +43,14 @@ fn main() {
 
     let tagged = tag(ast);
 
-    let env = type_check(&tagged).unwrap();
+    let env = match type_check(&tagged) {
+        Ok(env) => env,
+        Err(error) => {
+            let report = error.report(file_id);
+            emit(&mut writer, &config, &files, &report).unwrap();
+            return;
+        }
+    };
 
     compile(&tagged, &env);
 }

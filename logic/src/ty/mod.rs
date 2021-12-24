@@ -1,25 +1,24 @@
 //! Type checking.
 
-#[cfg(test)]
-mod test;
-
-#[cfg(test)]
-#[cfg(not(disable_fuzzcheck))]
-mod fuzz;
-
-#[cfg(test)]
-mod fuzz2;
-
 use std::{collections::HashMap, fmt, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
+
+pub mod error;
+#[cfg(test)]
+#[cfg(not(disable_fuzzcheck))]
+mod fuzz;
+#[cfg(test)]
+mod fuzz2;
+#[cfg(test)]
+mod test;
 
 use crate::{
     id::{AtomicId, TaggedAst, UniversalId},
     ty::constraints::collect,
 };
 
-use self::constraints::{Constraint, ConstraintGatheringError};
+use self::{constraints::Constraint, error::TyCheckError};
 
 mod constraints;
 
@@ -70,18 +69,6 @@ impl fmt::Display for Ty<'_> {
                 unimplemented!()
             }
         })
-    }
-}
-
-#[derive(Debug)]
-pub enum TyCheckError {
-    ConstraintGatheringError(ConstraintGatheringError),
-    TypeMismatch,
-}
-
-impl From<ConstraintGatheringError> for TyCheckError {
-    fn from(err: ConstraintGatheringError) -> Self {
-        Self::ConstraintGatheringError(err)
     }
 }
 
