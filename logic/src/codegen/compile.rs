@@ -196,12 +196,13 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         }
     }
 
+    /// Compiles a return statement.
     fn compile_return(&mut self, ret: &TaggedReturn<'_>) {
         let return_value = self.compile_expr(&ret.expr);
         self.builder.ins().return_(&[return_value]);
     }
 
-    /// Compiles an expression into the appropriate (that's my hope, at least) Cranelift IR.
+    /// Lowers an expression to the corresponding Cranelift IR.Ï
     pub(crate) fn compile_expr(&mut self, expr: &TaggedExpr) -> ir::Value {
         match &expr.token {
             crate::id::TaggedExprInner::Ident(ident) => self

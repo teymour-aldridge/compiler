@@ -98,6 +98,16 @@ impl<'ctx> ConstraintVisitor<'ctx> {
 impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     type Output = Result<(), ConstraintGatheringError>;
 
+    fn visit_rec(&mut self, rec: &'ctx crate::id::TaggedRecord<'ctx>) -> Self::Output {
+        for field in &rec.fields {
+            self.constraints.push(Constraint::IdToTy {
+                id: field.name.id.into(),
+                ty: field.ty.clone(),
+            })
+        }
+        Ok(())
+    }
+
     fn visit_expr(&mut self, expr: &'ctx TaggedExpr<'ctx>) -> Self::Output {
         self.constraints
             .extend(collect_expr(expr, &self.definitions, &self.records, None)?);
@@ -197,16 +207,6 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
 
     /// Doesn't do anything.
     fn visit_ident(&mut self, _: &crate::id::TaggedIdent) -> Self::Output {
-        Ok(())
-    }
-
-    fn visit_rec(&mut self, rec: &'ctx crate::id::TaggedRecord<'ctx>) -> Self::Output {
-        for field in &rec.fields {
-            self.constraints.push(Constraint::IdToTy {
-                id: field.name.id.into(),
-                ty: field.ty.clone(),
-            })
-        }
         Ok(())
     }
 }
