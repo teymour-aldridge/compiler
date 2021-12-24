@@ -6,7 +6,7 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::diagnostics::span::{IndexOnlySpan, Spanned};
+use crate::diagnostics::span::{IndexOnlySpan, Span, Spanned};
 
 use super::{
     ident::Ident,
@@ -114,7 +114,12 @@ impl<'a> Parse<'a> for Constructor<'a> {
 
 impl<'a> Parse<'a> for Expr<'a> {
     fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
-        Self::parse_bp(input, 0).and_then(|op| op.ok_or(ParseError::__NonExhaustive))
+        Self::parse_bp(input, 0).and_then(|op| {
+            op.ok_or(ParseError::ExprError {
+                span: Span::new(*input.position(), *input.position()).into(),
+                explanation: "Error parsing this expression.".to_string(),
+            })
+        })
     }
 }
 

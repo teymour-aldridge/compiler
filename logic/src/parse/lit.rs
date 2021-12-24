@@ -1,3 +1,4 @@
+use crate::diagnostics::span::Span;
 use std::fmt::{self, Write};
 
 use crate::parse::utils::ParseError;
@@ -42,7 +43,11 @@ impl<'a> Parse<'a> for Literal<'a> {
             input.parse_token("False")?;
             Ok(Self::Bool(false))
         } else {
-            Err(ParseError::__NonExhaustive)
+            Err(ParseError::UnexpectedToken {
+                explanation: "Expected a literal (e.g. a string or a boolean or an integer) here."
+                    .to_string(),
+                span: Span::new(*input.position(), *input.position()).into(),
+            })
         }
     }
 }

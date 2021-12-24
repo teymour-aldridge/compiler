@@ -39,6 +39,11 @@ pub enum ParseError {
         span: IndexOnlySpan,
         explanation: String,
     },
+    /// todo: work out where this comes from
+    ExprError {
+        span: IndexOnlySpan,
+        explanation: String,
+    },
     __NonExhaustive,
 }
 
@@ -60,6 +65,9 @@ impl ParseError {
                 "Internal compiler error! Please report this
                 at https://github.com/bailion/compiler",
             ),
+            ParseError::ExprError { span, explanation } => diagnostic.with_labels(vec![
+                Label::primary(id, span.range()).with_message(explanation),
+            ]),
             ParseError::__NonExhaustive => Diagnostic::error().with_message(
                 "__NonExhaustive.
                 You're welcome for this unhelpful message. Fear not – a proper error message will
