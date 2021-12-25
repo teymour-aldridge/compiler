@@ -14,7 +14,7 @@ mod fuzz2;
 mod test;
 
 use crate::{
-    id::{AtomicId, TaggedAst, UniversalId},
+    id::{TaggedAst, UniversalId},
     ty::constraints::collect,
 };
 
@@ -22,12 +22,9 @@ use self::{constraints::Constraint, error::TyCheckError};
 
 mod constraints;
 
-pub struct TyTable<'ctx> {
-    #[allow(unused)]
-    table: FxHashMap<AtomicId, Ty<'ctx>>,
-}
-
-/// An atomic type - all other types are expressed in terms of these.
+/// An atomic type - all other types are expressed in terms of these. Types are an important part
+/// of the compilation process, and are used by later stages in the compiler to reason about how to
+/// translate code.
 #[derive(Clone, Eq, Debug)]
 // when using fuzzcheck it is necessary to implement some additional traits
 #[cfg_attr(test, derive(serde::Serialize))]
@@ -38,6 +35,7 @@ pub enum Ty<'ctx> {
     Record(HashMap<&'ctx str, Ty<'ctx>>),
 }
 
+/// todo: test these better to make them line up properly
 impl Hash for Ty<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
@@ -73,7 +71,6 @@ impl fmt::Display for Ty<'_> {
 }
 
 pub fn type_check<'ctx>(ast: &'ctx TaggedAst<'ctx>) -> Result<TyEnv<'ctx>, TyCheckError> {
-    // todo: report errors properly
     let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
     unify(constraints, TyEnv::new())
 }
@@ -88,13 +85,14 @@ enum Substitution<'ctx> {
 }
 
 #[derive(Hash, Clone, Debug)]
+/// The value of this type (which may have been inferred).
 pub enum TyInfo<'ctx> {
     EqId(UniversalId<'ctx>),
     EqTy(Ty<'ctx>),
 }
 
 #[derive(Hash, Clone, Debug)]
-
+/// Information corresponding to an [crate::id::Id].
 pub struct Info<'ctx> {
     ty: TyInfo<'ctx>,
 }
