@@ -1,9 +1,11 @@
+//! Emits machine code from the provided instructions.
+//!
+//! This uses the Cranelift code generator to produce the code.
+//!
+//! todo: report errors properly
+
 use std::{convert::TryInto, env};
 
-/// Emits machine code from the provided instructions.
-///
-/// This uses the Cranelift code generator to produce the code. Unfortunately the Cranelift docs
-/// are not very extensive. Be warned; a lot of this is guesswork.
 use cranelift_codegen::{
     binemit::{NullStackMapSink, NullTrapSink},
     entity::EntityRef,
@@ -23,15 +25,14 @@ use crate::{
     ty::{Ty, TyEnv},
 };
 
-/// The compiler.
-///
-/// Note that the callee must satisfy the lifetime `'ctx`.
+/// The core compiler struct.
 pub struct Compiler<'ctx> {
     context: Context,
     ty_env: &'ctx TyEnv<'ctx>,
     module: ObjectModule,
 }
 
+// todo: pointer types
 fn cranelift_of_ty_module(module: &ObjectModule, ty: Ty) -> ir::Type {
     match ty {
         Ty::Int => ir::Type::int(32).unwrap(),
@@ -60,7 +61,7 @@ impl<'ctx> Compiler<'ctx> {
         cranelift_of_ty_module(&self.module, ty)
     }
 
-    /// Transforms the provided AST into Cranelift IR, and then returns a finished module.
+    /// Transforms the provided AST into Cranelift IR.
     pub fn compile(&mut self, ast: &TaggedAst) {
         let functions = ast.nodes.iter().filter_map(|item| match item {
             crate::parse::Node::Func(func) => Some(func),

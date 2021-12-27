@@ -6,6 +6,9 @@ use crate::{id::TaggedConstructor, ty::Ty};
 
 use super::compile::FunctionCompiler;
 
+/// Returns the size (in bits) of the type in question.
+///
+/// Note that if the type in question is a pointer, this will return the size of the _pointer_.
 pub(crate) fn type_size(ty: Ty) -> u32 {
     match ty {
         // integers are 32 bits (maybe)
@@ -77,8 +80,6 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
     /// address to the pointer to (for example) `len` would simply be
     /// `stack_slot_pointer + size(start) + size(capacity)`.
     /// TODO: padding
-    ///
-    ///
     pub(crate) fn compile_constructor(&mut self, con: &TaggedConstructor) -> ir::Value {
         let slot = self.builder.create_stack_slot(ir::StackSlotData::new(
             ir::StackSlotKind::ExplicitSlot,
