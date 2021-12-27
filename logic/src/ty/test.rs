@@ -1,6 +1,6 @@
 use std::iter::FromIterator;
 
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     id::{tag, AtomicId},
@@ -71,7 +71,7 @@ fn test_record_type_check() {
     let tagged = tag(tree);
 
     let expected_record_type = Some(Ty::Record({
-        let mut map = HashMap::new();
+        let mut map = FxHashMap::default();
         map.insert(
             tagged
                 .nodes
