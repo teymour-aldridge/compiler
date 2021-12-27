@@ -1,10 +1,11 @@
 use std::{
     cmp,
-    collections::HashMap,
     fmt::{self, Display, Write},
     hash,
     marker::PhantomData,
 };
+
+use rustc_hash::FxHashMap;
 
 use crate::diagnostics::span::{IndexOnlySpan, Span, Spanned};
 
@@ -71,7 +72,7 @@ where
     ///
     /// todo: the parser should always sort fields alphabetically to ensure correctness in later
     /// stages of the compiler
-    pub(crate) fields: HashMap<IDENT, EXPR>,
+    pub(crate) fields: FxHashMap<IDENT, EXPR>,
     pub(crate) _a: PhantomData<&'a ()>,
 }
 

@@ -1,6 +1,6 @@
 //! Type checking.
 
-use std::{collections::HashMap, fmt, hash::Hash};
+use std::{fmt, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -32,7 +32,7 @@ pub enum Ty<'ctx> {
     Int,
     Bool,
     String,
-    Record(HashMap<&'ctx str, Ty<'ctx>>),
+    Record(FxHashMap<&'ctx str, Ty<'ctx>>),
 }
 
 /// todo: test these better to make them line up properly
