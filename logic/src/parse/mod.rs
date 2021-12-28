@@ -79,8 +79,6 @@ impl<'a> Parse<'a> for Ast<'a> {
             } else {
                 input.advance_indent()?;
                 // comments
-                dbg!(input.inner());
-                dbg!(input.starts_with(";;"));
                 if input.starts_with(";;") {
                     input.eat_until_or_end(|c| c == '\n')?;
                 } else {

@@ -79,7 +79,7 @@ fn fuzz_parser() {
                 literal(')'),
             ]),
             // unary operators
-            concatenation([regex("[-+]"), literal('('), recurse(e), literal(')')]),
+            concatenation([regex("[-+*]"), literal('('), recurse(e), literal(')')]),
             // constructor
             concatenation([
                 ident.clone(),
@@ -93,11 +93,14 @@ fn fuzz_parser() {
         ])
     });
 
+    let comment = concatenation([regex(";;"), regex("[a-zA-Z]*"), literal('\n')]);
+
     let statement = concatenation([
         alternation([
             expression.clone(),
             concatenation([ident.clone(), literal('='), expression.clone()]),
             concatenation([regex("return "), expression.clone()]),
+            comment.clone(),
         ]),
         literal('\n'),
     ]);
@@ -176,7 +179,14 @@ fn fuzz_parser() {
         regex("endrecord"),
     ]);
 
-    let block = alternation([for_loop, while_loop, function, if_statement, record]);
+    let block = alternation([
+        for_loop,
+        while_loop,
+        function,
+        if_statement,
+        record,
+        comment,
+    ]);
 
     let ast = repetition(alternation([block, statement]), 0..);
 
