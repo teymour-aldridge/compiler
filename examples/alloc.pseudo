@@ -1,6 +1,6 @@
 function main()
   ptr = malloc(20 * 8)
-  ptr[0] = 10
+  *ptr[0] = 10
   print_int(*ptr[0])
   return 0
 endfunction
