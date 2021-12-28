@@ -383,6 +383,11 @@ impl<'a> Input<'a> {
             });
         }
     }
+
+    /// Get a reference to the input's inner.
+    pub fn inner(&self) -> &str {
+        self.inner
+    }
 }
 
 pub struct IncompleteSpan {

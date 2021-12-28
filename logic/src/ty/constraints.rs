@@ -290,8 +290,8 @@ fn collect_expr<'ctx>(
                 constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                 constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
             }
-            (BinOp::SetEquals, left, right) => {
-                if let TaggedExprInner::Ident(ref ident) = left.token {
+            (BinOp::SetEquals, left, right) => match left.token {
+                TaggedExprInner::Ident(ref ident) => {
                     constraints.push(Constraint::IdToId {
                         id: ident.id.into(),
                         to: right.id.into(),
@@ -314,7 +314,24 @@ fn collect_expr<'ctx>(
                     });
                     constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                     constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
-                } else {
+                }
+                TaggedExprInner::UnOp(op, ref pointer) if op.token.is_deref() => {
+                    constraints.push(Constraint::IdToId {
+                        id: expr.id.into(),
+                        to: pointer.id.into(),
+                    });
+                    constraints.push(Constraint::IdToTy {
+                        id: pointer.id.into(),
+                        ty: Ty::Pointer,
+                    });
+                    constraints.extend(collect_expr(
+                        pointer,
+                        definitions,
+                        record_definitions,
+                        None,
+                    )?)
+                }
+                _ => {
                     return Err(ConstraintGatheringError::CannotAssignToExpression {
                         span: expr.token.span().into(),
                         explanation:
@@ -322,12 +339,33 @@ fn collect_expr<'ctx>(
                                 .to_string(),
                     });
                 }
+            },
+            // todo: sort this out (memory safety)
+            (BinOp::Index, left, right) => {
+                constraints.push(Constraint::IdToTy {
+                    id: expr.id.into(),
+                    ty: Ty::Pointer,
+                });
+                constraints.push(Constraint::IdToTy {
+                    id: left.id.into(),
+                    ty: Ty::Pointer,
+                });
+                constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
+                constraints.push(Constraint::IdToTy {
+                    id: right.id.into(),
+                    ty: Ty::Int,
+                });
+                constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
             }
         },
         TaggedExprInner::UnOp(op, arg) => match op.token {
             UnOp::Positive | UnOp::Negative => constraints.push(Constraint::IdToTy {
                 id: arg.id.into(),
                 ty: Ty::Int,
+            }),
+            UnOp::Deref => constraints.push(Constraint::IdToTy {
+                id: arg.id.into(),
+                ty: Ty::Pointer,
             }),
         },
         TaggedExprInner::Constructor(rec) => {
@@ -377,7 +415,6 @@ fn collect_expr<'ctx>(
                         ),
                     });
                 }
-
                 let param = &params[0];
                 constraints.push(Constraint::IdToTy {
                     id: param.id.into(),
@@ -418,6 +455,85 @@ fn collect_expr<'ctx>(
                     definitions,
                     record_definitions,
                     Some(Ty::String),
+                )?);
+            } else if *func.token == "malloc" {
+                if params.len() != 1 {
+                    return Err(ConstraintGatheringError::MismatchedFunctionCall {
+                        span: func.span().into(),
+                        explanation: format!(
+                            "This function accepts 1
+                            parameter, but you've called it with `{}` arguments.",
+                            params.len()
+                        ),
+                    });
+                }
+                let param = &params[0];
+                constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
+                constraints.push(Constraint::IdToTy {
+                    id: param.id.into(),
+                    ty: Ty::Int,
+                });
+                constraints.push(Constraint::IdToTy {
+                    id: func.id.into(),
+                    ty: Ty::Pointer,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: func.id.into(),
+                    to: expr.id.into(),
+                });
+            } else if *func.token == "free" {
+                if params.len() != 1 {
+                    return Err(ConstraintGatheringError::MismatchedFunctionCall {
+                        span: func.span().into(),
+                        explanation: format!(
+                            "This function accepts 1
+                            parameter, but you've called it with `{}` arguments.",
+                            params.len()
+                        ),
+                    });
+                }
+                let param = &params[0];
+                constraints.push(Constraint::IdToTy {
+                    id: param.id.into(),
+                    ty: Ty::Pointer,
+                });
+                constraints.push(Constraint::IdToId {
+                    id: expr.id.into(),
+                    to: param.id.into(),
+                });
+                constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
+            } else if *func.token == "realloc" {
+                if params.len() != 2 {
+                    return Err(ConstraintGatheringError::MismatchedFunctionCall {
+                        span: func.span().into(),
+                        explanation: format!(
+                            "This function accepts 2
+                            parameter, but you've called it with `{}` arguments.",
+                            params.len()
+                        ),
+                    });
+                }
+                let pointer = &params[0];
+                constraints.push(Constraint::IdToTy {
+                    id: pointer.id.into(),
+                    ty: Ty::Pointer,
+                });
+                constraints.extend(collect_expr(
+                    pointer,
+                    definitions,
+                    record_definitions,
+                    Some(Ty::Pointer),
+                )?);
+                let new_size = &params[1];
+                constraints.push(Constraint::IdToTy {
+                    id: new_size.id.into(),
+                    ty: Ty::Int,
+                });
+                constraints.extend(collect_expr(
+                    new_size,
+                    definitions,
+                    record_definitions,
+                    Some(Ty::Int),
                 )?);
             } else if let Some(function) = definitions
                 .iter()

@@ -177,6 +177,10 @@ impl<'a> Expr<'a> {
         min_bp: u8,
         stop_if: impl Fn(&str) -> bool + Copy,
     ) -> Result<Option<Self>, ParseError> {
+        if min_bp == u8::MAX {
+            return Ok(None);
+        }
+
         input.skip_whitespace()?;
         let mut lhs = {
             if input.starts_with('(') {
@@ -257,6 +261,7 @@ impl<'a> Expr<'a> {
                 || input.starts_with('\n')
                 || (stop_if)(&*input)
                 || input.starts_with(')')
+                || input.starts_with(']')
             {
                 break;
             }
@@ -280,26 +285,36 @@ impl<'a> Expr<'a> {
             Op::parse(input, false)?;
             let op_span = rec.finish_recording(input);
 
-            let rhs = Self::parse_bp_stop_if(input, right_bp, stop_if)?;
-
-            if op.is_bin_op() {
-                match (lhs, rhs) {
-                    (Some(left), Some(right)) => {
-                        lhs = Some(Self::BinOp(
-                            Spanned::new(op_span, op.try_into_bin_op().unwrap()),
-                            Box::new(left),
-                            Box::new(right),
-                        ));
-                    }
-                    _ => return Err(ParseError::__NonExhaustive),
-                }
-            } else if let Some(rhs) = rhs {
-                lhs = Some(Self::UnOp(
-                    Spanned::new(op_span, op.try_into_un_op().unwrap()),
-                    Box::new(rhs),
-                ))
+            if right_bp == u8::MAX {
+                let rhs = Expr::parse_bp_stop_if(input, 0, stop_if)?;
+                input.parse_token("]")?;
+                lhs = Some(Self::BinOp(
+                    Spanned::new(op_span, op.try_into_bin_op().unwrap()),
+                    Box::new(lhs.unwrap()),
+                    Box::new(rhs.unwrap()),
+                ));
             } else {
-                return Err(ParseError::__NonExhaustive);
+                let rhs = Self::parse_bp_stop_if(input, right_bp, stop_if)?;
+
+                if op.is_bin_op() {
+                    match (lhs, rhs) {
+                        (Some(left), Some(right)) => {
+                            lhs = Some(Self::BinOp(
+                                Spanned::new(op_span, op.try_into_bin_op().unwrap()),
+                                Box::new(left),
+                                Box::new(right),
+                            ));
+                        }
+                        _ => return Err(ParseError::__NonExhaustive),
+                    }
+                } else if let Some(rhs) = rhs {
+                    lhs = Some(Self::UnOp(
+                        Spanned::new(op_span, op.try_into_un_op().unwrap()),
+                        Box::new(rhs),
+                    ))
+                } else {
+                    return Err(ParseError::__NonExhaustive);
+                }
             }
         }
 
@@ -321,10 +336,12 @@ impl Op {
             "+" if !prefix => Op::BinOp(BinOp::Add),
             "-" if !prefix => Op::BinOp(BinOp::Subtract),
             "/" => Op::BinOp(BinOp::Divide),
-            "*" => Op::BinOp(BinOp::Multiply),
+            "*" if !prefix => Op::BinOp(BinOp::Multiply),
             "." => Op::BinOp(BinOp::Dot),
             "+" if prefix => Op::UnOp(UnOp::Positive),
             "-" if prefix => Op::UnOp(UnOp::Negative),
+            "*" if prefix => Op::UnOp(UnOp::Deref),
+            "[" => Op::BinOp(BinOp::Index),
             "=" => {
                 if input.starts_with('=') {
                     input.advance_one()?;
@@ -385,6 +402,7 @@ pub enum BinOp {
     IsEqual,
     SetEquals,
     Dot,
+    Index,
 }
 
 impl BinOp {
@@ -393,6 +411,7 @@ impl BinOp {
             BinOp::Add | BinOp::Subtract => (5, 6),
             BinOp::Divide | BinOp::Multiply | BinOp::IsEqual | BinOp::Dot => (7, 8),
             BinOp::SetEquals => (2, 1),
+            BinOp::Index => (11, u8::MAX),
         }
     }
 }
@@ -407,6 +426,8 @@ impl fmt::Display for BinOp {
             BinOp::SetEquals => "=",
             BinOp::IsEqual => "==",
             BinOp::Dot => ".",
+            // this must be handled a level up
+            BinOp::Index => panic!(),
         })
     }
 }
@@ -415,13 +436,21 @@ impl fmt::Display for BinOp {
 pub enum UnOp {
     Positive,
     Negative,
+    Deref,
 }
 
 impl UnOp {
     fn bp(&self) -> (u8, u8) {
         match self {
-            UnOp::Positive | UnOp::Negative => (99, 9),
+            UnOp::Positive | UnOp::Negative | UnOp::Deref => (99, 9),
         }
+    }
+
+    /// Returns `true` if the un op is [`Deref`].
+    ///
+    /// [`Deref`]: UnOp::Deref
+    pub fn is_deref(&self) -> bool {
+        matches!(self, Self::Deref)
     }
 }
 
@@ -430,6 +459,7 @@ impl Display for UnOp {
         f.write_str(match self {
             UnOp::Positive => "+",
             UnOp::Negative => "-",
+            UnOp::Deref => "*",
         })
     }
 }
