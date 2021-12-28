@@ -396,8 +396,10 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         let mut sig = self.module.make_signature();
                         sig.params
                             .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
-                        sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        sig.returns.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::Pointer,
+                        )));
                         let func_id = self
                             .module
                             .declare_function("malloc", Linkage::Import, &sig)
@@ -407,13 +409,17 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     }
                     "realloc" => {
                         let mut sig = self.module.make_signature();
-                        sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::Pointer,
+                        )));
                         sig.params
                             .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
 
-                        sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        sig.returns.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::Pointer,
+                        )));
                         let func_id = self
                             .module
                             .declare_function("realloc", Linkage::Import, &sig)
@@ -423,8 +429,10 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     }
                     "free" => {
                         let mut sig = self.module.make_signature();
-                        sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::Pointer,
+                        )));
                         sig.returns
                             .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
                         let func_id = self
