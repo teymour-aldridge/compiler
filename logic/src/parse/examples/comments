@@ -1,0 +1,6 @@
+;; this is a comment!
+;; count from one to ten
+for i = 1 to 10
+  ;; print i to the console
+  print_int(i)
+next i
