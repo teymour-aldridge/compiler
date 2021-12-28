@@ -368,7 +368,6 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
             },
             crate::id::TaggedExprInner::UnOp(op, arg) if op.token.is_deref() => {
                 let arg_value = self.compile_expr(arg);
-                dbg!(&expr);
                 self.builder.ins().load(
                     cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id.into()).unwrap()),
                     ir::MemFlags::new(),
