@@ -35,11 +35,12 @@ pub struct Compiler<'ctx> {
 // todo: pointer types
 fn cranelift_of_ty_module(module: &ObjectModule, ty: Ty) -> ir::Type {
     match ty {
-        Ty::Int => ir::Type::int(32).unwrap(),
+        Ty::Int => ir::Type::int(64).unwrap(),
         Ty::Bool => ir::Type::int(8).unwrap().as_bool(),
         Ty::String => module.target_config().pointer_type(),
         // todo: compile structs (using stack slots)
         Ty::Record(_) => todo!(),
+        Ty::Pointer => module.target_config().pointer_type(),
     }
 }
 
@@ -233,11 +234,13 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
 
                     self.builder
                         .ins()
-                        .iconst(ir::types::I32, number.as_int() as i64)
+                        .iconst(ir::types::I64, number.as_int() as i64)
                 }
                 crate::parse::lit::Literal::Bool(_) => todo!(),
             },
-            crate::id::TaggedExprInner::BinOp(op, left, right) if op.token == BinOp::SetEquals => {
+            crate::id::TaggedExprInner::BinOp(op, left, right)
+                if op.token == BinOp::SetEquals && left.is_ident() =>
+            {
                 let id = match &left.token {
                     crate::id::TaggedExprInner::Ident(ident) => ident.id,
                     _ => unreachable!(),
@@ -248,7 +251,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 let cranelift_ty = match self.ty_env.ty_of(right.id.into()).unwrap() {
                     Ty::Int => cranelift_of_ty_module(&self.module, Ty::Int),
                     Ty::Bool | Ty::String => todo!(),
-                    Ty::Record(_) => self.module.target_config().pointer_type(),
+                    Ty::Record(_) | Ty::Pointer => self.module.target_config().pointer_type(),
                 };
 
                 let var = Variable::with_u32(id.raw_id() as u32);
@@ -257,9 +260,29 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 self.builder.def_var(var, new_value);
                 new_value
             }
+            crate::id::TaggedExprInner::BinOp(op, ref left, ref right)
+                if op.token == BinOp::SetEquals
+                    && left
+                        .as_un_op()
+                        .map(|(op, _)| op.is_deref())
+                        .unwrap_or(false) =>
+            {
+                let val = self.compile_expr(right);
+                let addr = self.compile_expr(left.as_un_op().unwrap().1);
+                self.builder.ins().store(ir::MemFlags::new(), val, addr, 0);
+                self.builder.ins().load(
+                    cranelift_of_ty_module(
+                        &self.module,
+                        self.ty_env.ty_of(expr.id.into()).unwrap(),
+                    ),
+                    ir::MemFlags::new(),
+                    addr,
+                    0,
+                )
+            }
             /*
              * compile standard operators
-             * TODO: at some point add object orientation (for operator overloading)
+             * TODO: at some point add operator overloading with protocol classes
              */
             crate::id::TaggedExprInner::BinOp(op, left, right) => match op.token {
                 BinOp::Add => {
@@ -334,7 +357,25 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         todo!()
                     }
                 }
+                BinOp::Index => match self.ty_env.ty_of(expr.id.into()).unwrap() {
+                    Ty::Pointer => {
+                        let lhs = self.compile_expr(left);
+                        let rhs = self.compile_expr(right);
+                        return self.builder.ins().iadd(lhs, rhs);
+                    }
+                    _ => todo!(),
+                },
             },
+            crate::id::TaggedExprInner::UnOp(op, arg) if op.token.is_deref() => {
+                let arg_value = self.compile_expr(arg);
+                dbg!(&expr);
+                self.builder.ins().load(
+                    cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id.into()).unwrap()),
+                    ir::MemFlags::new(),
+                    arg_value,
+                    0,
+                )
+            }
             crate::id::TaggedExprInner::UnOp(_, _) => todo!(),
             crate::id::TaggedExprInner::FunctionCall(name, params) => {
                 let local_callee = match *name.token {
@@ -347,6 +388,48 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         let func_id = self
                             .module
                             .declare_function("print_int", Linkage::Import, &sig)
+                            .unwrap();
+
+                        self.module.declare_func_in_func(func_id, self.builder.func)
+                    }
+                    "malloc" => {
+                        let mut sig = self.module.make_signature();
+                        sig.params
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        sig.returns
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        let func_id = self
+                            .module
+                            .declare_function("malloc", Linkage::Import, &sig)
+                            .unwrap();
+
+                        self.module.declare_func_in_func(func_id, self.builder.func)
+                    }
+                    "realloc" => {
+                        let mut sig = self.module.make_signature();
+                        sig.params
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        sig.params
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+
+                        sig.returns
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        let func_id = self
+                            .module
+                            .declare_function("realloc", Linkage::Import, &sig)
+                            .unwrap();
+
+                        self.module.declare_func_in_func(func_id, self.builder.func)
+                    }
+                    "free" => {
+                        let mut sig = self.module.make_signature();
+                        sig.params
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Pointer)));
+                        sig.returns
+                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        let func_id = self
+                            .module
+                            .declare_function("free", Linkage::Import, &sig)
                             .unwrap();
 
                         self.module.declare_func_in_func(func_id, self.builder.func)
@@ -380,7 +463,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         };
 
                         let string = self.compile_expr(string);
-                        let len = self.builder.ins().iconst(ir::types::I32, lit.len() as i64);
+                        let len = self.builder.ins().iconst(ir::types::I64, lit.len() as i64);
 
                         let call = self.builder.ins().call(local_callee, &[len, string]);
                         return self.builder.inst_results(call)[0];

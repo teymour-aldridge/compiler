@@ -57,6 +57,16 @@ impl Span {
     pub fn range(&self) -> (usize, usize) {
         (self.start.index, self.stop.index)
     }
+
+    /// Get a reference to the span's start.
+    pub fn start(&self) -> Position {
+        self.start
+    }
+
+    /// Get a reference to the span's stop.
+    pub fn stop(&self) -> Position {
+        self.stop
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

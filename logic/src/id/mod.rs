@@ -453,6 +453,13 @@ where
         }
     }
 
+    pub fn as_un_op(&self) -> Option<(&Spanned<UnOp>, &TaggedExpr)> {
+        if let Self::UnOp(op, a) = self {
+            Some((op, a))
+        } else {
+            None
+        }
+    }
     pub fn as_ident(&self) -> Option<&IDENT> {
         if let Self::Ident(v) = self {
             Some(v)
@@ -460,10 +467,34 @@ where
             None
         }
     }
+
+    /// Returns `true` if the tagged expr inner is [`Ident`].
+    ///
+    /// [`Ident`]: TaggedExprInner::Ident
+    pub fn is_ident(&self) -> bool {
+        matches!(self, Self::Ident(..))
+    }
+
+    /// Returns `true` if the tagged expr inner is [`UnOp`].
+    ///
+    /// [`UnOp`]: TaggedExprInner::UnOp
+    pub fn is_un_op(&self) -> bool {
+        matches!(self, Self::UnOp(..))
+    }
 }
 
 impl<IDENT: HasSpan> HasSpan for TaggedExprInner<'_, IDENT> {
+    /// todo: tidy this up
     fn span(&self) -> Span {
-        todo!()
+        match self {
+            TaggedExprInner::Ident(ident) => ident.span(),
+            TaggedExprInner::Literal(lit) => lit.span(),
+            TaggedExprInner::BinOp(_, left, right) => {
+                Span::new(left.span().start(), right.span().stop())
+            }
+            TaggedExprInner::UnOp(op, expr) => Span::new(op.span().start(), expr.span().stop()),
+            TaggedExprInner::FunctionCall(_, _) => todo!(),
+            TaggedExprInner::Constructor(_) => todo!(),
+        }
     }
 }

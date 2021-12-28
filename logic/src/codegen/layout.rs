@@ -16,6 +16,7 @@ pub(crate) fn type_size(ty: Ty) -> u32 {
         Ty::Bool => todo!(),
         Ty::String => todo!(),
         Ty::Record(_) => todo!(),
+        Ty::Pointer => todo!(),
     }
 }
 

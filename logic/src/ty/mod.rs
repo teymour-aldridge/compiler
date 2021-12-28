@@ -33,6 +33,9 @@ pub enum Ty<'ctx> {
     Bool,
     String,
     Record(FxHashMap<&'ctx str, Ty<'ctx>>),
+    /// note: this will only be useable from the standard library
+    #[allow(unused)]
+    Pointer,
 }
 
 /// todo: test these better to make them line up properly
@@ -66,6 +69,7 @@ impl fmt::Display for Ty<'_> {
             Ty::Record(_) => {
                 unimplemented!()
             }
+            Ty::Pointer => "Pointer",
         })
     }
 }

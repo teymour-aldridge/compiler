@@ -20,10 +20,11 @@ cp ../target/debug/cli cli
 mkdir examples
 cp ../examples/*.pseudo examples
 
-for f in examples/*; do
+for f in examples/alloc.pseudo; do
     ./cli "$f"
     cc program.o libruntime.a
     echo $(./a.out) >> output
     echo $(cat "../examples/expected/$f") >> oracle
+    echo $output
     cmp output oracle
 done
