@@ -1,0 +1,68 @@
+{
+    "name": "pseudocompiler",
+    "displayName": "Pseudocompiler",
+    "description": "Editor support for Pseudocompiler",
+    "publisher": "bailion",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.46.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [
+        "onLanguage:pseudo"
+    ],
+    "main": "./out/extension",
+    "contributes": {
+        "languages": [
+            {
+                "id": "pseudo",
+                "aliases": [
+                    "pseudo",
+                    "Pseudo"
+                ],
+                "extensions": [
+                    ".pseudo"
+                ],
+                "configuration": "./pseudo-config.json"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "Pseudocompiler configuration",
+            "properties": {
+                "pseudocompiler.maxNumberOfProblems": {
+                    "scope": "resource",
+                    "type": "number",
+                    "default": 100,
+                    "description": "Controls the maximum number of problems produced."
+                },
+                "pseudocompiler.trace.server": {
+                    "scope": "window",
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Traces the communication between VS Code and the language server."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.21",
+        "vscode-languageclient": "^5.1.1",
+        "vscode-jsonrpc": "^4.0.0",
+        "@types/node": "^8.10.25"
+    }
+}

@@ -1,6 +1,9 @@
 target
-hfuzz_target
 fuzz
 runin
+
 .idea
 .vscode
+
+node_modules
+out

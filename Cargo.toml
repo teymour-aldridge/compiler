@@ -1,2 +1,5 @@
+[profile.release]
+debug = true
+
 [workspace]
-members = ["cli", "logic", "runtime", "tests/codegen"]
+members = ["cli", "logic", "runtime", "tests/codegen", "lsp"]

@@ -49,8 +49,8 @@ pub enum ParseError {
 
 impl ParseError {
     /// Turns the parse error in question into a reportable error message.
-    pub fn report(&self, id: usize) -> Diagnostic<usize> {
-        let diagnostic: Diagnostic<usize> =
+    pub fn report<ID>(&self, id: ID) -> Diagnostic<ID> where ID: Copy {
+        let diagnostic: Diagnostic<ID> =
             Diagnostic::error().with_message("Your program contains a syntax error!");
         match self {
             ParseError::UnexpectedToken { explanation, span }

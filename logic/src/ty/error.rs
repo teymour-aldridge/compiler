@@ -15,7 +15,7 @@ impl From<ConstraintGatheringError> for TyCheckError {
 }
 
 impl TyCheckError {
-    pub fn report(&self, id: usize) -> Diagnostic<usize> {
+    pub fn report<ID>(&self, id: ID) -> Diagnostic<ID> {
         match self {
             TyCheckError::ConstraintGatheringError(err) => err.report(id),
             TyCheckError::TypeMismatch => Diagnostic::error().with_message(
@@ -47,7 +47,7 @@ pub enum ConstraintGatheringError {
 }
 
 impl ConstraintGatheringError {
-    pub fn report(&self, id: usize) -> Diagnostic<usize> {
+    pub fn report<ID>(&self, id: ID) -> Diagnostic<ID> {
         // todo: give this a better message
         let diagnostic =
             Diagnostic::error().with_message("Your program contains an invalid reference");
