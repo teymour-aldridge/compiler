@@ -2,15 +2,21 @@
 //!
 //! todo: publish this as a VSCode extension (ideally with weekly builds)
 
-mod cast;
+#![cfg_attr(test, feature(thread_id_value))]
+
+pub(crate) mod cast;
 mod files;
+#[cfg(test)]
+mod regressions;
 
 use std::error::Error;
 
+use cast::{cast_not, cast_req};
 use files::FileContainer;
-use lsp_server::Connection;
+use lsp_server::{Connection, Message, Response};
 use lsp_types::{
-    InitializeParams, ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind,
+    notification::Exit, request::Shutdown, InitializeParams, ServerCapabilities,
+    TextDocumentSyncCapability, TextDocumentSyncKind,
 };
 use serde_json::{from_value, to_value, Value};
 
@@ -19,6 +25,12 @@ type LspResult = Result<(), Box<dyn Error + Sync + Send>>;
 fn main() -> LspResult {
     let (conn, io_threads) = Connection::stdio();
 
+    run(conn)?;
+
+    io_threads.join().map_err(Into::into)
+}
+
+fn run(conn: Connection) -> LspResult {
     let capabilities = to_value(&ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
             TextDocumentSyncKind::Incremental,
@@ -31,8 +43,6 @@ fn main() -> LspResult {
 
     main_loop(conn, init_params)?;
 
-    io_threads.join()?;
-
     Ok(())
 }
 
@@ -41,9 +51,35 @@ fn main_loop(conn: Connection, params: Value) -> LspResult {
 
     let mut files = FileContainer::default();
 
+    let mut shutdown_received = false;
+
     for msg in &conn.receiver {
         match msg {
-            lsp_server::Message::Notification(not) => files.handle_notification(not, &conn),
+            lsp_server::Message::Notification(not) => {
+                let not = match cast_not::<Exit>(not) {
+                    Ok(_) if shutdown_received => {
+                        break;
+                    }
+                    Ok(_) => {
+                        // send message
+                        todo!()
+                    }
+                    Err(not) => not,
+                };
+                files.handle_notification(not, &conn)
+            }
+            lsp_server::Message::Request(req) => match cast_req::<Shutdown>(req) {
+                Ok((id, ())) => {
+                    shutdown_received = true;
+                    conn.sender
+                        .send(Message::Response(Response::new_ok(
+                            id,
+                            to_value(()).unwrap(),
+                        )))
+                        .unwrap();
+                }
+                Err(_) => (),
+            },
             _ => {}
         }
     }

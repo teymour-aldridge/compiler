@@ -63,7 +63,9 @@ impl<'a> Parse<'a> for Ident<'a> {
             .eat_until_or_end(|char| !char.is_alphanumeric() && char != '_')
             .and_then(|inner| {
                 if inner.is_empty() {
-                    Err(ParseError::UnexpectedEndOfInput)
+                    Err(ParseError::UnexpectedEndOfInput {
+                        span: input.current_span(),
+                    })
                 } else if !inner.chars().next().unwrap().is_alphabetic() {
                     Err(ParseError::InvalidIdent {
                         span: input.finish_recording(rec).into(),

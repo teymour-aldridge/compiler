@@ -28,7 +28,9 @@ pub enum ParseError {
         explanation: String,
         span: IndexOnlySpan,
     },
-    UnexpectedEndOfInput,
+    UnexpectedEndOfInput {
+        span: IndexOnlySpan
+    },
     /// An assumption the parser makes turns out not to be correct.
     InternalError,
     InvalidWhitespace {
@@ -49,7 +51,10 @@ pub enum ParseError {
 
 impl ParseError {
     /// Turns the parse error in question into a reportable error message.
-    pub fn report<ID>(&self, id: ID) -> Diagnostic<ID> where ID: Copy {
+    pub fn report<ID>(&self, id: ID) -> Diagnostic<ID>
+    where
+        ID: Copy,
+    {
         let diagnostic: Diagnostic<ID> =
             Diagnostic::error().with_message("Your program contains a syntax error!");
         match self {
@@ -58,8 +63,11 @@ impl ParseError {
             | ParseError::InvalidIdent { explanation, span } => diagnostic.with_labels(vec![
                 Label::primary(id, span.range()).with_message(explanation),
             ]),
-            ParseError::UnexpectedEndOfInput => {
+            ParseError::UnexpectedEndOfInput {span} => {
                 Diagnostic::error().with_message("Unexpected end of input.")
+                    .with_labels(
+                        vec![Label::primary(id, span.range()).with_message("Something's missing here!")]
+                    )
             }
             ParseError::InternalError => Diagnostic::error().with_message(
                 "Internal compiler error! Please report this
@@ -68,11 +76,13 @@ impl ParseError {
             ParseError::ExprError { span, explanation } => diagnostic.with_labels(vec![
                 Label::primary(id, span.range()).with_message(explanation),
             ]),
-            ParseError::__NonExhaustive => Diagnostic::error().with_message(
-                "__NonExhaustive.
-                You're welcome for this unhelpful message. Fear not – a proper error message will
-                (hopefully) replace it soon.",
-            ),
+            ParseError::__NonExhaustive => Diagnostic::error()
+                .with_message("__NonExhaustive.")
+                .with_labels(vec![Label::primary(id, IndexOnlySpan::new(0, 0).range())
+                    .with_message(
+                        "You're welcome for this unhelpful message. Fear not – a proper error
+                        message will (hopefully) replace it soon.",
+                    )]),
             ParseError::MismatchedBrackets {
                 opening_span,
                 expected_closing_span,
@@ -128,7 +138,9 @@ impl<'a> Input<'a> {
     pub fn parse_token(&mut self, token: &str) -> Result<&'a str, ParseError> {
         let peek = self
             .peek_n(token.len())
-            .ok_or(ParseError::UnexpectedEndOfInput)?;
+            .ok_or(ParseError::UnexpectedEndOfInput {
+                span: IndexOnlySpan::new(self.position.index, self.position.index),
+            })?;
         let ret = if peek == token {
             self.advance_n(token.len())?;
             Ok(peek)
@@ -156,7 +168,7 @@ impl<'a> Input<'a> {
             ret.push(parsed);
             self.skip_whitespace()?;
             if self.is_empty() {
-                return Err(ParseError::UnexpectedEndOfInput);
+                return Err(ParseError::UnexpectedEndOfInput {span: IndexOnlySpan::new(self.position.index, self.position.index)});
             } else if self.starts_with(interspacer) {
                 self.parse_token(interspacer)?;
                 if self.starts_with(stop_delimiter) {
@@ -207,10 +219,10 @@ impl<'a> Input<'a> {
                 });
                 Ok(ret)
             } else {
-                Err(ParseError::UnexpectedEndOfInput)
+                Err(ParseError::UnexpectedEndOfInput { span: self.current_span() })
             }
         } else {
-            Err(ParseError::UnexpectedEndOfInput)
+            Err(ParseError::UnexpectedEndOfInput { span: self.current_span() })
         }
     }
 
@@ -229,7 +241,9 @@ impl<'a> Input<'a> {
             let should_stop = if let Some(next) = self.peek_nth(n) {
                 (stop_eating_if_true)(next)
             } else if should_error_if_reaches_end {
-                return Err(ParseError::UnexpectedEndOfInput);
+                return Err(ParseError::UnexpectedEndOfInput {
+                    span: self.current_span(),
+                });
             } else {
                 true
             };
@@ -246,6 +260,10 @@ impl<'a> Input<'a> {
         } else {
             self.advance_n(n)
         }
+    }
+
+    pub(crate) fn current_span(&mut self) -> IndexOnlySpan {
+        IndexOnlySpan::new(self.position.index, self.position.index)
     }
 
     pub fn peek_token(&self, token: char) -> bool {

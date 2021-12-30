@@ -168,7 +168,7 @@ impl<'a> Parse<'a> for Number<'a> {
         }
 
         if ret.int.is_empty() {
-            return Err(ParseError::UnexpectedEndOfInput);
+            return Err(ParseError::UnexpectedEndOfInput {span: input.current_span()});
         }
 
         input.advance_n(nth)?;
