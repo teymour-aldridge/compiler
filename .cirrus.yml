@@ -1,0 +1,27 @@
+test_task:
+  alias: tests
+  matrix:
+    - container:
+        image: rustlang/rust:nightly
+    - arm_container:
+        image: rustlang/rust:nightly
+  # only run on bors
+  only_if: $CIRRUS_BRANCH == 'staging' || $CIRRUS_BRANCH == 'trying'
+  registry_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.lock
+  target_cache:
+    folder: target
+    fingerprisnt_script:
+      - rustc --version
+      - cat Cargo.lock
+  test_script: ./scripts/ci.sh
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+success_task:
+  name: ci passed?
+  container: { image: "busybox" }
+  # only run on bors
+  only_if: $CIRRUS_BRANCH == 'staging' || $CIRRUS_BRANCH == 'trying'
+  depends_on:
+    - tests

@@ -24,7 +24,9 @@ impl<'a> Parse<'a> for If<'a> {
         let r#if = Branch {
             condition: {
                 let cond = Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("then"))?
-                    .ok_or(ParseError::UnexpectedEndOfInput {span: input.current_span()})?;
+                    .ok_or(ParseError::UnexpectedEndOfInput {
+                        span: input.current_span(),
+                    })?;
                 input.skip_whitespace()?;
                 input.parse_token("then")?;
                 input.skip_whitespace()?;
@@ -40,8 +42,11 @@ impl<'a> Parse<'a> for If<'a> {
             if input.starts_with("elseif") {
                 input.parse_token("elseif")?;
                 let condition =
-                    Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("then"))?
-                        .ok_or(ParseError::UnexpectedEndOfInput {span: input.current_span()})?;
+                    Expr::parse_bp_stop_if(input, 0, |input| input.starts_with("then"))?.ok_or(
+                        ParseError::UnexpectedEndOfInput {
+                            span: input.current_span(),
+                        },
+                    )?;
                 input.parse_token("then")?;
                 input.advance_whitespace_and_new_line()?;
                 let block = Block::parse(input)?;

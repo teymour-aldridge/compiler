@@ -5,8 +5,7 @@ use std::{fmt, hash::Hash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub mod error;
-#[cfg(test)]
-#[cfg(not(disable_fuzzcheck))]
+#[cfg(all(test, feature = "fuzzcheck"))]
 mod fuzz;
 #[cfg(test)]
 mod fuzz2;
