@@ -27,9 +27,9 @@ pub mod record;
 pub mod utils;
 pub mod r#while;
 
-#[cfg(test)]
-#[cfg(not(disable_fuzzcheck))]
+#[cfg(all(test, feature = "fuzzcheck"))]
 mod fuzz;
+
 #[cfg(test)]
 mod test;
 #[cfg(test)]

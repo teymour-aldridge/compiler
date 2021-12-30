@@ -269,7 +269,7 @@ impl<'a> Expr<'a> {
             let op = match Op::parse(&mut input.clone(), lhs.is_none()) {
                 Ok(op) => op,
                 Err(err) => match err {
-                    ParseError::UnexpectedEndOfInput {span: _} => break,
+                    ParseError::UnexpectedEndOfInput { span: _ } => break,
                     e => {
                         return Err(e);
                     }

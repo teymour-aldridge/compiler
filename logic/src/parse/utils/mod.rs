@@ -29,7 +29,7 @@ pub enum ParseError {
         span: IndexOnlySpan,
     },
     UnexpectedEndOfInput {
-        span: IndexOnlySpan
+        span: IndexOnlySpan,
     },
     /// An assumption the parser makes turns out not to be correct.
     InternalError,
@@ -63,12 +63,11 @@ impl ParseError {
             | ParseError::InvalidIdent { explanation, span } => diagnostic.with_labels(vec![
                 Label::primary(id, span.range()).with_message(explanation),
             ]),
-            ParseError::UnexpectedEndOfInput {span} => {
-                Diagnostic::error().with_message("Unexpected end of input.")
-                    .with_labels(
-                        vec![Label::primary(id, span.range()).with_message("Something's missing here!")]
-                    )
-            }
+            ParseError::UnexpectedEndOfInput { span } => Diagnostic::error()
+                .with_message("Unexpected end of input.")
+                .with_labels(vec![
+                    Label::primary(id, span.range()).with_message("Something's missing here!")
+                ]),
             ParseError::InternalError => Diagnostic::error().with_message(
                 "Internal compiler error! Please report this
                 at https://github.com/bailion/compiler",
@@ -168,7 +167,9 @@ impl<'a> Input<'a> {
             ret.push(parsed);
             self.skip_whitespace()?;
             if self.is_empty() {
-                return Err(ParseError::UnexpectedEndOfInput {span: IndexOnlySpan::new(self.position.index, self.position.index)});
+                return Err(ParseError::UnexpectedEndOfInput {
+                    span: IndexOnlySpan::new(self.position.index, self.position.index),
+                });
             } else if self.starts_with(interspacer) {
                 self.parse_token(interspacer)?;
                 if self.starts_with(stop_delimiter) {
@@ -219,10 +220,14 @@ impl<'a> Input<'a> {
                 });
                 Ok(ret)
             } else {
-                Err(ParseError::UnexpectedEndOfInput { span: self.current_span() })
+                Err(ParseError::UnexpectedEndOfInput {
+                    span: self.current_span(),
+                })
             }
         } else {
-            Err(ParseError::UnexpectedEndOfInput { span: self.current_span() })
+            Err(ParseError::UnexpectedEndOfInput {
+                span: self.current_span(),
+            })
         }
     }
 

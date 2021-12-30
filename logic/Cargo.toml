@@ -14,9 +14,12 @@ cranelift-object = "0.78.0"
 cranelift-native = "0.78.0"
 rustc-hash = "1.1.0"
 
+[dependencies.fuzzcheck]
+version = "0.10.1"
+optional = true
+
 [dev-dependencies]
 codegen = { path = "../tests/codegen" }
-fuzzcheck = "0.10.1"
 insta = "1.8.0"
 rustversion = "1.0.6"
 serde = { version = "1.0.131", features = ["derive"] }
