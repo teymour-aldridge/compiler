@@ -3,8 +3,10 @@ test_task:
   matrix:
     - container:
         image: instrumentisto/rust:nightly-2022-01-03
-  #    - arm_container:
-  #        image: rustlang/rust:nightly
+    - allow_failures: true
+      arm_container:
+        image: instrumentisto/rust:nightly-2022-01-03
+
   # only run on bors
   only_if: $CIRRUS_BRANCH == 'staging' || $CIRRUS_BRANCH == 'trying'
   registry_cache:
