@@ -1,3 +1,10 @@
+;; compiler:
+;;   status: success
+;; linker:
+;;   status: success
+;; run:
+;;   status: success
+;;   stdout: 10
 function main()
   ptr = malloc(20 * 8)
   *ptr[0] = 10

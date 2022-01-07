@@ -1,3 +1,10 @@
+;; compiler:
+;;   status: success
+;; linker:
+;;   status: success
+;; run:
+;;   status: success
+;;   stdout: 12
 record WithInteger
   integer of Int
 endrecord
