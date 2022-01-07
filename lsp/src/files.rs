@@ -116,7 +116,7 @@ impl FileContainer {
                 }
                 self.publish_diagnostics(conn);
             }
-            Err(not) => not,
+            Err(_) => (),
         };
     }
 
