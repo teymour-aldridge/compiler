@@ -249,7 +249,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 let new_value = self.compile_expr(right);
 
                 let cranelift_ty = match self.ty_env.ty_of(right.id.into()).unwrap() {
-                    Ty::Int => cranelift_of_ty_module(&self.module, Ty::Int),
+                    Ty::Int => cranelift_of_ty_module(self.module, Ty::Int),
                     Ty::Bool | Ty::String => todo!(),
                     Ty::Record(_) | Ty::Pointer => self.module.target_config().pointer_type(),
                 };
@@ -271,10 +271,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 let addr = self.compile_expr(left.as_un_op().unwrap().1);
                 self.builder.ins().store(ir::MemFlags::new(), val, addr, 0);
                 self.builder.ins().load(
-                    cranelift_of_ty_module(
-                        &self.module,
-                        self.ty_env.ty_of(expr.id.into()).unwrap(),
-                    ),
+                    cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id.into()).unwrap()),
                     ir::MemFlags::new(),
                     addr,
                     0,
@@ -340,7 +337,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         let field_type = {
                             // todo: resolve fields properly
                             let ty = self.ty_env.ty_of(field.id.into()).unwrap();
-                            cranelift_of_ty_module(&self.module, ty)
+                            cranelift_of_ty_module(self.module, ty)
                         };
 
                         let pointer = self

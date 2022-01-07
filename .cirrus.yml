@@ -2,9 +2,9 @@ test_task:
   alias: tests
   matrix:
     - container:
-        image: rustlang/rust:nightly
-    - arm_container:
-        image: rustlang/rust:nightly
+        image: instrumentisto/rust:nightly-2022-01-03
+  #    - arm_container:
+  #        image: rustlang/rust:nightly
   # only run on bors
   only_if: $CIRRUS_BRANCH == 'staging' || $CIRRUS_BRANCH == 'trying'
   registry_cache:
