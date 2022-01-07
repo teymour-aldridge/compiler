@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{id::TaggedAst, ty::TyEnv};
 
 use self::compile::Compiler;
@@ -13,7 +15,11 @@ pub(self) mod make_module;
 ///
 /// todo: automatically link
 /// todo: allow custom file outputs
-pub fn compile<'compiler>(ast: &'compiler TaggedAst, env: &'compiler TyEnv) {
+pub fn compile<'compiler>(
+    ast: &'compiler TaggedAst,
+    env: &'compiler TyEnv,
+    path: impl AsRef<Path>,
+) {
     let mut compiler = Compiler::new(env);
 
     compiler.compile(ast);
@@ -22,6 +28,5 @@ pub fn compile<'compiler>(ast: &'compiler TaggedAst, env: &'compiler TyEnv) {
 
     let res = output.emit().unwrap();
 
-    // todo: store the output in the correct location
-    std::fs::write("program.o", res).expect("failed to write code to file");
+    std::fs::write(path, res).expect("failed to write code to file");
 }
