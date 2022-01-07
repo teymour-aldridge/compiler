@@ -4,6 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     id::{tag, AtomicId},
+    parse::expr::BinOp,
     ty::{constraints::Constraint, type_check, unify, Ty, TyEnv},
 };
 
@@ -144,4 +145,31 @@ fn simple_unify_check() {
     assert_eq!(env.ty_of(AtomicId::new(1).into()).unwrap(), Ty::Int);
     assert_eq!(env.ty_of(AtomicId::new(2).into()).unwrap(), Ty::Int);
     assert_eq!(env.ty_of(AtomicId::new(3).into()).unwrap(), Ty::Int);
+}
+
+#[test]
+fn iterative_factorial_type_check() {
+    let tree = crate::parse::parse(include_str!("examples/iterative-factorial")).unwrap();
+    let tagged = tag(tree);
+
+    let env = type_check(&tagged).expect("failed to type check");
+
+    let func = tagged.nodes.get(0).unwrap().as_func().unwrap();
+    assert_eq!(env.ty_of(func.name.id.into()), Some(Ty::Int));
+    assert_eq!(
+        env.ty_of(func.parameters.get(0).unwrap().id.into()),
+        Some(Ty::Int)
+    );
+    let (op, res, _literal) = func
+        .block
+        .inner
+        .nodes
+        .get(0)
+        .unwrap()
+        .as_expr()
+        .unwrap()
+        .as_bin_op()
+        .unwrap();
+    assert_eq!(op.token, BinOp::SetEquals);
+    assert_eq!(env.ty_of(res.id.into()), Some(Ty::Int));
 }
