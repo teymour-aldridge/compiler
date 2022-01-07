@@ -278,7 +278,7 @@ fn collect_expr<'ctx>(
                 _ => todo!(),
             },
             // todo: add necessary additional type constraints
-            (BinOp::IsEqual, left, right) => {
+            (BinOp::IsEqual | BinOp::IsNotEqual, left, right) => {
                 constraints.push(Constraint::IdToId {
                     id: left.id.into(),
                     to: right.id.into(),
