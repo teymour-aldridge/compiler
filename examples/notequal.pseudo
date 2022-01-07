@@ -1,0 +1,15 @@
+;; compiler:
+;;   status: success
+;; linker:
+;;   status: success
+;; run:
+;;   status: success
+;;   stdout: 3
+
+function main()
+  if 1 != 2 then
+    print_int(3)
+    return 0
+  endif
+  return 0
+endfunction

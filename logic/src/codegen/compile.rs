@@ -309,7 +309,17 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
                     match (left_ty, right_ty) {
                         (Ty::Int, Ty::Int) => self.builder.ins().icmp(IntCC::Equal, lhs, rhs),
-                        _ => unimplemented!(),
+                        _ => todo!(),
+                    }
+                }
+                BinOp::IsNotEqual => {
+                    let lhs = self.compile_expr(left);
+                    let rhs = self.compile_expr(right);
+                    let left_ty = self.ty_env.ty_of(left.id.into()).unwrap();
+                    let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
+                    match (left_ty, right_ty) {
+                        (Ty::Int, Ty::Int) => self.builder.ins().icmp(IntCC::NotEqual, lhs, rhs),
+                        _ => todo!(),
                     }
                 }
                 BinOp::SetEquals => unreachable!(),

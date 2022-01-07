@@ -350,6 +350,10 @@ impl Op {
                     Op::BinOp(BinOp::SetEquals)
                 }
             }
+            "!" if input.starts_with('=') => {
+                input.advance_one()?;
+                Op::BinOp(BinOp::IsNotEqual)
+            }
             token => {
                 return Err(ParseError::UnexpectedToken {
                     explanation: format!(
@@ -400,6 +404,7 @@ pub enum BinOp {
     Divide,
     Multiply,
     IsEqual,
+    IsNotEqual,
     SetEquals,
     Dot,
     Index,
@@ -409,7 +414,9 @@ impl BinOp {
     fn bp(&self) -> (u8, u8) {
         match self {
             BinOp::Add | BinOp::Subtract => (5, 6),
-            BinOp::Divide | BinOp::Multiply | BinOp::IsEqual | BinOp::Dot => (7, 8),
+            BinOp::Divide | BinOp::Multiply | BinOp::IsEqual | BinOp::Dot | BinOp::IsNotEqual => {
+                (7, 8)
+            }
             BinOp::SetEquals => (2, 1),
             BinOp::Index => (11, u8::MAX),
         }
@@ -426,6 +433,7 @@ impl fmt::Display for BinOp {
             BinOp::SetEquals => "=",
             BinOp::IsEqual => "==",
             BinOp::Dot => ".",
+            BinOp::IsNotEqual => "!=",
             // this must be handled a level up
             BinOp::Index => panic!(),
         })
