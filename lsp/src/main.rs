@@ -68,8 +68,8 @@ fn main_loop(conn: Connection, params: Value) -> LspResult {
                 };
                 files.handle_notification(not, &conn)
             }
-            lsp_server::Message::Request(req) => match cast_req::<Shutdown>(req) {
-                Ok((id, ())) => {
+            lsp_server::Message::Request(req) => {
+                if let Ok((id, ())) = cast_req::<Shutdown>(req) {
                     shutdown_received = true;
                     conn.sender
                         .send(Message::Response(Response::new_ok(
@@ -78,8 +78,7 @@ fn main_loop(conn: Connection, params: Value) -> LspResult {
                         )))
                         .unwrap();
                 }
-                Err(_) => (),
-            },
+            }
             _ => {}
         }
     }

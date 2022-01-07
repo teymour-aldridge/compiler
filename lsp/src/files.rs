@@ -115,7 +115,6 @@ impl FileContainer {
                     self.apply_edits_to_file(&change.text_document.uri, &change.content_changes);
                 }
                 self.publish_diagnostics(conn);
-                return;
             }
             Err(not) => not,
         };
@@ -177,7 +176,7 @@ impl FileContainer {
             let input = file.rope.to_string();
 
             let res = logic::parse::parse(&input)
-                .map(|ast| logic::id::tag(ast))
+                .map(logic::id::tag)
                 .map_err(|err| err.report(&url))
                 .and_then(|tagged_ast| {
                     logic::ty::type_check(&tagged_ast)
