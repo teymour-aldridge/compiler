@@ -1,7 +1,7 @@
 //! Collects constraints from an AST.
 
 use crate::{
-    diagnostics::span::HasSpan,
+    diagnostics::span::{HasSpan, Spanned},
     id::{
         TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode, TaggedRecord,
         UniversalId,
@@ -21,18 +21,24 @@ use super::{error::ConstraintGatheringError, track::ConstraintId, Ty};
 pub(crate) enum ConstraintInner<'ctx> {
     #[allow(unused)]
     /// A specific item with the given [crate::id::Id] must have the given base type.
-    IdToTy { id: UniversalId<'ctx>, ty: Ty<'ctx> },
+    IdToTy {
+        id: Spanned<UniversalId<'ctx>>,
+        ty: Spanned<Ty<'ctx>>,
+    },
     /// A specific item with the given [crate::id::Id] must have the same type as a different item.
     #[allow(unused)]
     IdToId {
-        id: UniversalId<'ctx>,
-        to: UniversalId<'ctx>,
+        id: Spanned<UniversalId<'ctx>>,
+        to: Spanned<UniversalId<'ctx>>,
     },
     /// A specific type must be the same as a different item.
     ///
     /// Note that this is used later, while solving the constraints and not while collecting
     /// constraints from the AST.
-    TyToTy { ty: Ty<'ctx>, to: Ty<'ctx> },
+    TyToTy {
+        ty: Spanned<Ty<'ctx>>,
+        to: Spanned<Ty<'ctx>>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -49,7 +55,7 @@ impl<'ctx> Constraint<'ctx> {
 
 pub(crate) fn collect<'ctx>(
     ast: &'ctx TaggedAst,
-) -> Result<Vec<ConstraintInner<'ctx>>, ConstraintGatheringError> {
+) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
     let mut visitor = ConstraintVisitor::new(ast);
     visitor
         .visit_ast(ast)
@@ -59,10 +65,34 @@ pub(crate) fn collect<'ctx>(
 }
 
 struct ConstraintVisitor<'ctx> {
-    constraints: Vec<ConstraintInner<'ctx>>,
+    constraints: Vec<Constraint<'ctx>>,
     definitions: Vec<&'ctx TaggedFunc<'ctx>>,
     records: Vec<&'ctx TaggedRecord<'ctx>>,
     current_func: Option<&'ctx TaggedFunc<'ctx>>,
+    id: ConstraintId,
+}
+
+impl<'ctx> ConstraintVisitor<'ctx> {
+    fn new_id(&mut self) -> ConstraintId {
+        let res = self.id;
+        self.id.inner += 1;
+        res
+    }
+
+    fn add_constraint(&mut self, inner: ConstraintInner<'ctx>) {
+        let id = self.new_id();
+        self.constraints.push(Constraint::new(id, inner))
+    }
+
+    fn extend_constraints(&mut self, inner: impl IntoIterator<Item = ConstraintInner<'ctx>>) {
+        // todo: can this allocation be removed?
+        // does it even matter?
+        let res: Vec<Constraint> = inner
+            .into_iter()
+            .map(|inner| Constraint::new(self.new_id(), inner))
+            .collect();
+        self.constraints.extend(res)
+    }
 }
 
 fn gather_function_definitions<'a, 'collect>(
@@ -99,10 +129,11 @@ impl<'ctx> ConstraintVisitor<'ctx> {
             definitions: gather_function_definitions(ast),
             records: gather_record_definitions(ast),
             current_func: None,
+            id: ConstraintId::default(),
         }
     }
 
-    fn take_constraints(self) -> Vec<ConstraintInner<'ctx>> {
+    fn take_constraints(self) -> Vec<Constraint<'ctx>> {
         self.constraints
     }
 }
@@ -112,8 +143,8 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
 
     fn visit_rec(&mut self, rec: &'ctx crate::id::TaggedRecord<'ctx>) -> Self::Output {
         for field in &rec.fields {
-            self.constraints.push(ConstraintInner::IdToTy {
-                id: field.name.id.into(),
+            self.add_constraint(ConstraintInner::IdToTy {
+                id: Spanned::new(field.name.span(), field.name.id.into()),
                 ty: field.ty.clone(),
             })
         }
@@ -121,28 +152,28 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     }
 
     fn visit_expr(&mut self, expr: &'ctx TaggedExpr<'ctx>) -> Self::Output {
-        self.constraints
-            .extend(collect_expr(expr, &self.definitions, &self.records, None)?);
+        self.extend_constraints(collect_expr(expr, &self.definitions, &self.records, None)?);
         Ok(())
     }
 
     fn visit_for(&mut self, stmt: &'ctx crate::id::TaggedFor<'ctx>) -> Self::Output {
-        self.constraints.push(ConstraintInner::IdToTy {
-            id: stmt.var.id.into(),
-            ty: Ty::Int,
+        self.add_constraint(ConstraintInner::IdToTy {
+            id: Spanned::new(stmt.var.span(), stmt.var.id.into()),
+            // todo: better span here?
+            ty: Spanned::new(stmt.var.span(), Ty::Int),
         });
-        self.constraints.push(ConstraintInner::IdToTy {
-            id: stmt.between.start.id.into(),
-            ty: Ty::Int,
+        self.add_constraint(ConstraintInner::IdToTy {
+            id: Spanned::new(stmt.between.start.span(), stmt.between.start.id.into()),
+            ty: Spanned::new(stmt.between.start.span(), Ty::Int),
         });
-        self.constraints.push(ConstraintInner::IdToTy {
-            id: stmt.between.stop.id.into(),
-            ty: Ty::Int,
+        self.add_constraint(ConstraintInner::IdToTy {
+            id: Spanned::new(stmt.between.stop.span(), stmt.between.stop.id.into()),
+            ty: Spanned::new(stmt.between.stop.span(), Ty::Int),
         });
         if let Some(ref step) = stmt.between.step {
-            self.constraints.push(ConstraintInner::IdToTy {
-                id: step.id.into(),
-                ty: Ty::Int,
+            self.add_constraint(ConstraintInner::IdToTy {
+                id: Spanned::new(step.span(), step.id.into()),
+                ty: Spanned::new(step.span(), Ty::Int),
             });
         }
         self.visit_block(&stmt.block)
@@ -180,9 +211,10 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     }
 
     fn visit_while(&mut self, stmt: &'ctx crate::id::TaggedWhile<'ctx>) -> Self::Output {
-        self.constraints.push(ConstraintInner::IdToTy {
-            id: stmt.condition.id.into(),
-            ty: Ty::Bool,
+        self.add_constraint(ConstraintInner::IdToTy {
+            id: Spanned::new(stmt.condition.span(), stmt.condition.id.into()),
+            // todo: better span?
+            ty: Spanned::new(stmt.condition.span(), Ty::Bool),
         });
 
         self.visit_block(&stmt.block)
@@ -194,9 +226,9 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
 
     fn visit_ret(&mut self, ret: &'ctx crate::id::TaggedReturn<'ctx>) -> Self::Output {
         if let Some(func) = self.current_func {
-            self.constraints.push(ConstraintInner::IdToId {
-                id: func.name.id.into(),
-                to: ret.expr.id.into(),
+            self.add_constraint(ConstraintInner::IdToId {
+                id: Spanned::new(func.name.span(), func.name.id.into()),
+                to: Spanned::new(ret.expr.span(), ret.expr.id.into()),
             });
             self.visit_expr(&ret.expr)
         } else {
@@ -237,15 +269,15 @@ fn collect_expr<'ctx>(
 
     if let Some(ty) = ty {
         constraints.push(ConstraintInner::IdToTy {
-            id: expr.id.into(),
-            ty,
+            id: Spanned::new(expr.span(), expr.id.into()),
+            ty: Spanned::new(expr.span(), ty),
         });
     }
 
     match &expr.token {
         TaggedExprInner::Ident(ident) => constraints.push(ConstraintInner::IdToId {
-            id: ident.id.into(),
-            to: expr.id.into(),
+            id: Spanned::new(ident.span(), ident.id.into()),
+            to: Spanned::new(expr.span(), expr.id.into()),
         }),
         TaggedExprInner::Literal(lit) => {
             let ty = match lit.token {
@@ -254,19 +286,19 @@ fn collect_expr<'ctx>(
                 Literal::Bool(_) => Ty::Bool,
             };
             constraints.push(ConstraintInner::IdToTy {
-                id: expr.id.into(),
-                ty,
+                id: Spanned::new(expr.span(), expr.id.into()),
+                ty: Spanned::new(expr.span(), ty),
             });
         }
         TaggedExprInner::BinOp(op, left, right) => match (op.token, left, right) {
             (BinOp::Add | BinOp::Divide | BinOp::Multiply | BinOp::Subtract, left, right) => {
                 constraints.push(ConstraintInner::IdToId {
-                    id: left.id.into(),
-                    to: right.id.into(),
+                    id: Spanned::new(left.span(), left.id.into()),
+                    to: Spanned::new(right.span(), right.id.into()),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: left.id.into(),
-                    to: expr.id.into(),
+                    id: Spanned::new(left.span(), left.id.into()),
+                    to: Spanned::new(expr.span(), expr.id.into()),
                 });
                 constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                 constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
@@ -274,16 +306,16 @@ fn collect_expr<'ctx>(
             (BinOp::Dot, _left, right) => match right.token {
                 TaggedExprInner::Ident(ref ident) => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: ident.id.into(),
-                        to: right.id.into(),
+                        id: Spanned::new(ident.span(), ident.id.into()),
+                        to: Spanned::new(right.span(), right.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: ident.id.into(),
-                        to: expr.id.into(),
+                        id: Spanned::new(ident.span(), ident.id.into()),
+                        to: Spanned::new(expr.span(), expr.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: right.id.into(),
-                        to: expr.id.into(),
+                        id: Spanned::new(right.span(), right.id.into()),
+                        to: Spanned::new(expr.span(), expr.id.into()),
                     });
                 }
                 // todo: methods
@@ -292,12 +324,12 @@ fn collect_expr<'ctx>(
             // todo: add necessary additional type constraints
             (BinOp::IsEqual, left, right) => {
                 constraints.push(ConstraintInner::IdToId {
-                    id: left.id.into(),
-                    to: right.id.into(),
+                    id: Spanned::new(left.span(), left.id.into()),
+                    to: Spanned::new(right.span(), right.id.into()),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: expr.id.into(),
-                    ty: Ty::Bool,
+                    id: Spanned::new(expr.span(), expr.id.into()),
+                    ty: Spanned::new(expr.span(), Ty::Bool),
                 });
                 constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                 constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
@@ -305,36 +337,38 @@ fn collect_expr<'ctx>(
             (BinOp::SetEquals, left, right) => match left.token {
                 TaggedExprInner::Ident(ref ident) => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: ident.id.into(),
-                        to: right.id.into(),
+                        id: Spanned::new(ident.span(), ident.id.into()),
+                        to: Spanned::new(right.span(), right.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: left.id.into(),
-                        to: right.id.into(),
+                        id: Spanned::new(left.span(), left.id.into()),
+                        to: Spanned::new(right.span(), right.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: ident.id.into(),
-                        to: left.id.into(),
+                        id: Spanned::new(ident.span(), ident.id.into()),
+                        to: Spanned::new(left.span(), left.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: expr.id.into(),
-                        to: left.id.into(),
+                        id: Spanned::new(expr.span(), expr.id.into()),
+                        to: Spanned::new(left.span(), left.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: expr.id.into(),
-                        to: right.id.into(),
+                        id: Spanned::new(expr.span(), expr.id.into()),
+                        to: Spanned::new(right.span(), right.id.into()),
                     });
                     constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                     constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
                 }
                 TaggedExprInner::UnOp(op, ref pointer) if op.token.is_deref() => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: expr.id.into(),
-                        to: pointer.id.into(),
+                        id: Spanned::new(expr.span(), expr.id.into()),
+                        // todo: use the span of the operator
+                        to: Spanned::new(pointer.span(), pointer.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToTy {
-                        id: pointer.id.into(),
-                        ty: Ty::Pointer,
+                        id: Spanned::new(pointer.span(), pointer.id.into()),
+                        // todo: use the span of the operator
+                        ty: Spanned::new(pointer.span(), Ty::Pointer),
                     });
                     constraints.extend(collect_expr(
                         pointer,
@@ -355,29 +389,30 @@ fn collect_expr<'ctx>(
             // todo: sort this out (memory safety)
             (BinOp::Index, left, right) => {
                 constraints.push(ConstraintInner::IdToTy {
-                    id: expr.id.into(),
-                    ty: Ty::Pointer,
+                    id: Spanned::new(expr.span(), expr.id.into()),
+                    ty: Spanned::new(expr.span(), Ty::Pointer),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: left.id.into(),
-                    ty: Ty::Pointer,
+                    id: Spanned::new(left.span(), left.id.into()),
+                    // todo: use the span of the operator
+                    ty: Spanned::new(left.span(), Ty::Pointer),
                 });
                 constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
                 constraints.push(ConstraintInner::IdToTy {
-                    id: right.id.into(),
-                    ty: Ty::Int,
+                    id: Spanned::new(right.span(), right.id.into()),
+                    ty: Spanned::new(right.span(), Ty::Int),
                 });
                 constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
             }
         },
         TaggedExprInner::UnOp(op, arg) => match op.token {
             UnOp::Positive | UnOp::Negative => constraints.push(ConstraintInner::IdToTy {
-                id: arg.id.into(),
-                ty: Ty::Int,
+                id: Spanned::new(arg.span(), arg.id.into()),
+                ty: Spanned::new(arg.span(), Ty::Int),
             }),
             UnOp::Deref => constraints.push(ConstraintInner::IdToTy {
-                id: arg.id.into(),
-                ty: Ty::Pointer,
+                id: Spanned::new(arg.span(), arg.id.into()),
+                ty: Spanned::new(arg.span(), Ty::Pointer),
             }),
         },
         TaggedExprInner::Constructor(rec) => {
@@ -387,13 +422,16 @@ fn collect_expr<'ctx>(
                 .unwrap();
 
             constraints.push(ConstraintInner::IdToTy {
-                id: expr.id.into(),
-                ty: Ty::Record(
-                    definition
-                        .fields
-                        .iter()
-                        .map(|field| (field.name.token.inner(), field.ty.clone()))
-                        .collect(),
+                id: Spanned::new(expr.span(), expr.id.into()),
+                ty: Spanned::new(
+                    definition.span(),
+                    Ty::Record(
+                        definition
+                            .fields
+                            .iter()
+                            .map(|field| (field.name.token.inner(), field.ty.token.clone()))
+                            .collect(),
+                    ),
                 ),
             });
 
@@ -402,16 +440,16 @@ fn collect_expr<'ctx>(
                 definition.fields.iter().zip(rec.fields.iter())
             {
                 constraints.push(ConstraintInner::IdToId {
-                    id: struct_field.name.id.into(),
-                    to: constructor_name.id.into(),
+                    id: Spanned::new(struct_field.name.span(), struct_field.name.id.into()),
+                    to: Spanned::new(constructor_name.span(), constructor_name.id.into()),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: struct_field.name.id.into(),
-                    to: constructor_expr.id.into(),
+                    id: Spanned::new(struct_field.name.span(), struct_field.name.id.into()),
+                    to: Spanned::new(constructor_expr.span(), constructor_expr.id.into()),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: constructor_name.id.into(),
-                    to: constructor_expr.id.into(),
+                    id: Spanned::new(constructor_name.span(), constructor_name.id.into()),
+                    to: Spanned::new(constructor_expr.span(), constructor_expr.id.into()),
                 });
             }
         }
@@ -429,12 +467,12 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: param.id.into(),
-                    ty: Ty::Int,
+                    id: Spanned::new(param.span(), param.id.into()),
+                    ty: Spanned::new(param.span(), Ty::Int),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: expr.id.into(),
-                    to: param.id.into(),
+                    id: Spanned::new(expr.span(), expr.id.into()),
+                    to: Spanned::new(param.span(), param.id.into()),
                 });
                 constraints.extend(collect_expr(
                     param,
@@ -455,12 +493,12 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: param.id.into(),
-                    ty: Ty::String,
+                    id: Spanned::new(param.span(), param.id.into()),
+                    ty: Spanned::new(param.span(), Ty::String),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: expr.id.into(),
-                    to: param.id.into(),
+                    id: Spanned::new(expr.span(), expr.id.into()),
+                    to: Spanned::new(param.span(), param.id.into()),
                 });
                 constraints.extend(collect_expr(
                     param,
@@ -468,6 +506,7 @@ fn collect_expr<'ctx>(
                     record_definitions,
                     Some(Ty::String),
                 )?);
+            // todo: make memory allocation functions standard-library only!
             } else if *func.token == "malloc" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
@@ -482,16 +521,16 @@ fn collect_expr<'ctx>(
                 let param = &params[0];
                 constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
                 constraints.push(ConstraintInner::IdToTy {
-                    id: param.id.into(),
-                    ty: Ty::Int,
+                    id: Spanned::new(param.span(), param.id.into()),
+                    ty: Spanned::new(param.span(), Ty::Int),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: func.id.into(),
-                    ty: Ty::Pointer,
+                    id: Spanned::new(func.span(), func.id.into()),
+                    ty: Spanned::new(func.span(), Ty::Pointer),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: func.id.into(),
-                    to: expr.id.into(),
+                    id: Spanned::new(func.span(), func.id.into()),
+                    to: Spanned::new(expr.span(), expr.id.into()),
                 });
             } else if *func.token == "free" {
                 if params.len() != 1 {
@@ -506,12 +545,12 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: param.id.into(),
-                    ty: Ty::Pointer,
+                    id: Spanned::new(param.span(), param.id.into()),
+                    ty: Spanned::new(param.span(), Ty::Pointer),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: expr.id.into(),
-                    to: param.id.into(),
+                    id: Spanned::new(expr.span(), expr.id.into()),
+                    to: Spanned::new(param.span(), param.id.into()),
                 });
                 constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
             } else if *func.token == "realloc" {
@@ -527,8 +566,8 @@ fn collect_expr<'ctx>(
                 }
                 let pointer = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: pointer.id.into(),
-                    ty: Ty::Pointer,
+                    id: Spanned::new(pointer.span(), pointer.id.into()),
+                    ty: Spanned::new(pointer.span(), Ty::Pointer),
                 });
                 constraints.extend(collect_expr(
                     pointer,
@@ -538,8 +577,8 @@ fn collect_expr<'ctx>(
                 )?);
                 let new_size = &params[1];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: new_size.id.into(),
-                    ty: Ty::Int,
+                    id: Spanned::new(new_size.span(), new_size.id.into()),
+                    ty: Spanned::new(new_size.span(), Ty::Int),
                 });
                 constraints.extend(collect_expr(
                     new_size,
@@ -564,14 +603,14 @@ fn collect_expr<'ctx>(
                 }
                 for (a, b) in function.parameters.iter().zip(params) {
                     constraints.push(ConstraintInner::IdToId {
-                        id: b.id.into(),
-                        to: a.id.into(),
+                        id: Spanned::new(b.span(), b.id.into()),
+                        to: Spanned::new(a.span(), a.id.into()),
                     });
                     constraints.extend(collect_expr(b, definitions, record_definitions, None)?);
                 }
                 constraints.push(ConstraintInner::IdToId {
-                    id: func.id.into(),
-                    to: expr.id.into(),
+                    id: Spanned::new(func.span(), func.id.into()),
+                    to: Spanned::new(expr.span(), expr.id.into()),
                 });
             } else {
                 return Err(ConstraintGatheringError::UnresolvableFunction {

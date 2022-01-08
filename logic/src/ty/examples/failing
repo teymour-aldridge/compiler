@@ -1,0 +1,7 @@
+function f(x)
+  if x == 1 then
+    return "Hello World!"
+  else
+    return 1
+  endif
+endfunction

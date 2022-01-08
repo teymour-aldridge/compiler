@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{hash, ops::Range};
 
 use super::position::Position;
 
@@ -46,7 +46,15 @@ impl PartialEq for Span {
     }
 }
 
+impl hash::Hash for Span {
+    fn hash<H: hash::Hasher>(&self, _state: &mut H) {}
+}
+
 impl Span {
+    pub fn index_only(self) -> IndexOnlySpan {
+        self.into()
+    }
+
     /// Create a new [Span].
     pub fn new(start: Position, stop: Position) -> Self {
         Self { start, stop }
@@ -67,9 +75,24 @@ impl Span {
     pub fn stop(&self) -> Position {
         self.stop
     }
+
+    pub fn null() -> Span {
+        Span::new(
+            Position {
+                column: 0,
+                line: 0,
+                index: 0,
+            },
+            Position {
+                column: 0,
+                line: 0,
+                index: 0,
+            },
+        )
+    }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 /// Contains an item `T` alongside its corresponding source code location.
 pub struct Spanned<T> {
     pub(crate) span: Span,

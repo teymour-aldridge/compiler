@@ -2,26 +2,28 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::diagnostics::span::IndexOnlySpan;
 
+use super::track::ErrorReporter;
+
 #[derive(Debug)]
-pub enum TyCheckError {
+pub enum TyCheckError<'ctx> {
     ConstraintGatheringError(ConstraintGatheringError),
-    TypeMismatch,
+    Reportable(ErrorReporter<'ctx>),
 }
 
-impl From<ConstraintGatheringError> for TyCheckError {
+impl<'ctx> From<ConstraintGatheringError> for TyCheckError<'ctx> {
     fn from(err: ConstraintGatheringError) -> Self {
         Self::ConstraintGatheringError(err)
     }
 }
 
-impl TyCheckError {
-    pub fn report<ID>(&self, id: ID) -> Diagnostic<ID> {
+impl<'ctx> TyCheckError<'ctx> {
+    pub fn report<ID>(self, id: ID) -> Diagnostic<ID>
+    where
+        ID: Copy,
+    {
         match self {
             TyCheckError::ConstraintGatheringError(err) => err.report(id),
-            TyCheckError::TypeMismatch => Diagnostic::error().with_message(
-                "Your program contains a type error! This unhelpfulmessage will be updated
-                    soon.",
-            ),
+            TyCheckError::Reportable(reporter) => reporter.report(id),
         }
     }
 }

@@ -493,8 +493,20 @@ impl<IDENT: HasSpan> HasSpan for TaggedExprInner<'_, IDENT> {
                 Span::new(left.span().start(), right.span().stop())
             }
             TaggedExprInner::UnOp(op, expr) => Span::new(op.span().start(), expr.span().stop()),
-            TaggedExprInner::FunctionCall(_, _) => todo!(),
-            TaggedExprInner::Constructor(_) => todo!(),
+            TaggedExprInner::FunctionCall(ident, params) => {
+                // todo: include bracket span
+                Span::new(
+                    ident.span().start(),
+                    params
+                        .last()
+                        .map(|last| last.span().stop())
+                        .unwrap_or_else(|| ident.span().stop()),
+                )
+            }
+            TaggedExprInner::Constructor(con) => {
+                // todo: fix this
+                con.name.span()
+            }
         }
     }
 }

@@ -59,18 +59,29 @@
 //!
 //! We have to attach span information to all the constraints.
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use rustc_hash::FxHashMap;
 
-use crate::{diagnostics::span::Span, id::UniversalId};
+use crate::{
+    diagnostics::span::{HasSpan, Spanned},
+    id::UniversalId,
+};
 
 use super::{
     constraints::{Constraint, ConstraintInner},
     Ty,
 };
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Default)]
 pub struct ConstraintId {
-    inner: usize,
+    pub(crate) inner: usize,
+}
+
+impl ConstraintId {
+    #[allow(unused)]
+    pub fn new(inner: usize) -> Self {
+        Self { inner }
+    }
 }
 
 /// OCR would be proud (they love having students draw out "trace tables" - writing down the values
@@ -78,25 +89,22 @@ pub struct ConstraintId {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct TraceTable<'ctx> {
     records: FxHashMap<ConstraintId, TraceData<'ctx>>,
-    spans: FxHashMap<UniversalId<'ctx>, Span>,
 }
 
 impl<'ctx> TraceTable<'ctx> {
+    #[allow(unused)]
     pub fn new() -> TraceTable<'ctx> {
         Default::default()
     }
 
-    pub fn add_span(&mut self, id: impl Into<UniversalId<'ctx>>, span: Span) {
-        self.spans.insert(id.into(), span);
-    }
-
     /// Records a unification operation.
-    pub fn log_operation(&mut self, con: &Constraint, operation: UnificationOperation<'ctx>) {
-        let data = self
-            .records
-            .get_mut(&con.id)
-            .expect("internal error: constraint not inserted before use!");
-        data.operations.push(operation);
+    pub fn log_operation(&mut self, id: ConstraintId, operation: UnificationOperation<'ctx>) {
+        self.records
+            .entry(id)
+            .and_modify(|data| {
+                data.operations.push(operation.clone());
+            })
+            .or_insert(TraceData::new(vec![operation]));
     }
 }
 
@@ -105,18 +113,24 @@ pub struct TraceData<'ctx> {
     operations: Vec<UnificationOperation<'ctx>>,
 }
 
+impl<'ctx> TraceData<'ctx> {
+    pub fn new(operations: Vec<UnificationOperation<'ctx>>) -> Self {
+        Self { operations }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum UnificationOperation<'ctx> {
     /// the given id was replaced with a type
     Concretise {
-        preexisting: UniversalId<'ctx>,
-        with: Ty<'ctx>,
+        preexisting: Spanned<UniversalId<'ctx>>,
+        with: Spanned<Ty<'ctx>>,
         pos: ConstraintPosition,
     },
     /// The id `preexisting` was replaced with the id `new`
     Swap {
-        preexisting: UniversalId<'ctx>,
-        new: UniversalId<'ctx>,
+        preexisting: Spanned<UniversalId<'ctx>>,
+        new: Spanned<UniversalId<'ctx>>,
         pos: ConstraintPosition,
     },
 }
@@ -139,7 +153,7 @@ impl<'ctx> UnificationOperation<'ctx> {
                 },
                 ConstraintInner::IdToTy { id, ty },
             ) => {
-                assert!(matches!(pos, ConstraintPosition::Two));
+                assert!(matches!(pos, ConstraintPosition::One));
                 assert_eq!(&ty, with);
                 ConstraintInner::IdToId {
                     id,
@@ -213,5 +227,83 @@ impl<'ctx> UnificationOperation<'ctx> {
             },
             (UnificationOperation::Swap { .. }, ConstraintInner::TyToTy { .. }) => unreachable!(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct ErrorReporter<'ctx> {
+    trace_table: TraceTable<'ctx>,
+    errored_on: Constraint<'ctx>,
+}
+
+impl<'ctx> ErrorReporter<'ctx> {
+    pub(crate) fn new(trace_table: TraceTable<'ctx>, errored_on: Constraint<'ctx>) -> Self {
+        Self {
+            trace_table,
+            errored_on,
+        }
+    }
+
+    pub fn report<ID>(mut self, file_id: ID) -> Diagnostic<ID>
+    where
+        ID: Copy,
+    {
+        let mut diagnostic =
+            Diagnostic::error().with_message("Your program contains a type error!");
+
+        let operations = self
+            .trace_table
+            .records
+            .remove(&self.errored_on.id)
+            .expect("internal error");
+
+        let constraint = self.errored_on;
+        let mut inner = constraint.inner;
+
+        if let ConstraintInner::TyToTy { ty, to } = &inner {
+            diagnostic.labels.push(
+                Label::primary(file_id, ty.span().index_only().range())
+                    .with_message(format!("this is of type {:?}", ty.token)),
+            );
+            diagnostic.labels.push(
+                Label::primary(file_id, to.span().index_only().range()).with_message(format!(
+                    "this is of type `{:?}` \
+                    which is not the same as type `{:?}`",
+                    to.token, ty.token
+                )),
+            );
+        } else {
+            unreachable!();
+        }
+
+        for operation in operations.operations.iter().rev() {
+            inner = operation.step_back(inner);
+            match inner {
+                ConstraintInner::IdToTy { ref id, ref ty } => {
+                    Label::secondary(file_id, id.span().index_only().range())
+                        .with_message("this item needs to be of the same type as...");
+                    Label::secondary(file_id, ty.span().index_only().range())
+                        .with_message(format!("...the type `{:?}`", ty.token));
+                }
+                ConstraintInner::IdToId { ref id, ref to } => {
+                    Label::secondary(file_id, id.span().index_only().range())
+                        .with_message("this item needs to be of the same type as");
+                    Label::secondary(file_id, to.span().index_only().range())
+                        .with_message("this item");
+                }
+                ConstraintInner::TyToTy { ref ty, ref to } => {
+                    Label::secondary(file_id, ty.span().index_only().range())
+                        .with_message("this type needs to be of the same type as");
+                    Label::secondary(file_id, to.span().index_only().range()).with_message(
+                        format!(
+                            "this type, however `{:?}` is not the same as `{:?}`",
+                            ty.token, to.token
+                        ),
+                    );
+                }
+            }
+        }
+
+        diagnostic
     }
 }

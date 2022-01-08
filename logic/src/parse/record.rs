@@ -4,7 +4,11 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{diagnostics::span::HasSpan, parse::utils::ParseError, ty::Ty};
+use crate::{
+    diagnostics::span::{self, HasSpan, Spanned},
+    parse::utils::ParseError,
+    ty::Ty,
+};
 
 use super::{
     ident::Ident,
@@ -17,6 +21,16 @@ pub struct Record<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,
     pub(crate) fields: Vec<Field<'a, IDENT>>,
     pub(crate) indent: usize,
+}
+
+impl<IDENT> HasSpan for Record<'_, IDENT>
+where
+    IDENT: HasSpan,
+{
+    fn span(&self) -> span::Span {
+        // todo: report proper span
+        span::Span::new(self.name.span().start(), self.name.span().stop())
+    }
 }
 
 impl fmt::Display for Record<'_> {
@@ -82,7 +96,7 @@ impl<'a> Parse<'a> for Record<'a> {
 /// A field of a [Record].
 pub struct Field<'a, IDENT = Ident<'a>> {
     pub(crate) name: IDENT,
-    pub(crate) ty: Ty<'a>,
+    pub(crate) ty: Spanned<Ty<'a>>,
     pub(crate) _a: PhantomData<&'a IDENT>,
 }
 
@@ -92,8 +106,8 @@ impl<'a> Parse<'a> for Field<'a> {
         input.skip_whitespace()?;
         input.parse_token("of")?;
         input.skip_whitespace()?;
-        let ty = Ident::parse(input)?;
-        let ty = match *ty {
+        let ty_sym = Ident::parse(input)?;
+        let ty = match *ty_sym {
             "Bool" => Ty::Bool,
             "Int" => Ty::Int,
             "String" => Ty::String,
@@ -101,14 +115,14 @@ impl<'a> Parse<'a> for Field<'a> {
                 return Err(ParseError::UnexpectedToken {
                     explanation: "Expected a type here (one of `Bool`, `Int` or `String`)."
                         .to_string(),
-                    span: ty.span().into(),
+                    span: ty_sym.span().into(),
                 })
             }
         };
 
         Ok(Field {
             name,
-            ty,
+            ty: Spanned::new(ty_sym.span(), ty),
             _a: PhantomData,
         })
     }
