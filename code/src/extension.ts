@@ -5,7 +5,7 @@ import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-lan
 import { Trace } from 'vscode-jsonrpc';
 
 export function activate(context: ExtensionContext) {
-    let serverExe = 'pseudocompiler-lsp';
+    let serverExe = 'pseudo-lsp';
 
     let serverOptions: ServerOptions = {
         run: { command: serverExe, args: [''] },
