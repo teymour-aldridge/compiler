@@ -19,7 +19,7 @@ use fuzzcheck::{
 
 use crate::id::AtomicId;
 
-use super::{constraints::Constraint, unify, Ty, TyEnv};
+use super::{constraints::ConstraintInner, unify, Ty, TyEnv};
 
 #[derive(Clone, DefaultMutator, Deserialize, Serialize)]
 enum MutatorTy {
@@ -71,11 +71,11 @@ fn fuzz_unifier() {
         let constraints = constraints
             .iter()
             .map(|constraint| match constraint {
-                ConstraintMutator::IdToId { x, y } => Constraint::IdToId {
+                ConstraintMutator::IdToId { x, y } => ConstraintInner::IdToId {
                     id: AtomicId::new(*x).into(),
                     to: AtomicId::new(*y).into(),
                 },
-                ConstraintMutator::IdToTy { id, ty } => Constraint::IdToTy {
+                ConstraintMutator::IdToTy { id, ty } => ConstraintInner::IdToTy {
                     id: AtomicId::new(*id).into(),
                     ty: match ty {
                         MutatorTy::Int => Ty::Int,
@@ -89,7 +89,7 @@ fn fuzz_unifier() {
         let solved = unify(hash_set, TyEnv::new());
         match solved {
             Ok(prev) => {
-                let mut new_constraints: Vec<Constraint> = constraints.clone();
+                let mut new_constraints: Vec<ConstraintInner> = constraints.clone();
                 let len = constraints.len();
                 // we can't shuffle a list with one item, so return true
                 if len <= 1 {

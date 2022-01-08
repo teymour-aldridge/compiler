@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     id::{tag, AtomicId},
     parse::expr::BinOp,
-    ty::{constraints::Constraint, type_check, unify, Ty, TyEnv},
+    ty::{constraints::ConstraintInner, type_check, unify, Ty, TyEnv},
 };
 
 #[test]
@@ -122,19 +122,19 @@ fn test_record_type_check() {
 #[test]
 fn simple_unify_check() {
     let set = FxHashSet::from_iter(vec![
-        Constraint::IdToTy {
+        ConstraintInner::IdToTy {
             id: AtomicId::new(1).into(),
             ty: Ty::Int,
         },
-        Constraint::IdToId {
+        ConstraintInner::IdToId {
             id: AtomicId::new(2).into(),
             to: AtomicId::new(1).into(),
         },
-        Constraint::IdToId {
+        ConstraintInner::IdToId {
             id: AtomicId::new(3).into(),
             to: AtomicId::new(1).into(),
         },
-        Constraint::IdToTy {
+        ConstraintInner::IdToTy {
             id: AtomicId::new(3).into(),
             ty: Ty::Int,
         },

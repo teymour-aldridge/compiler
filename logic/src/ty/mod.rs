@@ -11,13 +11,14 @@ mod fuzz;
 mod fuzz2;
 #[cfg(test)]
 mod test;
+mod track;
 
 use crate::{
     id::{TaggedAst, UniversalId},
     ty::constraints::collect,
 };
 
-use self::{constraints::Constraint, error::TyCheckError};
+use self::{constraints::ConstraintInner, error::TyCheckError};
 
 mod constraints;
 
@@ -74,13 +75,13 @@ impl fmt::Display for Ty<'_> {
 }
 
 pub fn type_check<'ctx>(ast: &'ctx TaggedAst<'ctx>) -> Result<TyEnv<'ctx>, TyCheckError> {
-    let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
+    let constraints: FxHashSet<ConstraintInner> = collect(ast)?.into_iter().collect();
     unify(constraints, TyEnv::new())
 }
 
 #[derive(Clone, Debug, Hash)]
 /// A substitution to be made as part of type inference.
-enum Substitution<'ctx> {
+enum SubstitutionInner<'ctx> {
     /// Substitute the first id `X`, for the second id `Y`.
     XforY(UniversalId<'ctx>, UniversalId<'ctx>),
     /// Substitute a concrete type for the given id.
@@ -137,17 +138,17 @@ impl<'ctx> TyEnv<'ctx> {
         }
     }
 
-    fn feed_substitution(&mut self, u: Substitution<'ctx>) {
+    fn feed_substitution(&mut self, u: SubstitutionInner<'ctx>) {
         match u {
             // we remove y from the system by equating it to x
-            Substitution::XforY(x, y) => self.map.insert(
+            SubstitutionInner::XforY(x, y) => self.map.insert(
                 y,
                 Info {
                     ty: TyInfo::EqId(x),
                 },
             ),
             // we remove x from the system by equating it to ty
-            Substitution::ConcreteForX(ty, x) => self.map.insert(
+            SubstitutionInner::ConcreteForX(ty, x) => self.map.insert(
                 x,
                 Info {
                     ty: TyInfo::EqTy(ty),
@@ -157,9 +158,11 @@ impl<'ctx> TyEnv<'ctx> {
     }
 }
 
-/// Unify a set of constraints (i.e. solve them, if that is possible)
+/// Unify a set of constraints (i.e. solve them, if that is possible).
+///
+/// Note: for details on error reporting, please see [track].
 fn unify<'ctx>(
-    set: FxHashSet<Constraint<'ctx>>,
+    set: FxHashSet<ConstraintInner<'ctx>>,
     mut solved: TyEnv<'ctx>,
 ) -> Result<TyEnv<'ctx>, TyCheckError> {
     if set.is_empty() {
@@ -175,15 +178,20 @@ fn unify<'ctx>(
     };
 
     let u = match next {
-        Constraint::IdToTy { id, ty } => Some(Substitution::ConcreteForX(ty, id)),
-        Constraint::IdToId { id, to } => {
+        ConstraintInner::IdToTy { id, ty } => Some(SubstitutionInner::ConcreteForX(ty, id)),
+        ConstraintInner::IdToId { id, to } => {
             if id != to {
-                Some(Substitution::XforY(to, id))
+                Some(SubstitutionInner::XforY(to, id))
             } else {
                 None
             }
         }
-        Constraint::TyToTy { ty, to } => {
+        ConstraintInner::TyToTy { ty, to } => {
+            // here we need to work backwards, and work out where this constraint came from!
+            // maybe we need a way of "undoing" the algorithm?
+            // –> each constraint should have a "trace" which lists how we got here
+            // -> if there is an error, we can use this to produce useful diagnostic information
+            // we may need to produce quite complex systems
             if ty != to {
                 return Err(TyCheckError::TypeMismatch);
             } else {
@@ -197,43 +205,53 @@ fn unify<'ctx>(
         solved.feed_substitution(u.clone());
 
         // apply the newly generated substitution to the rest of the set
-        let new_set: FxHashSet<Constraint> = iter
+        let new_set: FxHashSet<ConstraintInner> = iter
             .map(|constraint| match (u.clone(), constraint) {
                 // wherever we see y, replace with x
-                (Substitution::XforY(x, y), Constraint::IdToTy { id, ty }) => Constraint::IdToTy {
-                    id: if id == y { x } else { id },
-                    ty,
-                },
+                (SubstitutionInner::XforY(x, y), ConstraintInner::IdToTy { id, ty }) => {
+                    ConstraintInner::IdToTy {
+                        id: if id == y { x } else { id },
+                        ty,
+                    }
+                }
                 // wherever we see y, replace with x
-                (Substitution::XforY(x, y), Constraint::IdToId { id, to }) => Constraint::IdToId {
-                    id: if id == y { x } else { id },
-                    to: if to == y { x } else { to },
-                },
-                (Substitution::ConcreteForX(sub_with, x), Constraint::IdToTy { id, ty }) => {
+                (SubstitutionInner::XforY(x, y), ConstraintInner::IdToId { id, to }) => {
+                    ConstraintInner::IdToId {
+                        id: if id == y { x } else { id },
+                        to: if to == y { x } else { to },
+                    }
+                }
+                (
+                    SubstitutionInner::ConcreteForX(sub_with, x),
+                    ConstraintInner::IdToTy { id, ty },
+                ) => {
                     if id == x {
-                        Constraint::TyToTy {
+                        ConstraintInner::TyToTy {
                             ty: sub_with,
                             to: ty,
                         }
                     } else {
-                        Constraint::IdToTy { id, ty }
+                        ConstraintInner::IdToTy { id, ty }
                     }
                 }
-                (Substitution::ConcreteForX(sub_with, x), Constraint::IdToId { id, to }) => {
+                (
+                    SubstitutionInner::ConcreteForX(sub_with, x),
+                    ConstraintInner::IdToId { id, to },
+                ) => {
                     if id == x {
-                        Constraint::IdToTy {
+                        ConstraintInner::IdToTy {
                             id: to,
                             ty: sub_with,
                         }
                     } else if to == x {
-                        Constraint::IdToTy { id, ty: sub_with }
+                        ConstraintInner::IdToTy { id, ty: sub_with }
                     } else {
-                        Constraint::IdToId { id, to }
+                        ConstraintInner::IdToId { id, to }
                     }
                 }
                 // these substitutions cannot be applied to the constraint set
-                (Substitution::XforY(_, _), constraint)
-                | (Substitution::ConcreteForX(_, _), constraint) => constraint,
+                (SubstitutionInner::XforY(_, _), constraint)
+                | (SubstitutionInner::ConcreteForX(_, _), constraint) => constraint,
             })
             .collect();
 

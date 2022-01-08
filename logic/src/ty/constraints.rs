@@ -14,11 +14,11 @@ use crate::{
     visitor::Visitor,
 };
 
-use super::{error::ConstraintGatheringError, Ty};
+use super::{error::ConstraintGatheringError, track::ConstraintId, Ty};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 /// The possible constraints.
-pub(crate) enum Constraint<'ctx> {
+pub(crate) enum ConstraintInner<'ctx> {
     #[allow(unused)]
     /// A specific item with the given [crate::id::Id] must have the given base type.
     IdToTy { id: UniversalId<'ctx>, ty: Ty<'ctx> },
@@ -35,9 +35,21 @@ pub(crate) enum Constraint<'ctx> {
     TyToTy { ty: Ty<'ctx>, to: Ty<'ctx> },
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct Constraint<'ctx> {
+    pub(crate) id: ConstraintId,
+    pub(crate) inner: ConstraintInner<'ctx>,
+}
+
+impl<'ctx> Constraint<'ctx> {
+    pub(crate) fn new(id: ConstraintId, inner: ConstraintInner<'ctx>) -> Self {
+        Self { id, inner }
+    }
+}
+
 pub(crate) fn collect<'ctx>(
     ast: &'ctx TaggedAst,
-) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
+) -> Result<Vec<ConstraintInner<'ctx>>, ConstraintGatheringError> {
     let mut visitor = ConstraintVisitor::new(ast);
     visitor
         .visit_ast(ast)
@@ -47,7 +59,7 @@ pub(crate) fn collect<'ctx>(
 }
 
 struct ConstraintVisitor<'ctx> {
-    constraints: Vec<Constraint<'ctx>>,
+    constraints: Vec<ConstraintInner<'ctx>>,
     definitions: Vec<&'ctx TaggedFunc<'ctx>>,
     records: Vec<&'ctx TaggedRecord<'ctx>>,
     current_func: Option<&'ctx TaggedFunc<'ctx>>,
@@ -90,7 +102,7 @@ impl<'ctx> ConstraintVisitor<'ctx> {
         }
     }
 
-    fn take_constraints(self) -> Vec<Constraint<'ctx>> {
+    fn take_constraints(self) -> Vec<ConstraintInner<'ctx>> {
         self.constraints
     }
 }
@@ -100,7 +112,7 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
 
     fn visit_rec(&mut self, rec: &'ctx crate::id::TaggedRecord<'ctx>) -> Self::Output {
         for field in &rec.fields {
-            self.constraints.push(Constraint::IdToTy {
+            self.constraints.push(ConstraintInner::IdToTy {
                 id: field.name.id.into(),
                 ty: field.ty.clone(),
             })
@@ -115,20 +127,20 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     }
 
     fn visit_for(&mut self, stmt: &'ctx crate::id::TaggedFor<'ctx>) -> Self::Output {
-        self.constraints.push(Constraint::IdToTy {
+        self.constraints.push(ConstraintInner::IdToTy {
             id: stmt.var.id.into(),
             ty: Ty::Int,
         });
-        self.constraints.push(Constraint::IdToTy {
+        self.constraints.push(ConstraintInner::IdToTy {
             id: stmt.between.start.id.into(),
             ty: Ty::Int,
         });
-        self.constraints.push(Constraint::IdToTy {
+        self.constraints.push(ConstraintInner::IdToTy {
             id: stmt.between.stop.id.into(),
             ty: Ty::Int,
         });
         if let Some(ref step) = stmt.between.step {
-            self.constraints.push(Constraint::IdToTy {
+            self.constraints.push(ConstraintInner::IdToTy {
                 id: step.id.into(),
                 ty: Ty::Int,
             });
@@ -168,7 +180,7 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     }
 
     fn visit_while(&mut self, stmt: &'ctx crate::id::TaggedWhile<'ctx>) -> Self::Output {
-        self.constraints.push(Constraint::IdToTy {
+        self.constraints.push(ConstraintInner::IdToTy {
             id: stmt.condition.id.into(),
             ty: Ty::Bool,
         });
@@ -182,7 +194,7 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
 
     fn visit_ret(&mut self, ret: &'ctx crate::id::TaggedReturn<'ctx>) -> Self::Output {
         if let Some(func) = self.current_func {
-            self.constraints.push(Constraint::IdToId {
+            self.constraints.push(ConstraintInner::IdToId {
                 id: func.name.id.into(),
                 to: ret.expr.id.into(),
             });
@@ -220,18 +232,18 @@ fn collect_expr<'ctx>(
     definitions: &[&'ctx TaggedFunc<'ctx>],
     record_definitions: &[&'ctx TaggedRecord<'ctx>],
     ty: Option<Ty<'ctx>>,
-) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
+) -> Result<Vec<ConstraintInner<'ctx>>, ConstraintGatheringError> {
     let mut constraints = vec![];
 
     if let Some(ty) = ty {
-        constraints.push(Constraint::IdToTy {
+        constraints.push(ConstraintInner::IdToTy {
             id: expr.id.into(),
             ty,
         });
     }
 
     match &expr.token {
-        TaggedExprInner::Ident(ident) => constraints.push(Constraint::IdToId {
+        TaggedExprInner::Ident(ident) => constraints.push(ConstraintInner::IdToId {
             id: ident.id.into(),
             to: expr.id.into(),
         }),
@@ -241,18 +253,18 @@ fn collect_expr<'ctx>(
                 Literal::Number(_) => Ty::Int,
                 Literal::Bool(_) => Ty::Bool,
             };
-            constraints.push(Constraint::IdToTy {
+            constraints.push(ConstraintInner::IdToTy {
                 id: expr.id.into(),
                 ty,
             });
         }
         TaggedExprInner::BinOp(op, left, right) => match (op.token, left, right) {
             (BinOp::Add | BinOp::Divide | BinOp::Multiply | BinOp::Subtract, left, right) => {
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: left.id.into(),
                     to: right.id.into(),
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: left.id.into(),
                     to: expr.id.into(),
                 });
@@ -261,15 +273,15 @@ fn collect_expr<'ctx>(
             }
             (BinOp::Dot, _left, right) => match right.token {
                 TaggedExprInner::Ident(ref ident) => {
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: ident.id.into(),
                         to: right.id.into(),
                     });
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: ident.id.into(),
                         to: expr.id.into(),
                     });
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: right.id.into(),
                         to: expr.id.into(),
                     });
@@ -279,11 +291,11 @@ fn collect_expr<'ctx>(
             },
             // todo: add necessary additional type constraints
             (BinOp::IsEqual, left, right) => {
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: left.id.into(),
                     to: right.id.into(),
                 });
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: expr.id.into(),
                     ty: Ty::Bool,
                 });
@@ -292,23 +304,23 @@ fn collect_expr<'ctx>(
             }
             (BinOp::SetEquals, left, right) => match left.token {
                 TaggedExprInner::Ident(ref ident) => {
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: ident.id.into(),
                         to: right.id.into(),
                     });
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: left.id.into(),
                         to: right.id.into(),
                     });
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: ident.id.into(),
                         to: left.id.into(),
                     });
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: expr.id.into(),
                         to: left.id.into(),
                     });
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: expr.id.into(),
                         to: right.id.into(),
                     });
@@ -316,11 +328,11 @@ fn collect_expr<'ctx>(
                     constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
                 }
                 TaggedExprInner::UnOp(op, ref pointer) if op.token.is_deref() => {
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: expr.id.into(),
                         to: pointer.id.into(),
                     });
-                    constraints.push(Constraint::IdToTy {
+                    constraints.push(ConstraintInner::IdToTy {
                         id: pointer.id.into(),
                         ty: Ty::Pointer,
                     });
@@ -342,16 +354,16 @@ fn collect_expr<'ctx>(
             },
             // todo: sort this out (memory safety)
             (BinOp::Index, left, right) => {
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: expr.id.into(),
                     ty: Ty::Pointer,
                 });
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: left.id.into(),
                     ty: Ty::Pointer,
                 });
                 constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: right.id.into(),
                     ty: Ty::Int,
                 });
@@ -359,11 +371,11 @@ fn collect_expr<'ctx>(
             }
         },
         TaggedExprInner::UnOp(op, arg) => match op.token {
-            UnOp::Positive | UnOp::Negative => constraints.push(Constraint::IdToTy {
+            UnOp::Positive | UnOp::Negative => constraints.push(ConstraintInner::IdToTy {
                 id: arg.id.into(),
                 ty: Ty::Int,
             }),
-            UnOp::Deref => constraints.push(Constraint::IdToTy {
+            UnOp::Deref => constraints.push(ConstraintInner::IdToTy {
                 id: arg.id.into(),
                 ty: Ty::Pointer,
             }),
@@ -374,7 +386,7 @@ fn collect_expr<'ctx>(
                 .find(|candidate| rec.name.token == candidate.name.token)
                 .unwrap();
 
-            constraints.push(Constraint::IdToTy {
+            constraints.push(ConstraintInner::IdToTy {
                 id: expr.id.into(),
                 ty: Ty::Record(
                     definition
@@ -389,15 +401,15 @@ fn collect_expr<'ctx>(
             for (struct_field, (constructor_name, constructor_expr)) in
                 definition.fields.iter().zip(rec.fields.iter())
             {
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: struct_field.name.id.into(),
                     to: constructor_name.id.into(),
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: struct_field.name.id.into(),
                     to: constructor_expr.id.into(),
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: constructor_name.id.into(),
                     to: constructor_expr.id.into(),
                 });
@@ -416,11 +428,11 @@ fn collect_expr<'ctx>(
                     });
                 }
                 let param = &params[0];
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: param.id.into(),
                     ty: Ty::Int,
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: expr.id.into(),
                     to: param.id.into(),
                 });
@@ -442,11 +454,11 @@ fn collect_expr<'ctx>(
                     });
                 }
                 let param = &params[0];
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: param.id.into(),
                     ty: Ty::String,
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: expr.id.into(),
                     to: param.id.into(),
                 });
@@ -469,15 +481,15 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: param.id.into(),
                     ty: Ty::Int,
                 });
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: func.id.into(),
                     ty: Ty::Pointer,
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: func.id.into(),
                     to: expr.id.into(),
                 });
@@ -493,11 +505,11 @@ fn collect_expr<'ctx>(
                     });
                 }
                 let param = &params[0];
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: param.id.into(),
                     ty: Ty::Pointer,
                 });
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: expr.id.into(),
                     to: param.id.into(),
                 });
@@ -514,7 +526,7 @@ fn collect_expr<'ctx>(
                     });
                 }
                 let pointer = &params[0];
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: pointer.id.into(),
                     ty: Ty::Pointer,
                 });
@@ -525,7 +537,7 @@ fn collect_expr<'ctx>(
                     Some(Ty::Pointer),
                 )?);
                 let new_size = &params[1];
-                constraints.push(Constraint::IdToTy {
+                constraints.push(ConstraintInner::IdToTy {
                     id: new_size.id.into(),
                     ty: Ty::Int,
                 });
@@ -551,13 +563,13 @@ fn collect_expr<'ctx>(
                     });
                 }
                 for (a, b) in function.parameters.iter().zip(params) {
-                    constraints.push(Constraint::IdToId {
+                    constraints.push(ConstraintInner::IdToId {
                         id: b.id.into(),
                         to: a.id.into(),
                     });
                     constraints.extend(collect_expr(b, definitions, record_definitions, None)?);
                 }
-                constraints.push(Constraint::IdToId {
+                constraints.push(ConstraintInner::IdToId {
                     id: func.id.into(),
                     to: expr.id.into(),
                 });
