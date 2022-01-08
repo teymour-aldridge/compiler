@@ -16,6 +16,7 @@ use crate::run;
 
 #[test]
 /// A basic test to check that at least some thing work.
+#[allow(deprecated)]
 fn smoke_test_1() {
     let (server, client) = Connection::memory();
 
