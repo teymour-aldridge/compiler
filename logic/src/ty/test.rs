@@ -3,9 +3,14 @@ use std::iter::FromIterator;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
+    diagnostics::span::{Span, Spanned},
     id::{tag, AtomicId},
     parse::expr::BinOp,
-    ty::{constraints::Constraint, type_check, unify, Ty, TyEnv},
+    ty::{
+        constraints::{Constraint, ConstraintInner},
+        track::{ConstraintId, TraceTable},
+        type_check, unify, Ty, TyEnv,
+    },
 };
 
 #[test]
@@ -122,25 +127,37 @@ fn test_record_type_check() {
 #[test]
 fn simple_unify_check() {
     let set = FxHashSet::from_iter(vec![
-        Constraint::IdToTy {
-            id: AtomicId::new(1).into(),
-            ty: Ty::Int,
-        },
-        Constraint::IdToId {
-            id: AtomicId::new(2).into(),
-            to: AtomicId::new(1).into(),
-        },
-        Constraint::IdToId {
-            id: AtomicId::new(3).into(),
-            to: AtomicId::new(1).into(),
-        },
-        Constraint::IdToTy {
-            id: AtomicId::new(3).into(),
-            ty: Ty::Int,
-        },
+        Constraint::new(
+            ConstraintId::new(0),
+            ConstraintInner::IdToTy {
+                id: Spanned::new(Span::null(), AtomicId::new(1).into()),
+                ty: Spanned::new(Span::null(), Ty::Int),
+            },
+        ),
+        Constraint::new(
+            ConstraintId::new(1),
+            ConstraintInner::IdToId {
+                id: Spanned::new(Span::null(), AtomicId::new(2).into()),
+                to: Spanned::new(Span::null(), AtomicId::new(1).into()),
+            },
+        ),
+        Constraint::new(
+            ConstraintId::new(2),
+            ConstraintInner::IdToId {
+                id: Spanned::new(Span::null(), AtomicId::new(3).into()),
+                to: Spanned::new(Span::null(), AtomicId::new(1).into()),
+            },
+        ),
+        Constraint::new(
+            ConstraintId::new(3),
+            ConstraintInner::IdToTy {
+                id: Spanned::new(Span::null(), AtomicId::new(3).into()),
+                ty: Spanned::new(Span::null(), Ty::Int),
+            },
+        ),
     ]);
 
-    let env = unify(set, TyEnv::new()).unwrap();
+    let env = unify(set, TyEnv::new(), &mut TraceTable::default()).unwrap();
 
     assert_eq!(env.ty_of(AtomicId::new(1).into()).unwrap(), Ty::Int);
     assert_eq!(env.ty_of(AtomicId::new(2).into()).unwrap(), Ty::Int);

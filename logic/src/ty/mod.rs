@@ -4,20 +4,29 @@ use std::{fmt, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub mod error;
 #[cfg(all(test, feature = "fuzzcheck"))]
 mod fuzz;
 #[cfg(test)]
 mod fuzz2;
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod ui;
+
+pub mod error;
+mod track;
 
 use crate::{
+    diagnostics::span::Spanned,
     id::{TaggedAst, UniversalId},
     ty::constraints::collect,
 };
 
-use self::{constraints::Constraint, error::TyCheckError};
+use self::{
+    constraints::{Constraint, ConstraintInner},
+    error::TyCheckError,
+    track::{ConstraintPosition, ErrorReporter, TraceTable, UnificationOperation},
+};
 
 mod constraints;
 
@@ -75,16 +84,20 @@ impl fmt::Display for Ty<'_> {
 
 pub fn type_check<'ctx>(ast: &'ctx TaggedAst<'ctx>) -> Result<TyEnv<'ctx>, TyCheckError> {
     let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
-    unify(constraints, TyEnv::new())
+
+    let mut trace_table = TraceTable::default();
+
+    unify(constraints, TyEnv::new(), &mut trace_table)
+        .map_err(|errored_on| TyCheckError::Reportable(ErrorReporter::new(trace_table, errored_on)))
 }
 
 #[derive(Clone, Debug, Hash)]
 /// A substitution to be made as part of type inference.
-enum Substitution<'ctx> {
+enum SubstitutionInner<'ctx> {
     /// Substitute the first id `X`, for the second id `Y`.
-    XforY(UniversalId<'ctx>, UniversalId<'ctx>),
+    XforY(Spanned<UniversalId<'ctx>>, Spanned<UniversalId<'ctx>>),
     /// Substitute a concrete type for the given id.
-    ConcreteForX(Ty<'ctx>, UniversalId<'ctx>),
+    ConcreteForX(Spanned<Ty<'ctx>>, Spanned<UniversalId<'ctx>>),
 }
 
 #[derive(Hash, Clone, Debug)]
@@ -137,31 +150,34 @@ impl<'ctx> TyEnv<'ctx> {
         }
     }
 
-    fn feed_substitution(&mut self, u: Substitution<'ctx>) {
+    fn feed_substitution(&mut self, u: SubstitutionInner<'ctx>) {
         match u {
             // we remove y from the system by equating it to x
-            Substitution::XforY(x, y) => self.map.insert(
-                y,
+            SubstitutionInner::XforY(x, y) => self.map.insert(
+                *y,
                 Info {
-                    ty: TyInfo::EqId(x),
+                    ty: TyInfo::EqId(*x),
                 },
             ),
             // we remove x from the system by equating it to ty
-            Substitution::ConcreteForX(ty, x) => self.map.insert(
-                x,
+            SubstitutionInner::ConcreteForX(ty, x) => self.map.insert(
+                *x,
                 Info {
-                    ty: TyInfo::EqTy(ty),
+                    ty: TyInfo::EqTy((*ty).clone()),
                 },
             ),
         };
     }
 }
 
-/// Unify a set of constraints (i.e. solve them, if that is possible)
+/// Unify a set of constraints (i.e. solve them, if that is possible).
+///
+/// note: for details on error reporting, please see [track].
 fn unify<'ctx>(
     set: FxHashSet<Constraint<'ctx>>,
     mut solved: TyEnv<'ctx>,
-) -> Result<TyEnv<'ctx>, TyCheckError> {
+    trace_table: &mut TraceTable<'ctx>,
+) -> Result<TyEnv<'ctx>, Constraint<'ctx>> {
     if set.is_empty() {
         return Ok(solved);
     }
@@ -174,18 +190,23 @@ fn unify<'ctx>(
         return Ok(solved);
     };
 
-    let u = match next {
-        Constraint::IdToTy { id, ty } => Some(Substitution::ConcreteForX(ty, id)),
-        Constraint::IdToId { id, to } => {
+    let u = match next.inner {
+        ConstraintInner::IdToTy { id, ty } => Some(SubstitutionInner::ConcreteForX(ty, id)),
+        ConstraintInner::IdToId { id, to } => {
             if id != to {
-                Some(Substitution::XforY(to, id))
+                Some(SubstitutionInner::XforY(to, id))
             } else {
                 None
             }
         }
-        Constraint::TyToTy { ty, to } => {
+        ConstraintInner::TyToTy { ref ty, ref to } => {
+            // here we need to work backwards, and work out where this constraint came from!
+            // maybe we need a way of "undoing" the algorithm?
+            // –> each constraint should have a "trace" which lists how we got here
+            // -> if there is an error, we can use this to produce useful diagnostic information
+            // we may need to produce quite complex systems
             if ty != to {
-                return Err(TyCheckError::TypeMismatch);
+                return Err(next.clone());
             } else {
                 None
             }
@@ -198,47 +219,129 @@ fn unify<'ctx>(
 
         // apply the newly generated substitution to the rest of the set
         let new_set: FxHashSet<Constraint> = iter
-            .map(|constraint| match (u.clone(), constraint) {
+            .map(|constraint| match (u.clone(), constraint.inner.clone()) {
                 // wherever we see y, replace with x
-                (Substitution::XforY(x, y), Constraint::IdToTy { id, ty }) => Constraint::IdToTy {
-                    id: if id == y { x } else { id },
-                    ty,
-                },
+                (SubstitutionInner::XforY(x, y), ConstraintInner::IdToTy { id, ty }) => {
+                    Constraint::new(
+                        constraint.id,
+                        ConstraintInner::IdToTy {
+                            id: if id == y {
+                                trace_table.log_operation(
+                                    constraint.id,
+                                    UnificationOperation::Swap {
+                                        preexisting: y,
+                                        new: x,
+                                        pos: ConstraintPosition::One,
+                                    },
+                                );
+                                x
+                            } else {
+                                id
+                            },
+                            ty,
+                        },
+                    )
+                }
                 // wherever we see y, replace with x
-                (Substitution::XforY(x, y), Constraint::IdToId { id, to }) => Constraint::IdToId {
-                    id: if id == y { x } else { id },
-                    to: if to == y { x } else { to },
-                },
-                (Substitution::ConcreteForX(sub_with, x), Constraint::IdToTy { id, ty }) => {
+                (SubstitutionInner::XforY(x, y), ConstraintInner::IdToId { id, to }) => {
+                    Constraint::new(
+                        constraint.id,
+                        ConstraintInner::IdToId {
+                            id: if id == y {
+                                trace_table.log_operation(
+                                    constraint.id,
+                                    UnificationOperation::Swap {
+                                        preexisting: y,
+                                        new: x,
+                                        pos: ConstraintPosition::One,
+                                    },
+                                );
+                                x
+                            } else {
+                                id
+                            },
+                            to: if to == y {
+                                trace_table.log_operation(
+                                    constraint.id,
+                                    UnificationOperation::Swap {
+                                        preexisting: y,
+                                        new: x,
+                                        pos: ConstraintPosition::Two,
+                                    },
+                                );
+                                x
+                            } else {
+                                to
+                            },
+                        },
+                    )
+                }
+                (
+                    SubstitutionInner::ConcreteForX(sub_with, x),
+                    ConstraintInner::IdToTy { id, ty },
+                ) => {
                     if id == x {
-                        Constraint::TyToTy {
-                            ty: sub_with,
-                            to: ty,
-                        }
+                        trace_table.log_operation(
+                            constraint.id,
+                            UnificationOperation::Concretise {
+                                preexisting: id,
+                                with: sub_with.clone(),
+                                pos: ConstraintPosition::One,
+                            },
+                        );
+                        Constraint::new(
+                            constraint.id,
+                            ConstraintInner::TyToTy {
+                                ty: sub_with,
+                                to: ty,
+                            },
+                        )
                     } else {
-                        Constraint::IdToTy { id, ty }
+                        Constraint::new(constraint.id, ConstraintInner::IdToTy { id, ty })
                     }
                 }
-                (Substitution::ConcreteForX(sub_with, x), Constraint::IdToId { id, to }) => {
+                (
+                    SubstitutionInner::ConcreteForX(sub_with, x),
+                    ConstraintInner::IdToId { id, to },
+                ) => {
                     if id == x {
-                        Constraint::IdToTy {
-                            id: to,
-                            ty: sub_with,
-                        }
+                        trace_table.log_operation(
+                            constraint.id,
+                            UnificationOperation::Concretise {
+                                preexisting: id,
+                                with: sub_with.clone(),
+                                pos: ConstraintPosition::One,
+                            },
+                        );
+                        Constraint::new(
+                            constraint.id,
+                            ConstraintInner::IdToTy {
+                                id: to,
+                                ty: sub_with,
+                            },
+                        )
                     } else if to == x {
-                        Constraint::IdToTy { id, ty: sub_with }
+                        trace_table.log_operation(
+                            constraint.id,
+                            UnificationOperation::Concretise {
+                                preexisting: to,
+                                with: sub_with.clone(),
+                                pos: ConstraintPosition::One,
+                            },
+                        );
+                        Constraint::new(constraint.id, ConstraintInner::IdToTy { id, ty: sub_with })
                     } else {
-                        Constraint::IdToId { id, to }
+                        Constraint::new(constraint.id, ConstraintInner::IdToId { id, to })
                     }
                 }
                 // these substitutions cannot be applied to the constraint set
-                (Substitution::XforY(_, _), constraint)
-                | (Substitution::ConcreteForX(_, _), constraint) => constraint,
+                (SubstitutionInner::XforY(_, _), _)
+                | (SubstitutionInner::ConcreteForX(_, _), _) => constraint.clone(),
             })
             .collect();
 
-        unify(new_set, solved)
+        unify(new_set, solved, trace_table)
     } else {
-        unify(iter.collect(), solved)
+        unify(iter.collect(), solved, trace_table)
     }
 }
