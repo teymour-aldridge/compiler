@@ -650,7 +650,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pseudocompiler-lsp"
+name = "pseudo-lsp"
 version = "0.1.0"
 dependencies = [
  "codespan-lsp",
