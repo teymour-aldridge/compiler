@@ -2,6 +2,7 @@
 //!
 //! todo: publish this as a VSCode extension (ideally with weekly builds)
 
+#![deny(clippy::disallowed_types)]
 #![cfg_attr(test, feature(thread_id_value))]
 
 pub(crate) mod cast;
