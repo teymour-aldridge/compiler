@@ -659,6 +659,7 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "ropey",
+ "rustc-hash",
  "serde",
  "serde_json",
 ]

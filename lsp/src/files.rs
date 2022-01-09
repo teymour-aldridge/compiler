@@ -3,11 +3,8 @@
 //! todo: implement a custom rope for fun
 //! todo: handle errors properly
 
-use std::collections::HashMap;
-
 use codespan_lsp::{byte_span_to_range, position_to_byte_index};
 use codespan_reporting::{diagnostic::LabelStyle, files::Files};
-
 use lsp_server::{Connection, Message};
 use lsp_types::{
     notification::{DidChangeTextDocument, DidOpenTextDocument, Notification, PublishDiagnostics},
@@ -15,13 +12,14 @@ use lsp_types::{
     TextDocumentContentChangeEvent,
 };
 use ropey::Rope;
+use rustc_hash::FxHashMap;
 use serde_json::to_value;
 
 use crate::cast::cast_not;
 
 #[derive(Default)]
 pub(crate) struct FileContainer {
-    inner: HashMap<lsp_types::Url, SingleFile>,
+    inner: FxHashMap<lsp_types::Url, SingleFile>,
 }
 
 impl<'a> Files<'a> for FileContainer {

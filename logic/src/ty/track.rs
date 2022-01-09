@@ -104,7 +104,7 @@ impl<'ctx> TraceTable<'ctx> {
             .and_modify(|data| {
                 data.operations.push(operation.clone());
             })
-            .or_insert(TraceData::new(vec![operation]));
+            .or_insert_with(|| TraceData::new(vec![operation]));
     }
 }
 
