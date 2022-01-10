@@ -110,6 +110,15 @@ impl<T> Spanned<T> {
     pub fn new(span: Span, token: T) -> Self {
         Self { span, token }
     }
+
+    /// Applies the given function to the token, returning an item with the same span, but
+    /// transformed underlying token.
+    pub fn map<U>(self, mapping: impl Fn(T) -> U) -> Spanned<U> {
+        Spanned {
+            span: self.span,
+            token: (mapping)(self.token),
+        }
+    }
 }
 
 impl<T> std::ops::Deref for Spanned<T> {
