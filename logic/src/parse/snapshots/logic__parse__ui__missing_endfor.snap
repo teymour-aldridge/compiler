@@ -1,6 +1,7 @@
 ---
 source: logic/src/parse/ui.rs
-expression: string
+assertion_line: 64
+expression: "ui_test(include_str!(\"ui-examples/missing-next\").to_string())"
 
 ---
 error: Your program contains a syntax error!

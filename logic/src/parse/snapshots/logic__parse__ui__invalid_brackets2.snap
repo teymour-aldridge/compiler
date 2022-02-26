@@ -1,6 +1,7 @@
 ---
 source: logic/src/parse/ui.rs
-expression: string
+assertion_line: 45
+expression: "ui_test(\"f(x + a * z (( zz\".to_string())"
 
 ---
 error: Mismatching brackets!

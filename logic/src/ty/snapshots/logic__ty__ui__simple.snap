@@ -1,6 +1,7 @@
 ---
 source: logic/src/ty/ui.rs
-expression: string
+assertion_line: 33
+expression: "ui_test(include_str!(\"examples/failing\").to_string())"
 
 ---
 error: Your program contains a type error!

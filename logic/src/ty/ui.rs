@@ -11,7 +11,7 @@ fn setup_file(file: String) -> (usize, SimpleFiles<String, String>) {
     (id, files)
 }
 
-fn ui_test(string: String) {
+fn ui_test(string: String) -> String {
     let tree = parse(&string).unwrap();
     let tagged = tag(tree);
     let err = type_check(&tagged).unwrap_err();
@@ -25,12 +25,10 @@ fn ui_test(string: String) {
     term::emit(&mut writer, &config, &files, &report).unwrap();
 
     let vec = writer.into_inner();
-    let string = String::from_utf8(vec).unwrap();
-
-    insta::assert_snapshot!(string);
+    String::from_utf8(vec).unwrap()
 }
 
 #[test]
 fn test_simple() {
-    ui_test(include_str!("examples/failing").to_string());
+    insta::assert_snapshot!(ui_test(include_str!("examples/failing").to_string()));
 }
