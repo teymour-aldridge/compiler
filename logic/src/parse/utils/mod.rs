@@ -17,8 +17,10 @@ pub trait Parse<'a>: Sized {
     fn parse(input: &mut Input<'a>) -> Result<Self, ParseError>;
 }
 
-// todo: convert this into a `Diagnostic` (also create that struct as well)
 #[derive(Debug)]
+/// An error encountered while parsing.
+///
+/// This can be converted into a [codespan_reporting::diagnostic::Diagnostic] for error reporting.
 pub enum ParseError {
     MismatchedBrackets {
         opening_span: IndexOnlySpan,
@@ -189,7 +191,6 @@ impl<'a> Input<'a> {
     }
 
     /// Peek `n` characters.
-    // todo: fix unicode handling here
     pub fn peek_n(&self, n: usize) -> Option<&'a str> {
         self.inner
             .char_indices()
