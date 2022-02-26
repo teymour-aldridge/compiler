@@ -41,6 +41,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "bit-vec"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
+
+[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -300,12 +306,12 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck"
-version = "0.10.1"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8628743751e5307d2309c7226e907120f6b99852afb1904c367693572e587e9a"
+checksum = "3094ec592f9bfec223e7d8709f1191971967588049889f09700a628baf132be9"
 dependencies = [
  "ahash",
- "bitflags",
+ "bit-vec",
  "cc",
  "cfg-if",
  "fastrand",
@@ -324,18 +330,18 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck_common"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f07c2f769fee7e6db99659f88af36646b7145e9533c396d2327e0ae2b3aafaf"
+checksum = "fe4b083f892c778a71c1264eda4cd725c24607925823e687f020ad2395b0ec8b"
 dependencies = [
  "getopts",
 ]
 
 [[package]]
 name = "fuzzcheck_mutators_derive"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a561c80a6f2c3430798f71c1c939df2a7930c27d80caa34dfaef172d60b6ff5"
+checksum = "055594904339c8c40fce3167141f3f206be8f2bd2bf7b27ba675801c662d6846"
 dependencies = [
  "decent-synquote-alternative",
  "proc-macro2",

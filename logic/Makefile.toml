@@ -13,17 +13,34 @@ args = ["fuzzcheck", "parse::fuzz::fuzz_parser", "--stop-after-duration", "300"]
 [tasks.fuzz_parser]
 command = "cargo"
 toolchain = "nightly"
-args = ["fuzzcheck", "parse::fuzz::fuzz_parser"]
+args = [
+    "fuzzcheck",
+    "parse::fuzz::fuzz_parser",
+    "--cargo-args",
+    "--features fuzzcheck",
+]
 
 [tasks.fuzz_unifier_ci]
 command = "cargo"
 toolchain = "nightly"
-args = ["fuzzcheck", "ty::fuzz::fuzz_unifier", "--stop-after-duration", "300"]
+args = [
+    "fuzzcheck",
+    "ty::fuzz::fuzz_unifier",
+    "--stop-after-duration",
+    "300",
+    "--cargo-args",
+    "--features fuzzcheck",
+]
 
 [tasks.fuzz_unifier]
 command = "cargo"
 toolchain = "nightly"
-args = ["fuzzcheck", "ty::fuzz::fuzz_unifier"]
+args = [
+    "fuzzcheck",
+    "ty::fuzz::fuzz_unifier",
+    "--cargo-args",
+    "--features fuzzcheck",
+]
 
 [tasks.fuzz_ty_checker_ci]
 command = "cargo"
@@ -33,13 +50,19 @@ args = [
     "ty::fuzz2::test_type_checker",
     "--stop-after-duration",
     "300",
+    "--cargo-args",
+    "--features fuzzcheck",
 ]
 
 [tasks.fuzz_ty_checker]
 command = "cargo"
 toolchain = "nightly"
-args = ["fuzzcheck", "ty::fuzz2::test_type_checker"]
-
+args = [
+    "fuzzcheck",
+    "ty::fuzz2::test_type_checker",
+    "--cargo-args",
+    "--features fuzzcheck",
+]
 
 [tasks.tests]
 command = "cargo"
