@@ -7,7 +7,6 @@
 use std::{convert::TryInto, env};
 
 use cranelift_codegen::{
-    binemit::{NullStackMapSink, NullTrapSink},
     entity::EntityRef,
     ir::{self, condcodes::IntCC, AbiParam, InstBuilder},
     Context,
@@ -142,12 +141,7 @@ impl<'ctx> Compiler<'ctx> {
             }
 
             self.module
-                .define_function(
-                    func_id,
-                    &mut self.context,
-                    &mut NullTrapSink {},
-                    &mut NullStackMapSink {},
-                )
+                .define_function(func_id, &mut self.context)
                 .unwrap();
 
             self.module.clear_context(&mut self.context);

@@ -1,6 +1,7 @@
 ---
 source: logic/src/parse/ui.rs
-expression: string
+assertion_line: 50
+expression: "ui_test(\"(((((((()\".to_string())"
 
 ---
 error: Mismatching brackets!

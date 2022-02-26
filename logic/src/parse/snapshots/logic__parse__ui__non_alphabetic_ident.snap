@@ -1,6 +1,7 @@
 ---
 source: logic/src/parse/ui.rs
-expression: string
+assertion_line: 58
+expression: "ui_test(\"0x = 15\".to_string())"
 
 ---
 error: Your program contains a syntax error!
