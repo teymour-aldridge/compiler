@@ -226,15 +226,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "decent-synquote-alternative"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb1c933ca5ca726b7d4a5e1f60af8af3901642611fcfa927e80517d386f2fd9"
-dependencies = [
- "proc-macro2",
-]
-
-[[package]]
 name = "dtoa"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -306,9 +297,9 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3094ec592f9bfec223e7d8709f1191971967588049889f09700a628baf132be9"
+checksum = "9897db452803afda6b7cc081eba1ddeeef6c4e7569ad4d886569213a664b8a12"
 dependencies = [
  "ahash",
  "bit-vec",
@@ -330,21 +321,22 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck_common"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe4b083f892c778a71c1264eda4cd725c24607925823e687f020ad2395b0ec8b"
+checksum = "dde06f8d25b14a35d43eb2d3dbace3b9193424460b10ad4ccf1b3d542d48f06f"
 dependencies = [
  "getopts",
 ]
 
 [[package]]
 name = "fuzzcheck_mutators_derive"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "055594904339c8c40fce3167141f3f206be8f2bd2bf7b27ba675801c662d6846"
+checksum = "30ce01e8bbb3e7e0758dcf907fe799f5998a54368963f766ae94b84624ba60c8"
 dependencies = [
- "decent-synquote-alternative",
  "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -639,9 +631,9 @@ checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.28"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c7ed8b8c7b886ea3ed7dde405212185f423ab44682667c8c6dd14aa1d9f6612"
+checksum = "ec757218438d5fda206afc041538b2f6d889286160d649a86a24d37e1235afd1"
 dependencies = [
  "unicode-xid",
 ]
@@ -671,9 +663,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.9"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d0b9745dc2debf507c8422de05d7226cc1f0644216dfdfead988f9b1ab32a7"
+checksum = "a1feb54ed693b93a84e14094943b84b7c4eae204c512b7ccb95ab0c66d278ad1"
 dependencies = [
  "proc-macro2",
 ]
@@ -881,9 +873,9 @@ checksum = "1ecab6c735a6bb4139c0caafd0cc3635748bbb3acf4550e8138122099251f309"
 
 [[package]]
 name = "syn"
-version = "1.0.74"
+version = "1.0.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1873d832550d4588c3dbc20f01361ab00bfe741048f71e3fecf145a7cc18b29c"
+checksum = "b683b2b825c8eef438b77c36a06dc262294da3d5a5813fac20da149241dcd44d"
 dependencies = [
  "proc-macro2",
  "quote",
