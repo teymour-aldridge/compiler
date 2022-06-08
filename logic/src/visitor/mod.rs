@@ -3,6 +3,8 @@ use crate::id::{
     TaggedRecord, TaggedReturn, TaggedWhile,
 };
 
+/// The <`Visitor`> trait makes it possible to traverse the AST and output
+/// information.
 pub trait Visitor<'ctx> {
     type Output;
 
@@ -27,6 +29,7 @@ pub trait Visitor<'ctx> {
     }
 
     fn visit_rec(&mut self, rec: &'ctx TaggedRecord<'ctx>) -> Self::Output;
+
     fn visit_expr(&mut self, expr: &'ctx TaggedExpr<'ctx>) -> Self::Output;
 
     fn visit_for(&mut self, stmt: &'ctx TaggedFor<'ctx>) -> Self::Output;
