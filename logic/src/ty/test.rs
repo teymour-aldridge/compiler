@@ -190,3 +190,18 @@ fn iterative_factorial_type_check() {
     assert_eq!(op.token, BinOp::SetEquals);
     assert_eq!(env.ty_of(res.id.into()), Some(Ty::Int));
 }
+
+#[test]
+fn fib_type_check() {
+    let tree = crate::parse::parse(include_str!("examples/fib")).unwrap();
+    let tagged = tag(tree);
+
+    let env = type_check(&tagged).expect("failed to type check fibonacci");
+
+    let func = tagged.nodes.get(1).unwrap().as_func().unwrap();
+    assert_eq!(env.ty_of(func.name.id.into()), Some(Ty::Int));
+    assert_eq!(
+        env.ty_of(func.parameters.get(0).unwrap().id.into()),
+        Some(Ty::Int)
+    );
+}
