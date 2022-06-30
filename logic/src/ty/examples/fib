@@ -1,0 +1,15 @@
+function main()
+  return fib(3)
+endfunction
+
+function fib(n)
+  if n == 1 then
+    return 1
+  endif
+
+  if n == 2 then
+    return 1
+  endif
+
+  return fib(n-1) + fib (n-2)
+endfunction
