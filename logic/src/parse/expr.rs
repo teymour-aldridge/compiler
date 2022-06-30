@@ -16,6 +16,10 @@ use super::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
+/// An expression which the compiler parses.
+///
+/// Expressions can be either an atomic expression (i.e. not defined in terms of any other
+/// expressions) or recursively (in the case of binary operators or unary operators).
 pub enum Expr<'a, IDENT = Ident<'a>>
 where
     IDENT: cmp::PartialEq + hash::Hash + cmp::Eq,
@@ -167,6 +171,9 @@ impl fmt::Display for Expr<'_> {
     }
 }
 
+/// This parser follows the strategy suggested in
+/// [this blog post](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html)
+/// fairly closely.
 impl<'a> Expr<'a> {
     pub(crate) fn parse_bp(input: &mut Input<'a>, min_bp: u8) -> Result<Option<Self>, ParseError> {
         Self::parse_bp_stop_if(input, min_bp, |_| false)

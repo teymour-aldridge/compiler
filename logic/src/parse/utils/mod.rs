@@ -106,6 +106,8 @@ impl ParseError {
 }
 
 #[derive(Copy, Clone, Debug)]
+/// A wrapper over the input stream (which is a string). This type returns only references to the
+/// underlying string rather than copying the bytes of the string.
 pub struct Input<'a> {
     inner: &'a str,
     pub(crate) indent: usize,
@@ -121,6 +123,7 @@ impl<'a> std::ops::Deref for Input<'a> {
 }
 
 impl<'a> Input<'a> {
+    /// Creates a new input.
     pub fn new(inner: &'a str) -> Self {
         Self {
             inner,
@@ -157,6 +160,7 @@ impl<'a> Input<'a> {
         ret
     }
 
+    /// Parses a list of items separated by a string.
     pub fn delimited_list<P: Fn(&mut Input<'a>) -> Result<T, ParseError>, T>(
         &mut self,
         function: P,
@@ -232,6 +236,7 @@ impl<'a> Input<'a> {
         }
     }
 
+    /// Returns the nth character in the stream.
     pub fn peek_nth(&self, n: usize) -> Option<char> {
         self.inner.chars().nth(n)
     }
@@ -291,6 +296,9 @@ impl<'a> Input<'a> {
         self.eat_until_inner(stop_when, false)
     }
 
+    /// Returns the current position (the information of which is encoded inside an
+    /// [`IncompleteSpan`]) of the [`Input`]. This can then later be combined with a subsequent
+    /// position of the [`Input`] to form a [`Span`].
     pub fn start_recording(&self) -> IncompleteSpan {
         IncompleteSpan {
             start: self.position,
@@ -306,6 +314,7 @@ impl<'a> Input<'a> {
         &self.position
     }
 
+    /// Advances the input cursor past all the whitespace tokens in the input.
     pub fn skip_whitespace(&mut self) -> Result<(), ParseError> {
         self.eat_until_or_end(|input| !input.is_whitespace() || input == '\n')
             .map(drop)
