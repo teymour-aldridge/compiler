@@ -53,6 +53,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
 name = "cc"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -108,7 +114,16 @@ version = "0.81.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0eba0f73ab0da95f5d3bd5161da14edc586a88aeae1d09e4a0924f7a141a0093"
 dependencies = [
- "cranelift-entity",
+ "cranelift-entity 0.81.2",
+]
+
+[[package]]
+name = "cranelift-bforest"
+version = "0.85.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "749d0d6022c9038dccf480bdde2a38d435937335bf2bb0f14e815d94517cdce8"
+dependencies = [
+ "cranelift-entity 0.85.3",
 ]
 
 [[package]]
@@ -117,13 +132,30 @@ version = "0.81.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9cff8758662518d743460f32c3ca6f32d726070af612c19ba92d01ea727e6d9"
 dependencies = [
- "cranelift-bforest",
- "cranelift-codegen-meta",
- "cranelift-codegen-shared",
- "cranelift-entity",
- "gimli",
+ "cranelift-bforest 0.81.2",
+ "cranelift-codegen-meta 0.81.2",
+ "cranelift-codegen-shared 0.81.2",
+ "cranelift-entity 0.81.2",
  "log",
  "regalloc",
+ "smallvec",
+ "target-lexicon",
+]
+
+[[package]]
+name = "cranelift-codegen"
+version = "0.85.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f590356d83445a096a489c050c4a4155edf9d019b2c79f1e47a0de76d9cd89d"
+dependencies = [
+ "cranelift-bforest 0.85.3",
+ "cranelift-codegen-meta 0.85.3",
+ "cranelift-codegen-shared 0.85.3",
+ "cranelift-entity 0.85.3",
+ "cranelift-isle",
+ "gimli",
+ "log",
+ "regalloc2",
  "smallvec",
  "target-lexicon",
 ]
@@ -134,7 +166,16 @@ version = "0.81.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfc82fef9d470dd617c4d2537d8f4146d82526bb3bc3ef35b599a3978dad8c81"
 dependencies = [
- "cranelift-codegen-shared",
+ "cranelift-codegen-shared 0.81.2",
+]
+
+[[package]]
+name = "cranelift-codegen-meta"
+version = "0.85.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0a3cea8fdab90e44018c5b9a1dfd460d8ee265ac354337150222a354628bdb6"
+dependencies = [
+ "cranelift-codegen-shared 0.85.3",
 ]
 
 [[package]]
@@ -144,10 +185,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a06f531b6173eb2fd92d9a9b2a0dbb2450079f913040bdc323ec43ec752b7e44"
 
 [[package]]
+name = "cranelift-codegen-shared"
+version = "0.85.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ac72f76f2698598951ab26d8c96eaa854810e693e7dd52523958b5909fde6b2"
+
+[[package]]
 name = "cranelift-entity"
 version = "0.81.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d84f8e8a408071d67f479a00c6d3da965b1f9b4b240b7e7e27edb1a34401b3cd"
+
+[[package]]
+name = "cranelift-entity"
+version = "0.85.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09eaeacfcd2356fe0e66b295e8f9d59fdd1ac3ace53ba50de14d628ec902f72d"
 
 [[package]]
 name = "cranelift-frontend"
@@ -155,11 +208,17 @@ version = "0.81.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72cc22592c10f1fa6664a55e34ec52593125a94176856d3ec2f7af5664374da1"
 dependencies = [
- "cranelift-codegen",
+ "cranelift-codegen 0.81.2",
  "log",
  "smallvec",
  "target-lexicon",
 ]
+
+[[package]]
+name = "cranelift-isle"
+version = "0.85.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83d82e705e67465cd75d22d0d8174d0ea748da05ea62a167cf18c60387fa286e"
 
 [[package]]
 name = "cranelift-module"
@@ -168,7 +227,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72578df48cdd016e8d6e37e6cb35ddaea3b62caa6a22b99d5ff1ef2fe605497b"
 dependencies = [
  "anyhow",
- "cranelift-codegen",
+ "cranelift-codegen 0.81.2",
 ]
 
 [[package]]
@@ -177,7 +236,7 @@ version = "0.81.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3da723ebbee69f348feb49acc9f6f5b7ad668c04a145abbc7a75b669f9b0afd"
 dependencies = [
- "cranelift-codegen",
+ "cranelift-codegen 0.81.2",
  "libc",
  "target-lexicon",
 ]
@@ -189,7 +248,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "816e6776e419d5163401cc6867148191d8e7bd7bf8562c3a725d2a0a9b2a66a3"
 dependencies = [
  "anyhow",
- "cranelift-codegen",
+ "cranelift-codegen 0.81.2",
  "cranelift-module",
  "log",
  "object",
@@ -337,6 +396,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "fxhash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]
@@ -493,7 +561,7 @@ version = "0.1.0"
 dependencies = [
  "codegen",
  "codespan-reporting",
- "cranelift-codegen",
+ "cranelift-codegen 0.85.2",
  "cranelift-frontend",
  "cranelift-module",
  "cranelift-native",
@@ -731,6 +799,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "regalloc2"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a8d23b35d7177df3b9d31ed8a9ab4bf625c668be77a319d4f5efd4a5257701c"
+dependencies = [
+ "fxhash",
+ "log",
+ "slice-group-by",
+ "smallvec",
+]
+
+[[package]]
 name = "regex"
 version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -864,6 +944,12 @@ name = "similar"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e24979f63a11545f5f2c60141afe249d4f19f84581ea2138065e400941d83d3"
+
+[[package]]
+name = "slice-group-by"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03b634d87b960ab1a38c4fe143b508576f075e7c978bfad18217645ebfdfa2ec"
 
 [[package]]
 name = "smallvec"
