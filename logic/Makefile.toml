@@ -64,7 +64,7 @@ args = [
     "--features fuzzcheck",
 ]
 
-[tasks.tests]
+[tasks.test]
 command = "cargo"
 toolchain = "nightly"
 args = ["test"]

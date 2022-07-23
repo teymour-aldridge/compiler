@@ -1,4 +1,4 @@
-echo "RUNNING RUST TESTS"
-(cargo test --workspace --no-fail-fast)
-# echo "TESTING EXAMPLE PROGRAMS AGAINST ORACLE"
-# (./scripts/output.sh)
+cargo nextest run
+echo "------------------------------------------------------------------------"
+echo "TESTING COMPILED PROGRAMS"
+(cd tests/oracle && cargo run)
