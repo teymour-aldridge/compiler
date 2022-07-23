@@ -1,5 +1,5 @@
 function main()
-  print_int(factorial(n - 1))
+  print_int(factorial(13))
   return 0
 endfunction
 

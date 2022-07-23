@@ -9,17 +9,7 @@ use fuzzcheck::mutators::grammar::*;
 use super::parse;
 
 fn run_test(input: &str) -> bool {
-    if let Ok(ast) = parse(input) {
-        let out = ast.to_string();
-        let reconstructed_ast = if let Ok(ast) = parse(&out) {
-            ast
-        } else {
-            return false;
-        };
-        ast == reconstructed_ast
-    } else {
-        false
-    }
+    parse(input).is_ok()
 }
 
 #[test]

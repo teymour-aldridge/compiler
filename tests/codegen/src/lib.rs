@@ -1,6 +1,7 @@
 use proc_macro::{TokenStream, TokenTree};
 
 #[proc_macro]
+// todo: get rid of this
 pub fn regressions(input: TokenStream) -> TokenStream {
     let mut iter = input.into_iter();
     let func_ident = iter.next().expect("expected the token `function` to start");

@@ -2,7 +2,10 @@ use cranelift_codegen::ir::{self, InstBuilder};
 
 use cranelift_module::Module;
 
-use crate::{id::TaggedConstructor, ty::Ty};
+use crate::{
+    parse::{expr::Constructor, table::ParseTable},
+    ty::{PrimitiveType, Ty},
+};
 
 use super::compile::FunctionCompiler;
 
@@ -12,11 +15,8 @@ use super::compile::FunctionCompiler;
 pub(crate) fn type_size(ty: Ty) -> u32 {
     match ty {
         // integers are 32 bits (maybe)
-        Ty::Int => 32 / 8,
-        Ty::Bool => todo!(),
-        Ty::String => todo!(),
-        Ty::Record(_) => todo!(),
-        Ty::Pointer => todo!(),
+        Ty::PrimitiveType(PrimitiveType::Int) => 32 / 8,
+        _ => todo!(),
     }
 }
 
@@ -81,7 +81,11 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
     /// address to the pointer to (for example) `len` would simply be
     /// `stack_slot_pointer + size(start) + size(capacity)`.
     /// TODO: padding
-    pub(crate) fn compile_constructor(&mut self, con: &TaggedConstructor) -> ir::Value {
+    pub(crate) fn compile_constructor(
+        &mut self,
+        con: &Constructor,
+        table: &ParseTable,
+    ) -> ir::Value {
         let slot = self.builder.create_stack_slot(ir::StackSlotData::new(
             ir::StackSlotKind::ExplicitSlot,
             {
@@ -97,7 +101,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
 
         let mut offset = 0;
         for expr in con.fields.values() {
-            let expr_value = self.compile_expr(expr);
+            let expr_value = self.compile_expr(table.get_expr_with_id(*expr), table);
             self.builder.ins().stack_store(expr_value, slot, offset);
             offset += type_size(self.ty_env.ty_of(expr.id.into()).unwrap()) as i32;
         }

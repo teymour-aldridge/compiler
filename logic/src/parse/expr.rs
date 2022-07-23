@@ -1,39 +1,42 @@
 use std::{
-    cmp,
-    fmt::{self, Display, Write},
-    hash,
-    marker::PhantomData,
+    collections::BTreeMap,
+    fmt::{self, Display},
 };
 
-use rustc_hash::FxHashMap;
-
-use crate::diagnostics::span::{IndexOnlySpan, Span, Spanned};
+use crate::diagnostics::span::{HasSpan, IndexOnlySpan, Span, Spanned};
 
 use super::{
-    ident::Ident,
+    ident::{Ident, IdentRef},
     lit::Literal,
+    table::{Id, ItemKind, ItemRef, ParseContext, ParseTable},
     utils::{Input, Parse, ParseError},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-/// An expression which the compiler parses.
-///
-/// Expressions can be either an atomic expression (i.e. not defined in terms of any other
-/// expressions) or recursively (in the case of binary operators or unary operators).
-pub enum Expr<'a, IDENT = Ident<'a>>
-where
-    IDENT: cmp::PartialEq + hash::Hash + cmp::Eq,
-{
-    Ident(IDENT),
-    Literal(Spanned<Literal<'a>>),
-    BinOp(Spanned<BinOp>, Box<Expr<'a, IDENT>>, Box<Expr<'a, IDENT>>),
-    UnOp(Spanned<UnOp>, Box<Expr<'a, IDENT>>),
-    FunctionCall(IDENT, Vec<Expr<'a, IDENT>>),
-    Constructor(Constructor<'a, IDENT>),
+pub enum Expr<'i> {
+    Ident(IdentRef),
+    Literal(Spanned<Literal<'i>>),
+    BinOp(Spanned<BinOp>, ExprRef, ExprRef),
+    UnOp(Spanned<UnOp>, ExprRef),
+    FunctionCall(IdentRef, Vec<ExprRef>),
+    Constructor(Constructor),
 }
 
-impl<'a, IDENT: std::cmp::Eq + std::hash::Hash> Expr<'a, IDENT> {
-    pub fn as_bin_op(&self) -> Option<(&BinOp, &Expr<IDENT>, &Expr<IDENT>)> {
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+pub struct ExprRef {
+    pub(crate) id: Id,
+}
+
+impl From<ExprRef> for ItemRef {
+    fn from(e: ExprRef) -> Self {
+        ItemRef {
+            id: e.id,
+            item_kind: ItemKind::Expr,
+        }
+    }
+}
+impl Expr<'_> {
+    pub fn as_bin_op(&self) -> Option<(&BinOp, &ExprRef, &ExprRef)> {
         if let Self::BinOp(op, a, b) = self {
             Some((op, a, b))
         } else {
@@ -41,7 +44,15 @@ impl<'a, IDENT: std::cmp::Eq + std::hash::Hash> Expr<'a, IDENT> {
         }
     }
 
-    pub fn as_constructor(&self) -> Option<&Constructor<'a, IDENT>> {
+    pub fn as_un_op(&self) -> Option<(&UnOp, &ExprRef)> {
+        if let Self::UnOp(op, a) = self {
+            Some((op, a))
+        } else {
+            None
+        }
+    }
+
+    pub fn as_constructor(&self) -> Option<&Constructor> {
         if let Self::Constructor(v) = self {
             Some(v)
         } else {
@@ -49,7 +60,7 @@ impl<'a, IDENT: std::cmp::Eq + std::hash::Hash> Expr<'a, IDENT> {
         }
     }
 
-    pub fn as_ident(&self) -> Option<&IDENT> {
+    pub fn as_ident(&self) -> Option<&IdentRef> {
         if let Self::Ident(v) = self {
             Some(v)
         } else {
@@ -57,32 +68,39 @@ impl<'a, IDENT: std::cmp::Eq + std::hash::Hash> Expr<'a, IDENT> {
         }
     }
 
-    pub fn as_literal(&self) -> Option<&Spanned<Literal<'a>>> {
+    pub fn as_literal(&self) -> Option<&Spanned<Literal<'_>>> {
         if let Self::Literal(v) = self {
             Some(v)
         } else {
             None
         }
     }
+
+    /// Returns `true` if the expr is [`Ident`].
+    ///
+    /// [`Ident`]: Expr::Ident
+    #[must_use]
+    pub fn is_ident(&self) -> bool {
+        matches!(self, Self::Ident(..))
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Constructor<'a, IDENT = Ident<'a>, EXPR = Expr<'a>>
-where
-    IDENT: cmp::PartialEq + cmp::Eq + hash::Hash,
-{
-    pub(crate) name: IDENT,
+pub struct Constructor {
+    pub(crate) name: IdentRef,
     /// The fields of the constructor.
     ///
     /// todo: the parser should always sort fields alphabetically to ensure correctness in later
     /// stages of the compiler
-    pub(crate) fields: FxHashMap<IDENT, EXPR>,
-    pub(crate) _a: PhantomData<&'a ()>,
+    pub(crate) fields: BTreeMap<IdentRef, ExprRef>,
 }
 
-impl<'a> Parse<'a> for Constructor<'a> {
-    fn parse(input: &mut Input<'a>) -> Result<Self, ParseError> {
-        let name = Ident::parse(input)?;
+impl<'i> Parse<'i> for Constructor {
+    type Context = ParseContext<'i>;
+    type Output = Self;
+
+    fn parse(input: &mut Input<'i>, ctx: &mut ParseContext<'i>) -> Result<Self, ParseError> {
+        let name = Ident::parse(input, ctx)?;
         input.skip_whitespace()?;
         input.parse_token("{")?;
         let mut fields = vec![];
@@ -92,13 +110,16 @@ impl<'a> Parse<'a> for Constructor<'a> {
                 break;
             }
 
-            let field_name = Ident::parse(input)?;
+            let field_name = Ident::parse(input, ctx)?;
             input.skip_whitespace()?;
             input.parse_token(":")?;
             input.skip_whitespace()?;
-            let expr = Expr::parse_bp_stop_if(input, 0, |input| {
-                input.starts_with(',') || input.starts_with('}')
-            })?
+            let expr = Expr::parse_bp_stop_if(
+                input,
+                0,
+                |input| input.starts_with(',') || input.starts_with('}'),
+                ctx,
+            )?
             .unwrap();
             input.skip_whitespace()?;
             if input.starts_with(',') {
@@ -112,14 +133,19 @@ impl<'a> Parse<'a> for Constructor<'a> {
         Ok(Constructor {
             name,
             fields: fields.into_iter().collect(),
-            _a: PhantomData,
         })
     }
 }
 
-impl<'a> Parse<'a> for Expr<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
-        Self::parse_bp(input, 0).and_then(|op| {
+impl<'i> Parse<'i> for Expr<'i> {
+    type Output = ExprRef;
+    type Context = ParseContext<'i>;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<ExprRef, super::utils::ParseError> {
+        Self::parse_bp(input, 0, ctx).and_then(|op| {
             op.ok_or(ParseError::ExprError {
                 span: Span::new(*input.position(), *input.position()).into(),
                 explanation: "Error parsing this expression.".to_string(),
@@ -128,62 +154,21 @@ impl<'a> Parse<'a> for Expr<'a> {
     }
 }
 
-impl fmt::Display for Expr<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_char('(')?;
-        match self {
-            Expr::Ident(ident) => ident.fmt(f),
-            Expr::BinOp(operator, left, right) => {
-                left.fmt(f)?;
-                f.write_char(' ')?;
-                operator.fmt(f)?;
-                f.write_char(' ')?;
-                right.fmt(f)
-            }
-            Expr::UnOp(op, left) => {
-                op.fmt(f)?;
-                f.write_char(' ')?;
-                left.fmt(f)
-            }
-            Expr::Literal(lit) => lit.fmt(f),
-            Expr::FunctionCall(name, args) => {
-                name.fmt(f)?;
-                f.write_char('(')?;
-                for arg in args {
-                    arg.fmt(f)?;
-                    f.write_char(',')?;
-                }
-                f.write_char(')')
-            }
-            Expr::Constructor(c) => {
-                c.name.fmt(f)?;
-                f.write_str(" {")?;
-                for (name, expr) in &c.fields {
-                    name.fmt(f)?;
-                    f.write_str(": ")?;
-                    expr.fmt(f)?;
-                    f.write_str(", ")?;
-                }
-                f.write_char('}')
-            }
-        }?;
-        f.write_char(')')
-    }
-}
-
-/// This parser follows the strategy suggested in
-/// [this blog post](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html)
-/// fairly closely.
-impl<'a> Expr<'a> {
-    pub(crate) fn parse_bp(input: &mut Input<'a>, min_bp: u8) -> Result<Option<Self>, ParseError> {
-        Self::parse_bp_stop_if(input, min_bp, |_| false)
+impl<'i> Expr<'i> {
+    pub(crate) fn parse_bp(
+        input: &mut Input<'i>,
+        min_bp: u8,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<Option<ExprRef>, ParseError> {
+        Self::parse_bp_stop_if(input, min_bp, |_| false, ctx)
     }
 
     pub(crate) fn parse_bp_stop_if(
-        input: &mut Input<'a>,
+        input: &mut Input<'i>,
         min_bp: u8,
         stop_if: impl Fn(&str) -> bool + Copy,
-    ) -> Result<Option<Self>, ParseError> {
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<Option<ExprRef>, ParseError> {
         if min_bp == u8::MAX {
             return Ok(None);
         }
@@ -194,7 +179,7 @@ impl<'a> Expr<'a> {
                 let opening_bracket_span = input.start_recording();
                 input.advance_one()?;
                 let opening_bracket_span = opening_bracket_span.finish_recording(input);
-                let expr = Self::parse_bp_stop_if(input, 0, stop_if)?;
+                let expr = Self::parse_bp_stop_if(input, 0, stop_if, ctx)?;
                 input.skip_whitespace()?;
                 if input.starts_with(')') {
                     input.advance_one()?;
@@ -217,45 +202,68 @@ impl<'a> Expr<'a> {
                         })
                     };
                 }
-            } else if Ident::parse(&mut input.clone()).is_ok() {
+            } else if Ident::parse(&mut input.clone(), ctx).is_ok() {
                 let is_constructor = {
                     let mut peek = *input;
-                    Ident::parse(&mut peek)?;
+                    Ident::parse(&mut peek, ctx)?;
                     peek.skip_whitespace()?;
                     peek.starts_with('{')
                 };
 
                 if is_constructor {
-                    Some(Self::Constructor(Constructor::parse(input)?))
+                    Some(Self::Constructor(Constructor::parse(input, ctx)?)).map(|expr| {
+                        let id = ctx.new_id();
+                        ctx.table.expr.insert(id, expr);
+                        ExprRef { id }
+                    })
                 } else {
-                    let ident = Ident::parse(input)?;
+                    let ident = Ident::parse(input, ctx)?;
 
                     input.skip_whitespace()?;
 
                     if let Some('(') = input.peek_char() {
-                        fn parse<'a>(input: &mut Input<'a>) -> Result<Expr<'a>, ParseError> {
-                            Expr::parse_bp_stop_if(input, 0, |input| {
-                                input.starts_with(')') || input.starts_with(',')
-                            })
+                        fn parse<'i>(
+                            input: &mut Input<'i>,
+                            ctx: &mut ParseContext<'i>,
+                        ) -> Result<ExprRef, ParseError> {
+                            Expr::parse_bp_stop_if(
+                                input,
+                                0,
+                                |input| input.starts_with(')') || input.starts_with(','),
+                                ctx,
+                            )
                             .and_then(|ok| ok.ok_or(ParseError::__NonExhaustive))
                         }
 
                         input.parse_token("(")?;
-                        let args = input.delimited_list(parse, ')', ",")?;
+                        let args = input.delimited_list(parse, ')', ",", ctx)?;
                         input.parse_token(")")?;
-                        Some(Self::FunctionCall(ident, args))
+                        Some(Self::FunctionCall(ident, args)).map(|expr| {
+                            let id = ctx.new_id();
+                            ctx.table.expr.insert(id, expr);
+                            ExprRef { id }
+                        })
                     } else {
-                        Some(Self::Ident(ident))
+                        Some(Self::Ident(ident)).map(|expr| {
+                            let id = ctx.new_id();
+                            ctx.table.expr.insert(id, expr);
+                            ExprRef { id }
+                        })
                     }
                 }
-            } else if Literal::parse(&mut input.clone()).is_ok() {
+            } else if Literal::parse(&mut input.clone(), ctx).is_ok() {
                 let rec = input.start_recording();
-                let lit = Literal::parse(input)?;
+                let lit = Literal::parse(input, ctx)?;
 
                 Some(Self::Literal(Spanned::new(
                     rec.finish_recording(input),
                     lit,
                 )))
+                .map(|expr| {
+                    let id = ctx.new_id();
+                    ctx.table.expr.insert(id, expr);
+                    ExprRef { id }
+                })
             } else {
                 None
             }
@@ -293,32 +301,47 @@ impl<'a> Expr<'a> {
             let op_span = rec.finish_recording(input);
 
             if right_bp == u8::MAX {
-                let rhs = Expr::parse_bp_stop_if(input, 0, stop_if)?;
+                let rhs = Expr::parse_bp_stop_if(input, 0, stop_if, ctx)?;
                 input.parse_token("]")?;
                 lhs = Some(Self::BinOp(
                     Spanned::new(op_span, op.try_into_bin_op().unwrap()),
-                    Box::new(lhs.unwrap()),
-                    Box::new(rhs.unwrap()),
-                ));
+                    lhs.unwrap(),
+                    rhs.unwrap(),
+                ))
+                .map(|expr| {
+                    let id = ctx.new_id();
+                    ctx.table.expr.insert(id, expr);
+                    ExprRef { id }
+                });
             } else {
-                let rhs = Self::parse_bp_stop_if(input, right_bp, stop_if)?;
+                let rhs = Self::parse_bp_stop_if(input, right_bp, stop_if, ctx)?;
 
                 if op.is_bin_op() {
                     match (lhs, rhs) {
                         (Some(left), Some(right)) => {
                             lhs = Some(Self::BinOp(
                                 Spanned::new(op_span, op.try_into_bin_op().unwrap()),
-                                Box::new(left),
-                                Box::new(right),
-                            ));
+                                left,
+                                right,
+                            ))
+                            .map(|expr| {
+                                let id = ctx.new_id();
+                                ctx.table.expr.insert(id, expr);
+                                ExprRef { id }
+                            });
                         }
                         _ => return Err(ParseError::__NonExhaustive),
                     }
                 } else if let Some(rhs) = rhs {
                     lhs = Some(Self::UnOp(
                         Spanned::new(op_span, op.try_into_un_op().unwrap()),
-                        Box::new(rhs),
+                        rhs,
                     ))
+                    .map(|expr| {
+                        let id = ctx.new_id();
+                        ctx.table.expr.insert(id, expr);
+                        ExprRef { id }
+                    })
                 } else {
                     return Err(ParseError::__NonExhaustive);
                 }
@@ -476,5 +499,37 @@ impl Display for UnOp {
             UnOp::Negative => "-",
             UnOp::Deref => "*",
         })
+    }
+}
+
+impl HasSpan for Expr<'_> {
+    /// todo: tidy this up
+    fn span<'i>(&self, table: &'i ParseTable<'i>) -> Span {
+        match self {
+            Expr::Ident(ident) => table.get_ident(*ident).span(table),
+            Expr::Literal(lit) => lit.span(table),
+            Expr::BinOp(_, left, right) => Span::new(
+                table.get_expr(left).span(table).start(),
+                table.get_expr(right).span(table).stop(),
+            ),
+            Expr::UnOp(op, expr) => Span::new(
+                op.span(table).start(),
+                table.get_expr(expr).span(table).stop(),
+            ),
+            Expr::FunctionCall(ident, params) => {
+                // todo: include bracket span
+                Span::new(
+                    table.get_ident(*ident).span(table).start(),
+                    params
+                        .last()
+                        .map(|last| table.get_expr(last).span(table).stop())
+                        .unwrap_or_else(|| table.get_ident(*ident).span(table).stop()),
+                )
+            }
+            Expr::Constructor(con) => {
+                // todo: fix this
+                table.get_ident(con.name).span(table)
+            }
+        }
     }
 }

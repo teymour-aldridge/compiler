@@ -1,8 +1,8 @@
 //! Type checking.
 
-use std::{fmt, hash::Hash};
+use std::{collections::BTreeMap, hash::Hash};
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 #[cfg(all(test, feature = "fuzzcheck"))]
 mod fuzz;
@@ -18,7 +18,10 @@ mod track;
 
 use crate::{
     diagnostics::span::Spanned,
-    id::{TaggedAst, UniversalId},
+    parse::{
+        record::RecordRef,
+        table::{Id, ParseTable},
+    },
     ty::constraints::collect,
 };
 
@@ -30,59 +33,41 @@ use self::{
 
 mod constraints;
 
-/// An atomic type - all other types are expressed in terms of these. Types are an important part
-/// of the compilation process, and are used by later stages in the compiler to reason about how to
-/// translate code.
-#[derive(Clone, Eq, Debug)]
-// when using fuzzcheck it is necessary to implement some additional traits
-#[cfg_attr(test, derive(serde::Serialize))]
-pub enum Ty<'ctx> {
+/// A primitive type. All other types are built out of these (using the
+/// language constructs we have for building composite types - currently just
+/// records, but in future we may introduce abstract data types).
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
+pub enum PrimitiveType {
+    /// A integer. These are 64-bit (and signed) by default.
     Int,
+    /// A boolean. We follow many other programming languages by using a full
+    /// byte (rather than a single bit) to store them..
     Bool,
-    String,
-    Record(FxHashMap<&'ctx str, Ty<'ctx>>),
-    /// note: this will only be useable from the standard library
-    #[allow(unused)]
+    /// Much like Rust's `&str`, although we don't expose this to users (we are
+    /// trying to provide a _much_ higher-level interface than Rust). This is
+    /// used to give a type to user string literals. Note: we will define a
+    /// `String` type in the standard library.
+    StrSlice,
+    /// A pointer. This is an integer which is one word long and can be used as
+    /// part of `load` and `store` operations. Note that this is only available
+    /// for the standard library (to prevent unsafety, all other programs are
+    /// prohibited from using it directly). Once we introduce garbage collection
+    /// it will become possible to do so, however, we will never use the word
+    /// "pointer" in an external interface (i.e. language user-facing - i.e. no
+    /// mentions in the docs, etc).
     Pointer,
 }
 
-/// todo: test these better to make them line up properly
-impl Hash for Ty<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        core::mem::discriminant(self).hash(state);
-        if let Ty::Record(rec) = self {
-            for (key, value) in rec {
-                key.hash(state);
-                value.hash(state);
-            }
-        }
-    }
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
+pub enum Ty {
+    /// Contains a reference to the [`crate::parse::record::Record`], from which
+    /// the fields can be found (and then the types, from the [`TyEnv`])
+    Record { ref_: RecordRef },
+    /// A primitive type (see item documentation for more information).
+    PrimitiveType(PrimitiveType),
 }
 
-impl PartialEq for Ty<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Record(l0), Self::Record(r0)) => l0 == r0,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
-
-impl fmt::Display for Ty<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Ty::Int => "Int",
-            Ty::Bool => "Bool",
-            Ty::String => "String",
-            Ty::Record(_) => {
-                unimplemented!()
-            }
-            Ty::Pointer => "Pointer",
-        })
-    }
-}
-
-pub fn type_check<'ctx>(ast: &'ctx TaggedAst<'ctx>) -> Result<TyEnv<'ctx>, TyCheckError> {
+pub fn type_check<'i>(ast: &'i ParseTable<'i>) -> Result<TyEnv, TyCheckError> {
     let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
 
     let mut trace_table = TraceTable::default();
@@ -93,35 +78,56 @@ pub fn type_check<'ctx>(ast: &'ctx TaggedAst<'ctx>) -> Result<TyEnv<'ctx>, TyChe
 
 #[derive(Clone, Debug, Hash)]
 /// A substitution to be made as part of type inference.
-enum SubstitutionInner<'ctx> {
+enum SubstitutionInner {
     /// Substitute the first id `X`, for the second id `Y`.
-    XforY(Spanned<UniversalId<'ctx>>, Spanned<UniversalId<'ctx>>),
+    XforY(Spanned<Id>, Spanned<Id>),
     /// Substitute a concrete type for the given id.
-    ConcreteForX(Spanned<Ty<'ctx>>, Spanned<UniversalId<'ctx>>),
+    ConcreteForX(Spanned<Ty>, Spanned<Id>),
 }
 
 #[derive(Hash, Clone, Debug)]
 /// The value of this type (which may have been inferred).
-pub enum TyInfo<'ctx> {
-    EqId(UniversalId<'ctx>),
-    EqTy(Ty<'ctx>),
+pub enum TyInfo {
+    EqId(Id),
+    EqTy(Ty),
 }
 
 #[derive(Hash, Clone, Debug)]
 /// Information corresponding to an [crate::id::Id].
-pub struct Info<'ctx> {
-    ty: TyInfo<'ctx>,
+pub struct Info {
+    ty: TyInfo,
 }
 
 #[derive(Clone, Debug)]
-pub struct TyEnv<'ctx> {
-    map: FxHashMap<UniversalId<'ctx>, Info<'ctx>>,
+pub struct TyEnv {
+    map: BTreeMap<Id, Info>,
 }
 
-impl<'ctx> TyEnv<'ctx> {
+impl TyEnv {
+    /// Pretty-prints the inferred type information. Useful primarily for debugging.
+    pub fn pretty_print(&self, table: &ParseTable) {
+        println!(
+            "{0: <15} | {1: <15} | {2: <15}",
+            "variable name", "variable id", "inferred type"
+        );
+        for _ in 0..15 * 3 {
+            print!("-")
+        }
+        println!("");
+        for (id, ident) in table.ident.iter() {
+            let ty = self.ty_of(*id);
+            println!(
+                "{0: <15} | {1: <15} | {2: <15}",
+                ident.inner(),
+                id.as_u32(),
+                format!("{:?}", ty)
+            )
+        }
+    }
+
     /// Obtain a reference to the underlying hash map.
     #[allow(unused)]
-    pub(crate) fn map(&'ctx self) -> &'ctx FxHashMap<UniversalId<'ctx>, Info<'ctx>> {
+    pub(crate) fn map(&self) -> &BTreeMap<Id, Info> {
         &self.map
     }
 
@@ -137,7 +143,7 @@ impl<'ctx> TyEnv<'ctx> {
 
     /// Obtain the type of the item in question (if it exists).
     #[allow(unused)]
-    pub(crate) fn ty_of(&self, id: UniversalId) -> Option<Ty> {
+    pub(crate) fn ty_of(&self, id: Id) -> Option<Ty> {
         self.map.get(&id).and_then(|info| match info.ty.clone() {
             TyInfo::EqId(equal_to) => self.ty_of(equal_to),
             TyInfo::EqTy(ty) => Some(ty),
@@ -150,7 +156,7 @@ impl<'ctx> TyEnv<'ctx> {
         }
     }
 
-    fn feed_substitution(&mut self, u: SubstitutionInner<'ctx>) {
+    fn feed_substitution(&mut self, u: SubstitutionInner) {
         match u {
             // we remove y from the system by equating it to x
             SubstitutionInner::XforY(x, y) => self.map.insert(
@@ -173,11 +179,11 @@ impl<'ctx> TyEnv<'ctx> {
 /// Unify a set of constraints (i.e. solve them, if that is possible).
 ///
 /// note: for details on error reporting, please see [track].
-fn unify<'ctx>(
-    set: FxHashSet<Constraint<'ctx>>,
-    mut solved: TyEnv<'ctx>,
-    trace_table: &mut TraceTable<'ctx>,
-) -> Result<TyEnv<'ctx>, Constraint<'ctx>> {
+fn unify<'i>(
+    set: FxHashSet<Constraint>,
+    mut solved: TyEnv,
+    trace_table: &mut TraceTable,
+) -> Result<TyEnv, Constraint> {
     if set.is_empty() {
         return Ok(solved);
     }

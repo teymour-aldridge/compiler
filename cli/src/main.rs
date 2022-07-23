@@ -7,7 +7,7 @@ use codespan_reporting::{
         termcolor::{ColorChoice, StandardStream},
     },
 };
-use logic::{codegen::compile, id::tag, parse, ty::type_check};
+use logic::{codegen::compile, parse, ty::type_check};
 
 /// Runs the compiler.
 ///
@@ -42,16 +42,14 @@ fn main() {
         }
     };
 
-    let tagged = tag(ast);
-
-    let env = match type_check(&tagged) {
+    let env = match type_check(&ast) {
         Ok(env) => env,
         Err(error) => {
-            let report = error.report(file_id);
+            let report = error.report(file_id, &ast);
             emit(&mut writer, &config, &files, &report).unwrap();
             return;
         }
     };
 
-    compile(&tagged, &env, output);
+    compile(&ast, &env, output);
 }

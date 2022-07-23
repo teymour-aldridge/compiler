@@ -1,0 +1,3 @@
+for i = 1 to 12
+  print_int(i)
+next i

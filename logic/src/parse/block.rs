@@ -1,25 +1,35 @@
-use std::fmt;
+use super::{
+    parse_statements,
+    table::{Id, ItemRef, ParseContext},
+    utils::{Input, ParseError},
+};
 
-use super::{expr::Expr, ident::Ident, utils::Parse, Ast};
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Block<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
-    pub(crate) inner: Ast<'a, IDENT, EXPR>,
+#[derive(Debug, PartialEq, Eq, Default)]
+pub struct Block {
+    pub(crate) inner: Vec<ItemRef>,
 }
 
-impl fmt::Display for Block<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
-    }
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct BlockRef {
+    pub(crate) id: Id,
 }
 
-impl<'a> Parse<'a> for Block<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
+impl Block {
+    pub fn parse<'i>(
+        input: &mut Input<'i>,
+        ctx: &mut ParseContext<'i>,
+        remove_additions: bool,
+    ) -> Result<BlockRef, ParseError> {
         input.increment_indent(2);
-        let res = Ok(Self {
-            inner: Ast::parse(input)?,
-        });
+        ctx.push_scope();
+
+        let refs = parse_statements(input, ctx)?;
+
         input.decrement_indent(2);
-        res
+        ctx.pop_scope(remove_additions);
+
+        let id = ctx.new_id();
+        ctx.table.block.insert(id, Self { inner: refs });
+        Ok(BlockRef { id })
     }
 }

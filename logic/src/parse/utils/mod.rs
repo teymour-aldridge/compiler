@@ -3,9 +3,6 @@
 #[cfg(test)]
 mod test;
 
-use core::fmt;
-use std::fmt::Write;
-
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::diagnostics::{
@@ -14,7 +11,10 @@ use crate::diagnostics::{
 };
 
 pub trait Parse<'a>: Sized {
-    fn parse(input: &mut Input<'a>) -> Result<Self, ParseError>;
+    type Context;
+    type Output;
+
+    fn parse(input: &mut Input<'a>, ctx: &mut Self::Context) -> Result<Self::Output, ParseError>;
 }
 
 #[derive(Debug)]
@@ -160,16 +160,16 @@ impl<'a> Input<'a> {
         ret
     }
 
-    /// Parses a list of items separated by a string.
-    pub fn delimited_list<P: Fn(&mut Input<'a>) -> Result<T, ParseError>, T>(
+    pub fn delimited_list<P: Fn(&mut Input<'a>, &mut C) -> Result<T, ParseError>, T, C>(
         &mut self,
         function: P,
         stop_delimiter: char,
         interspacer: &str,
+        ctx: &mut C,
     ) -> Result<Vec<T>, ParseError> {
         let mut ret = vec![];
         loop {
-            let parsed = (function)(self)?;
+            let parsed = (function)(self, ctx)?;
             ret.push(parsed);
             self.skip_whitespace()?;
             if self.is_empty() {
@@ -431,12 +431,4 @@ impl IncompleteSpan {
     pub fn finish_recording(self, input: &Input) -> Span {
         input.finish_recording(self)
     }
-}
-
-pub(crate) fn write_indentation(units: usize, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    for _ in 0..units {
-        f.write_char(' ')?;
-    }
-
-    Ok(())
 }

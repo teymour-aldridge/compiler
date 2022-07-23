@@ -3,13 +3,23 @@ use std::fmt::{self, Write};
 
 use crate::parse::utils::ParseError;
 
-use super::utils::Parse;
+use super::{table::ParseContext, utils::Parse};
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Literal<'a> {
-    String(&'a str),
-    Number(Number<'a>),
+pub enum Literal<'i> {
+    String(&'i str),
+    Number(Number<'i>),
     Bool(bool),
+}
+
+impl<'i> Literal<'i> {
+    pub fn as_string(&self) -> Option<&&'i str> {
+        if let Self::String(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Literal<'_> {
@@ -26,8 +36,14 @@ impl fmt::Display for Literal<'_> {
     }
 }
 
-impl<'a> Parse<'a> for Literal<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, ParseError> {
+impl<'i> Parse<'i> for Literal<'i> {
+    type Context = ParseContext<'i>;
+    type Output = Self;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<Self, ParseError> {
         input.skip_whitespace()?;
         if input.starts_with('"') {
             input.parse_token("\"")?;
@@ -35,7 +51,7 @@ impl<'a> Parse<'a> for Literal<'a> {
             input.parse_token("\"")?;
             Ok(Self::String(string))
         } else if let Some('0'..='9') = input.chars().next() {
-            Ok(Self::Number(Number::parse(input)?))
+            Ok(Self::Number(Number::parse(input, ctx)?))
         } else if input.starts_with("True") {
             input.parse_token("True")?;
             Ok(Self::Bool(true))
@@ -53,10 +69,10 @@ impl<'a> Parse<'a> for Literal<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Number<'a> {
-    pub(crate) int: &'a str,
-    pub(crate) float: Option<&'a str>,
-    pub(crate) exp: Option<&'a str>,
+pub struct Number<'i> {
+    pub(crate) int: &'i str,
+    pub(crate) float: Option<&'i str>,
+    pub(crate) exp: Option<&'i str>,
 }
 
 impl Number<'_> {
@@ -85,8 +101,14 @@ impl fmt::Display for Number<'_> {
     }
 }
 
-impl<'a> Parse<'a> for Number<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
+impl<'i> Parse<'i> for Number<'i> {
+    type Context = ParseContext<'i>;
+    type Output = Self;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        _: &mut ParseContext<'i>,
+    ) -> Result<Self, super::utils::ParseError> {
         enum State {
             Int,
             Float(usize),
@@ -181,21 +203,26 @@ impl<'a> Parse<'a> for Number<'a> {
 
 #[cfg(test)]
 mod test_literals {
-    use crate::parse::utils::{Input, Parse};
+    use crate::parse::{
+        table::ParseContext,
+        utils::{Input, Parse},
+    };
 
     use super::Literal;
 
     fn inner(expression: impl ToString, should_parse: bool) {
         let inner = expression.to_string();
         let mut exp = Input::new(&inner);
-        match Literal::parse(&mut exp) {
+        let mut ctx = ParseContext::new();
+
+        match Literal::parse(&mut exp, &mut ctx) {
             Ok(t) => {
                 if !should_parse {
                     panic!("This input should not have parsed, but it did: {:#?}", t);
                 }
                 let inner = t.to_string();
                 let mut out = Input::new(&inner);
-                let res = Literal::parse(&mut out).unwrap();
+                let res = Literal::parse(&mut out, &mut ctx).unwrap();
                 assert_eq!(t, res);
             }
             Err(e) => {

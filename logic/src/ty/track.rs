@@ -1,12 +1,13 @@
 //! Tracks constraints for error generation.
 //!
 //! note: scribbles on error reporting below
-//! -> first, we try to solve the set
-//!     -> if we can solve the set, then no error reporting is necessary (yay!) so we finish
-//! -> once we have an error, we then attempt to create a diagnosis
-//! -> the only situation in which this function fails is if we try to unify two types that are
+//!
+//! - first, we try to solve the set
+//!     - if we can solve the set, then no error reporting is necessary (yay!) so we finish
+//! - once we have an error, we then attempt to create a diagnosis
+//! - the only situation in which this function fails is if we try to unify two types that are
 //!    incompatible
-//! -> we want to see where the original source is, for example in this program
+//! - we want to see where the original source is, for example in this program
 //! ```ignore
 //! function f(x)
 //!   if True then
@@ -64,7 +65,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     diagnostics::span::{HasSpan, Spanned},
-    id::UniversalId,
+    parse::table::{Id, ParseTable},
 };
 
 use super::{
@@ -87,18 +88,18 @@ impl ConstraintId {
 /// OCR would be proud (they love having students draw out "trace tables" - writing down the values
 /// of variables at different points of execution).
 #[derive(Debug, Clone, Default)]
-pub(crate) struct TraceTable<'ctx> {
-    records: FxHashMap<ConstraintId, TraceData<'ctx>>,
+pub(crate) struct TraceTable {
+    records: FxHashMap<ConstraintId, TraceData>,
 }
 
-impl<'ctx> TraceTable<'ctx> {
+impl TraceTable {
     #[allow(unused)]
-    pub fn new() -> TraceTable<'ctx> {
+    pub fn new() -> TraceTable {
         Default::default()
     }
 
     /// Records a unification operation.
-    pub fn log_operation(&mut self, id: ConstraintId, operation: UnificationOperation<'ctx>) {
+    pub fn log_operation(&mut self, id: ConstraintId, operation: UnificationOperation) {
         self.records
             .entry(id)
             .and_modify(|data| {
@@ -109,28 +110,28 @@ impl<'ctx> TraceTable<'ctx> {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct TraceData<'ctx> {
-    operations: Vec<UnificationOperation<'ctx>>,
+pub struct TraceData {
+    operations: Vec<UnificationOperation>,
 }
 
-impl<'ctx> TraceData<'ctx> {
-    pub fn new(operations: Vec<UnificationOperation<'ctx>>) -> Self {
+impl TraceData {
+    pub fn new(operations: Vec<UnificationOperation>) -> Self {
         Self { operations }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum UnificationOperation<'ctx> {
+pub enum UnificationOperation {
     /// the given id was replaced with a type
     Concretise {
-        preexisting: Spanned<UniversalId<'ctx>>,
-        with: Spanned<Ty<'ctx>>,
+        preexisting: Spanned<Id>,
+        with: Spanned<Ty>,
         pos: ConstraintPosition,
     },
     /// The id `preexisting` was replaced with the id `new`
     Swap {
-        preexisting: Spanned<UniversalId<'ctx>>,
-        new: Spanned<UniversalId<'ctx>>,
+        preexisting: Spanned<Id>,
+        new: Spanned<Id>,
         pos: ConstraintPosition,
     },
 }
@@ -141,9 +142,9 @@ pub enum ConstraintPosition {
     Two,
 }
 
-impl<'ctx> UnificationOperation<'ctx> {
+impl UnificationOperation {
     /// Undoes the operation to the constraint in place.
-    fn step_back(&self, constraint: ConstraintInner<'ctx>) -> ConstraintInner<'ctx> {
+    fn step_back(&self, constraint: ConstraintInner) -> ConstraintInner {
         match (self, constraint) {
             (
                 UnificationOperation::Concretise {
@@ -231,20 +232,20 @@ impl<'ctx> UnificationOperation<'ctx> {
 }
 
 #[derive(Debug)]
-pub struct ErrorReporter<'ctx> {
-    trace_table: TraceTable<'ctx>,
-    errored_on: Constraint<'ctx>,
+pub struct ErrorReporter {
+    trace_table: TraceTable,
+    errored_on: Constraint,
 }
 
-impl<'ctx> ErrorReporter<'ctx> {
-    pub(crate) fn new(trace_table: TraceTable<'ctx>, errored_on: Constraint<'ctx>) -> Self {
+impl ErrorReporter {
+    pub(crate) fn new(trace_table: TraceTable, errored_on: Constraint) -> Self {
         Self {
             trace_table,
             errored_on,
         }
     }
 
-    pub fn report<ID>(mut self, file_id: ID) -> Diagnostic<ID>
+    pub fn report<ID>(mut self, file_id: ID, table: &ParseTable<'_>) -> Diagnostic<ID>
     where
         ID: Copy,
     {
@@ -262,11 +263,11 @@ impl<'ctx> ErrorReporter<'ctx> {
 
         if let ConstraintInner::TyToTy { ty, to } = &inner {
             diagnostic.labels.push(
-                Label::primary(file_id, ty.span().index_only().range())
+                Label::primary(file_id, ty.span(table).index_only().range())
                     .with_message(format!("this is of type {:?}", ty.token)),
             );
             diagnostic.labels.push(
-                Label::primary(file_id, to.span().index_only().range()).with_message(format!(
+                Label::primary(file_id, to.span(table).index_only().range()).with_message(format!(
                     "this is of type `{:?}` \
                     which is not the same as type `{:?}`",
                     to.token, ty.token
@@ -280,21 +281,21 @@ impl<'ctx> ErrorReporter<'ctx> {
             inner = operation.step_back(inner);
             match inner {
                 ConstraintInner::IdToTy { ref id, ref ty } => {
-                    Label::secondary(file_id, id.span().index_only().range())
+                    Label::secondary(file_id, id.span(table).index_only().range())
                         .with_message("this item needs to be of the same type as...");
-                    Label::secondary(file_id, ty.span().index_only().range())
+                    Label::secondary(file_id, ty.span(table).index_only().range())
                         .with_message(format!("...the type `{:?}`", ty.token));
                 }
                 ConstraintInner::IdToId { ref id, ref to } => {
-                    Label::secondary(file_id, id.span().index_only().range())
+                    Label::secondary(file_id, id.span(table).index_only().range())
                         .with_message("this item needs to be of the same type as");
-                    Label::secondary(file_id, to.span().index_only().range())
+                    Label::secondary(file_id, to.span(table).index_only().range())
                         .with_message("this item");
                 }
                 ConstraintInner::TyToTy { ref ty, ref to } => {
-                    Label::secondary(file_id, ty.span().index_only().range())
+                    Label::secondary(file_id, ty.span(table).index_only().range())
                         .with_message("this type needs to be of the same type as");
-                    Label::secondary(file_id, to.span().index_only().range()).with_message(
+                    Label::secondary(file_id, to.span(table).index_only().range()).with_message(
                         format!(
                             "this type, however `{:?}` is not the same as `{:?}`",
                             ty.token, to.token
