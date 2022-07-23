@@ -3,11 +3,6 @@ name = "oracle"
 version = "0.1.0"
 edition = "2021"
 
-[[test]]
-name = "oracle_tests"
-path = "oracle_tests.rs"
-harness = false
-
 [dependencies]
 cfg-if = "1.0.0"
 lang_tester = "0.7.1"

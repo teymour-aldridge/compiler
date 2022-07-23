@@ -28,7 +28,7 @@ fn smoke_test_1() {
             1.into(),
             Initialize::METHOD.to_string(),
             to_value(InitializeParams {
-                process_id: Some(thread::current().id().as_u64().get() as u32),
+                process_id: None,
                 root_path: None,
                 root_uri: Some(lsp_types::Url::parse("file:///Users/pseudodemo").unwrap()),
                 initialization_options: None,

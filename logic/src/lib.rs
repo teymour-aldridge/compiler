@@ -1,5 +1,5 @@
 #![deny(clippy::disallowed_types)]
-#![cfg_attr(test, feature(no_coverage, trivial_bounds, type_alias_impl_trait))]
+#![cfg_attr(all(test, nightly), feature(no_coverage, trivial_bounds, type_alias_impl_trait))]
 
 pub mod codegen;
 pub mod diagnostics;

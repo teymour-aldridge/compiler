@@ -26,7 +26,9 @@ pub mod table;
 pub mod utils;
 pub mod r#while;
 
-#[cfg(all(test, feature = "fuzzcheck"))]
+#[cfg(not(disable_fuzzcheck))]
+#[cfg(test)]
+#[cfg(nightly)]
 mod fuzz;
 
 #[cfg(test)]
