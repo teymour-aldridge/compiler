@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Ord, PartialOrd)]
 /// A position in a file, containing the line number, column number and offset from the start of the
 /// file.
 pub struct Position {

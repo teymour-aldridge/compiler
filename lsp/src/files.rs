@@ -174,11 +174,10 @@ impl FileContainer {
             let input = file.rope.to_string();
 
             let res = logic::parse::parse(&input)
-                .map(logic::id::tag)
                 .map_err(|err| err.report(&url))
                 .and_then(|tagged_ast| {
                     logic::ty::type_check(&tagged_ast)
-                        .map_err(|e| e.report(&url))
+                        .map_err(|e| e.report(&url, &tagged_ast))
                         .map(|_| ())
                 });
 

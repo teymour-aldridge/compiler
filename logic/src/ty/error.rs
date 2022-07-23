@@ -1,29 +1,29 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
-use crate::diagnostics::span::IndexOnlySpan;
+use crate::{diagnostics::span::IndexOnlySpan, parse::table::ParseTable};
 
 use super::track::ErrorReporter;
 
 #[derive(Debug)]
-pub enum TyCheckError<'ctx> {
+pub enum TyCheckError {
     ConstraintGatheringError(ConstraintGatheringError),
-    Reportable(ErrorReporter<'ctx>),
+    Reportable(ErrorReporter),
 }
 
-impl<'ctx> From<ConstraintGatheringError> for TyCheckError<'ctx> {
+impl<'ctx> From<ConstraintGatheringError> for TyCheckError {
     fn from(err: ConstraintGatheringError) -> Self {
         Self::ConstraintGatheringError(err)
     }
 }
 
-impl<'ctx> TyCheckError<'ctx> {
-    pub fn report<ID>(self, id: ID) -> Diagnostic<ID>
+impl TyCheckError {
+    pub fn report<ID>(self, id: ID, table: &ParseTable<'_>) -> Diagnostic<ID>
     where
         ID: Copy,
     {
         match self {
             TyCheckError::ConstraintGatheringError(err) => err.report(id),
-            TyCheckError::Reportable(reporter) => reporter.report(id),
+            TyCheckError::Reportable(reporter) => reporter.report(id, table),
         }
     }
 }

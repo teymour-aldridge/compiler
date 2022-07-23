@@ -1,0 +1,12 @@
+function f(x)
+  x = 12
+  return x
+endfunction
+
+function g()
+  y = 15
+endfunction
+
+function h()
+  y = True
+endfunction

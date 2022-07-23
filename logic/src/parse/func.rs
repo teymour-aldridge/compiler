@@ -1,37 +1,49 @@
-use std::{
-    fmt::{self, Write},
-    marker::PhantomData,
-};
+use std::collections::BTreeMap;
 
 use super::{
-    block::Block,
-    expr::Expr,
-    ident::Ident,
-    utils::{write_indentation, Parse},
+    block::{Block, BlockRef},
+    expr::{Expr, ExprRef},
+    ident::{Ident, IdentRef},
+    table::{Id, ItemKind, ItemRef, ParseContext},
+    utils::{Parse, ParseError},
 };
 
 #[derive(Debug, Eq, PartialEq)]
 /// A function.
-pub struct Func<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
-    pub(crate) name: IDENT,
-    pub(crate) parameters: Vec<IDENT>,
-    pub(crate) block: Block<'a, IDENT, EXPR>,
+pub struct Func {
+    pub(crate) name: IdentRef,
+    pub(crate) parameters: Vec<IdentRef>,
+    pub(crate) block: BlockRef,
     pub(crate) indent: usize,
 }
 
-impl<'a> Parse<'a> for Func<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
+impl<'i> Parse<'i> for Func {
+    type Output = FuncRef;
+    type Context = ParseContext<'i>;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<FuncRef, ParseError> {
         input.advance_indent()?;
         input.parse_token("function")?;
         input.skip_whitespace()?;
-        let name = Ident::parse(input)?;
+        let name = Ident::parse(input, ctx)?;
+
+        // here we do some scope/name resolution stuff (a quick aside from the
+        // actual parsing of the function)
+        let mut local_variables = BTreeMap::new();
+        std::mem::swap(&mut ctx.tagging.variable_ids, &mut local_variables);
+
+        // now back to parsing
         input.skip_whitespace()?;
         input.parse_token("(")?;
 
         input.skip_whitespace()?;
 
+        // parse all the parameters
         let parameters = if !input.starts_with(')') {
-            input.delimited_list(Ident::parse, ')', ",")?
+            input.delimited_list(Ident::parse, ')', ",", ctx)?
         } else {
             vec![]
         };
@@ -40,60 +52,81 @@ impl<'a> Parse<'a> for Func<'a> {
 
         input.skip_whitespace()?;
         input.parse_token("\n")?;
-        let block = Block::parse(input)?;
+
+        let block = Block::parse(input, ctx, true)?;
+
+        // we now resume our scope-related handling...
+
+        std::mem::swap(&mut ctx.tagging.variable_ids, &mut local_variables);
+        // ...back to parsing
+
         input.advance_indent()?;
         input.parse_token("endfunction")?;
         input.skip_whitespace()?;
-        Ok(Self {
+
+        let me = Self {
             name,
             parameters,
             block,
             indent: input.indent,
-        })
+        };
+        let id = ctx.new_id();
+        ctx.table.func.insert(id, me);
+        Ok(FuncRef { id })
     }
 }
 
-impl fmt::Display for Func<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_indentation(self.indent, f)?;
-        f.write_str("function ")?;
-        self.name.fmt(f)?;
-        f.write_str(" (")?;
-        for param in &self.parameters {
-            param.fmt(f)?;
-            f.write_char(',')?;
+#[derive(Debug, Copy, Clone)]
+pub struct FuncRef {
+    pub(crate) id: Id,
+}
+
+impl From<FuncRef> for ItemRef {
+    fn from(f: FuncRef) -> Self {
+        ItemRef {
+            id: f.id,
+            item_kind: ItemKind::Func,
         }
-        f.write_str(")\n")?;
-        self.block.fmt(f)?;
-        f.write_char('\n')?;
-        write_indentation(self.indent, f)?;
-        f.write_str("endfunction")?;
-        f.write_char('\n')
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Return<'a, EXPR = Expr<'a>> {
-    pub(crate) expr: EXPR,
+pub struct Return {
+    pub(crate) expr: ExprRef,
     pub(crate) indent: usize,
-    pub(crate) _a: PhantomData<&'a ()>,
 }
 
-impl<'a> Parse<'a> for Return<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
-        input.parse_token("return ")?;
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ReturnRef {
+    id: Id,
+}
 
-        Ok(Self {
-            expr: Expr::parse(input)?,
-            indent: input.indent,
-            _a: PhantomData,
-        })
+impl From<ReturnRef> for ItemRef {
+    fn from(ret: ReturnRef) -> Self {
+        ItemRef {
+            id: ret.id,
+            item_kind: ItemKind::Return,
+        }
     }
 }
 
-impl fmt::Display for Return<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("return ")?;
-        self.expr.fmt(f)
+impl<'i> Parse<'i> for Return {
+    type Context = ParseContext<'i>;
+    type Output = ReturnRef;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<ReturnRef, ParseError> {
+        input.parse_token("return ")?;
+
+        let me = Self {
+            expr: Expr::parse(input, ctx)?,
+            indent: input.indent,
+        };
+        let id = ctx.new_id();
+        ctx.table.return_.insert(id, me);
+
+        Ok(ReturnRef { id })
     }
 }

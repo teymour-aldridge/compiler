@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{id::TaggedAst, ty::TyEnv};
+use crate::{parse::table::ParseTable, ty::TyEnv};
 
 use self::compile::Compiler;
 
@@ -16,7 +16,7 @@ pub(self) mod make_module;
 /// todo: automatically link
 /// todo: allow custom file outputs
 pub fn compile<'compiler>(
-    ast: &'compiler TaggedAst,
+    ast: &'compiler ParseTable<'compiler>,
     env: &'compiler TyEnv,
     path: impl AsRef<Path>,
 ) {

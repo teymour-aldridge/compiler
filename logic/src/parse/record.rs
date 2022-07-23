@@ -1,61 +1,57 @@
-/// Parses records.
-use std::{
-    fmt::{self, Write},
-    marker::PhantomData,
-};
-
 use crate::{
-    diagnostics::span::{self, HasSpan, Spanned},
+    diagnostics::span::{HasSpan, Span, Spanned},
     parse::utils::ParseError,
-    ty::Ty,
+    ty::PrimitiveType,
 };
 
 use super::{
-    ident::Ident,
-    utils::{write_indentation, Parse},
+    ident::{Ident, IdentRef},
+    table::{Id, ItemKind, ItemRef, ParseContext, ParseTable},
+    utils::Parse,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// A "record" (aka struct).
-pub struct Record<'a, IDENT = Ident<'a>> {
-    pub(crate) name: IDENT,
-    pub(crate) fields: Vec<Field<'a, IDENT>>,
+pub struct Record {
+    pub(crate) name: IdentRef,
+    pub(crate) fields: Vec<Field>,
     pub(crate) indent: usize,
 }
 
-impl<IDENT> HasSpan for Record<'_, IDENT>
-where
-    IDENT: HasSpan,
-{
-    fn span(&self) -> span::Span {
-        // todo: report proper span
-        span::Span::new(self.name.span().start(), self.name.span().stop())
-    }
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+pub struct RecordRef {
+    pub(crate) id: Id,
 }
 
-impl fmt::Display for Record<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_indentation(self.indent, f)?;
-        f.write_str("record")?;
-        self.name.fmt(f)?;
-        f.write_char('\n')?;
-
-        for each in &self.fields {
-            write_indentation(self.indent + 2, f)?;
-            each.fmt(f)?;
-            f.write_char('\n')?;
+impl From<RecordRef> for ItemRef {
+    fn from(r: RecordRef) -> Self {
+        ItemRef {
+            id: r.id,
+            item_kind: ItemKind::Record,
         }
-
-        f.write_str("endrecord")
     }
 }
 
-impl<'a> Parse<'a> for Record<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
+impl HasSpan for Record {
+    fn span<'i>(&self, table: &'i ParseTable<'i>) -> Span {
+        let name = table.get_ident(self.name);
+        // todo: report proper span
+        Span::new(name.span(table).start(), name.span(table).stop())
+    }
+}
+
+impl<'i> Parse<'i> for Record {
+    type Context = ParseContext<'i>;
+    type Output = RecordRef;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<RecordRef, super::utils::ParseError> {
         let indent = input.indent;
         input.parse_token("record")?;
         input.skip_whitespace()?;
-        let name = Ident::parse(input)?;
+        let name = Ident::parse(input, ctx)?;
         input.advance_whitespace_and_new_line()?;
         input.increment_indent(2);
 
@@ -79,14 +75,19 @@ impl<'a> Parse<'a> for Record<'a> {
                 input.decrement_indent(2);
                 input.advance_indent()?;
                 input.parse_token("endrecord")?;
-                return Ok(Self {
-                    name,
-                    fields,
-                    indent,
-                });
+                let id = ctx.new_id();
+                ctx.table.record_.insert(
+                    id,
+                    Self {
+                        name,
+                        fields,
+                        indent,
+                    },
+                );
+                return Ok(RecordRef { id });
             } else {
                 input.advance_indent()?;
-                fields.push(Field::parse(input)?);
+                fields.push(Field::parse(input, ctx)?);
             }
         }
     }
@@ -94,44 +95,46 @@ impl<'a> Parse<'a> for Record<'a> {
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// A field of a [Record].
-pub struct Field<'a, IDENT = Ident<'a>> {
-    pub(crate) name: IDENT,
-    pub(crate) ty: Spanned<Ty<'a>>,
-    pub(crate) _a: PhantomData<&'a IDENT>,
+pub struct Field {
+    pub(crate) name: IdentRef,
+    /// The type of this field.
+    ///
+    /// todo: allow non-primitive types as fields
+    pub(crate) ty: Spanned<PrimitiveType>,
 }
 
-impl<'a> Parse<'a> for Field<'a> {
-    fn parse(input: &mut super::utils::Input<'a>) -> Result<Self, super::utils::ParseError> {
-        let name = Ident::parse(input)?;
+impl<'i> Parse<'i> for Field {
+    type Context = ParseContext<'i>;
+    type Output = Self;
+
+    fn parse(
+        input: &mut super::utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<Self, super::utils::ParseError> {
+        let name = Ident::parse(input, ctx)?;
         input.skip_whitespace()?;
         input.parse_token("of")?;
         input.skip_whitespace()?;
-        let ty_sym = Ident::parse(input)?;
-        let ty = match *ty_sym {
-            "Bool" => Ty::Bool,
-            "Int" => Ty::Int,
-            "String" => Ty::String,
+        let ty_symbol_ref = Ident::parse(input, ctx)?;
+        let ty_symbol = ctx.table.get_ident(ty_symbol_ref);
+        let ty = match ty_symbol.inner() {
+            "Bool" => PrimitiveType::Bool,
+            "Int" => PrimitiveType::Int,
+            "StrSlice" => PrimitiveType::StrSlice,
+            "Pointer" => PrimitiveType::Pointer,
             _ => {
                 return Err(ParseError::UnexpectedToken {
+                    // don't say pointer here, because this is only available internally
                     explanation: "Expected a type here (one of `Bool`, `Int` or `String`)."
                         .to_string(),
-                    span: ty_sym.span().into(),
-                })
+                    span: ty_symbol.span(&ctx.table).into(),
+                });
             }
         };
 
         Ok(Field {
             name,
-            ty: Spanned::new(ty_sym.span(), ty),
-            _a: PhantomData,
+            ty: Spanned::new(ty_symbol.span(&ctx.table), ty),
         })
-    }
-}
-
-impl fmt::Display for Field<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.name.fmt(f)?;
-        f.write_str(" of ")?;
-        self.ty.fmt(f)
     }
 }

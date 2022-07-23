@@ -1,71 +1,106 @@
 use std::iter::FromIterator;
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::{
     diagnostics::span::{Span, Spanned},
-    id::{tag, AtomicId},
-    parse::expr::BinOp,
+    parse::{
+        expr::{BinOp, Expr},
+        parse,
+        record::RecordRef,
+        table::Id,
+    },
     ty::{
         constraints::{Constraint, ConstraintInner},
         track::{ConstraintId, TraceTable},
-        type_check, unify, Ty, TyEnv,
+        type_check, unify, PrimitiveType, Ty, TyEnv,
     },
 };
 
 #[test]
 fn simple_type_check() {
-    let tree = crate::parse::parse(include_str!("examples/simple")).unwrap();
-    let tagged = tag(tree);
+    let tree = parse(include_str!("examples/simple")).unwrap();
 
-    let ty_env = type_check(&tagged).expect("failed to type check");
+    let ty_env = type_check(&tree).expect("failed to type check");
 
-    let x = match tagged.nodes.get(1).unwrap().as_expr().unwrap().token {
-        crate::id::TaggedExprInner::BinOp(_, ref left, _) => match left.token {
-            crate::id::TaggedExprInner::Ident(ref ident) => ident.id,
+    let x = match tree
+        .get(tree.root.1.inner.iter().nth(1).unwrap())
+        .unwrap()
+        .as_expr()
+        .unwrap()
+    {
+        Expr::BinOp(_, ref left, _) => match tree.get_expr(left) {
+            Expr::Ident(ref ident) => ident.id,
             _ => panic!(),
         },
         _ => panic!(),
     };
 
-    let y = match tagged.nodes.get(2).unwrap().as_expr().unwrap().token {
-        crate::id::TaggedExprInner::BinOp(_, ref left, _) => match left.token {
-            crate::id::TaggedExprInner::Ident(ref ident) => ident.id,
+    let y = match tree
+        .get(tree.root.1.inner.iter().nth(2).unwrap())
+        .unwrap()
+        .as_expr()
+        .unwrap()
+    {
+        Expr::BinOp(_, ref left, _) => match tree.get_expr(left) {
+            Expr::Ident(ref ident) => ident.id,
             _ => panic!(),
         },
         _ => panic!(),
     };
-    assert_eq!(ty_env.ty_of(x.into()), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(y.into()), Some(Ty::Int))
+    assert_eq!(
+        ty_env.ty_of(x.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+    assert_eq!(
+        ty_env.ty_of(y.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    )
 }
 
 #[test]
 fn factorial_type_check() {
-    let tree = crate::parse::parse(include_str!("examples/factorial")).unwrap();
-    let tagged = tag(tree);
+    let tree = parse(include_str!("examples/factorial")).unwrap();
 
-    let ty_env = type_check(&tagged).expect("failed to type check");
+    let ty_env = type_check(&tree).expect("failed to type check");
 
-    let main_function = match &tagged.nodes[0] {
-        crate::parse::Node::Func(ref func) => func.name.id,
-        _ => panic!("failed to find type inferred for `main` function"),
-    };
+    ty_env.pretty_print(&tree);
 
-    let (factorial_function_ret, factorial_func) = match &tagged.nodes[1] {
-        crate::parse::Node::Func(ref func) => (func.name.id, func),
-        _ => panic!("failed to find type inferred for `factorial` function"),
-    };
+    let mut iter = tree.func.iter();
+    let next = iter.next().unwrap();
+    assert_eq!(tree.get_ident(next.1.name).inner(), "main");
+    let main_function = next.1.name.id;
 
-    assert_eq!(ty_env.ty_of(main_function.into()), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(factorial_function_ret.into()), Some(Ty::Int));
+    let nth = tree.func.iter().nth(1).unwrap();
+    let (_, factorial_func) = nth;
 
-    let if_branch = &factorial_func.block.inner.nodes[0].as_if().unwrap().r#if;
+    assert_eq!(
+        ty_env.ty_of(main_function),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+    assert_eq!(
+        ty_env.ty_of(factorial_func.name.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
 
-    assert_eq!(ty_env.ty_of(if_branch.condition.id.into()), Some(Ty::Bool));
+    let if_branch = &tree
+        .get(&tree.get_block(&factorial_func.block).inner[0])
+        .unwrap()
+        .as_if()
+        .unwrap()
+        .r#if;
 
-    match if_branch.condition.token {
-        crate::id::TaggedExprInner::BinOp(_, ref left, _) => {
-            assert_eq!(ty_env.ty_of(left.id.into()), Some(Ty::Int))
+    assert_eq!(
+        ty_env.ty_of(if_branch.condition.id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Bool))
+    );
+
+    match tree.get_expr(&if_branch.condition) {
+        Expr::BinOp(_, ref left, _) => {
+            assert_eq!(
+                ty_env.ty_of(left.id.into()),
+                Some(Ty::PrimitiveType(PrimitiveType::Int))
+            )
         }
         _ => panic!("ast does not match expected structure for expr `n == 0`"),
     }
@@ -73,55 +108,62 @@ fn factorial_type_check() {
 
 #[test]
 fn test_record_type_check() {
-    let tree = crate::parse::parse(include_str!("examples/record")).unwrap();
-    let tagged = tag(tree);
+    let tree = parse(include_str!("examples/record")).unwrap();
 
-    let expected_record_type = Some(Ty::Record({
-        let mut map = FxHashMap::default();
-        map.insert(
-            tagged
-                .nodes
-                .get(1)
-                .unwrap()
-                .as_record()
-                .unwrap()
-                .fields
-                .get(0)
-                .unwrap()
-                .name
-                .inner(),
-            Ty::Int,
-        );
-        map
-    }));
+    let ty_env = type_check(&tree).unwrap();
 
-    let ty_env = type_check(&tagged).unwrap();
+    ty_env.pretty_print(&tree);
 
-    let main = tagged.nodes.get(0).unwrap();
-    let main_nodes = &main.as_func().unwrap().block.inner.nodes;
-    let (_, left, right) = main_nodes
-        .get(0)
+    let (record_id, _) = tree.record_.iter().next().unwrap();
+
+    let (_, main_func) = tree.func.iter().next().unwrap();
+    let main_nodes = tree.block.get(&main_func.block.id).unwrap();
+    let (_, left, right) = tree
+        .expr
+        .get(&main_nodes.inner[0].id)
+        .unwrap()
+        .as_bin_op()
+        .unwrap();
+    assert_eq!(
+        ty_env.ty_of(right.id.into()),
+        Some(Ty::Record {
+            ref_: RecordRef { id: *record_id }
+        })
+    );
+    assert_eq!(
+        ty_env.ty_of(left.id.into()),
+        Some(Ty::Record {
+            ref_: RecordRef { id: *record_id }
+        })
+    );
+
+    let (_, x, expr) = tree
+        .get(&main_nodes.inner[1])
         .unwrap()
         .as_expr()
         .unwrap()
         .as_bin_op()
         .unwrap();
-    assert_eq!(ty_env.ty_of(right.id.into()), expected_record_type);
-    assert_eq!(ty_env.ty_of(left.id.into()), expected_record_type);
+    assert_eq!(
+        tree.get_ident(*tree.get_expr(x).as_ident().unwrap())
+            .inner(),
+        "x"
+    );
+    assert_eq!(
+        ty_env.ty_of(x.id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+    assert_eq!(
+        ty_env.ty_of(expr.id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
 
-    let (_, x, expr) = main_nodes
-        .get(1)
-        .unwrap()
-        .as_expr()
-        .unwrap()
-        .as_bin_op()
-        .unwrap();
-    assert_eq!(ty_env.ty_of(x.id.into()), Some(Ty::Int));
-    assert_eq!(ty_env.ty_of(expr.id.into()), Some(Ty::Int));
-
-    let record = tagged.nodes.get(1).unwrap().as_record().unwrap();
-    let record_id = record.fields.get(0).unwrap().name.id;
-    assert_eq!(ty_env.ty_of(record_id.into()), Some(Ty::Int))
+    let record = tree.record_.iter().next().unwrap();
+    let record_id = record.1.fields.get(0).unwrap().name.id;
+    assert_eq!(
+        ty_env.ty_of(record_id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    )
 }
 
 #[test]
@@ -130,78 +172,109 @@ fn simple_unify_check() {
         Constraint::new(
             ConstraintId::new(0),
             ConstraintInner::IdToTy {
-                id: Spanned::new(Span::null(), AtomicId::new(1).into()),
-                ty: Spanned::new(Span::null(), Ty::Int),
+                id: Spanned::new(Span::null(), Id::new(1).into()),
+                ty: Spanned::new(Span::null(), Ty::PrimitiveType(PrimitiveType::Int)),
             },
         ),
         Constraint::new(
             ConstraintId::new(1),
             ConstraintInner::IdToId {
-                id: Spanned::new(Span::null(), AtomicId::new(2).into()),
-                to: Spanned::new(Span::null(), AtomicId::new(1).into()),
+                id: Spanned::new(Span::null(), Id::new(2).into()),
+                to: Spanned::new(Span::null(), Id::new(1).into()),
             },
         ),
         Constraint::new(
             ConstraintId::new(2),
             ConstraintInner::IdToId {
-                id: Spanned::new(Span::null(), AtomicId::new(3).into()),
-                to: Spanned::new(Span::null(), AtomicId::new(1).into()),
+                id: Spanned::new(Span::null(), Id::new(3).into()),
+                to: Spanned::new(Span::null(), Id::new(1).into()),
             },
         ),
         Constraint::new(
             ConstraintId::new(3),
             ConstraintInner::IdToTy {
-                id: Spanned::new(Span::null(), AtomicId::new(3).into()),
-                ty: Spanned::new(Span::null(), Ty::Int),
+                id: Spanned::new(Span::null(), Id::new(3).into()),
+                ty: Spanned::new(Span::null(), Ty::PrimitiveType(PrimitiveType::Int)),
             },
         ),
     ]);
 
     let env = unify(set, TyEnv::new(), &mut TraceTable::default()).unwrap();
 
-    assert_eq!(env.ty_of(AtomicId::new(1).into()).unwrap(), Ty::Int);
-    assert_eq!(env.ty_of(AtomicId::new(2).into()).unwrap(), Ty::Int);
-    assert_eq!(env.ty_of(AtomicId::new(3).into()).unwrap(), Ty::Int);
+    assert_eq!(
+        env.ty_of(Id::new(1).into()).unwrap(),
+        Ty::PrimitiveType(PrimitiveType::Int)
+    );
+    assert_eq!(
+        env.ty_of(Id::new(2).into()).unwrap(),
+        Ty::PrimitiveType(PrimitiveType::Int)
+    );
+    assert_eq!(
+        env.ty_of(Id::new(3).into()).unwrap(),
+        Ty::PrimitiveType(PrimitiveType::Int)
+    );
 }
 
 #[test]
 fn iterative_factorial_type_check() {
-    let tree = crate::parse::parse(include_str!("examples/iterative-factorial")).unwrap();
-    let tagged = tag(tree);
+    let tree = parse(include_str!("examples/iterative-factorial")).unwrap();
 
-    let env = type_check(&tagged).expect("failed to type check");
+    let env = type_check(&tree).expect("failed to type check");
 
-    let func = tagged.nodes.get(0).unwrap().as_func().unwrap();
-    assert_eq!(env.ty_of(func.name.id.into()), Some(Ty::Int));
+    let item = tree.get(&tree.root.1.inner[0]).unwrap();
+    let func = item.as_func().unwrap();
+    assert_eq!(
+        env.ty_of(func.name.id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
     assert_eq!(
         env.ty_of(func.parameters.get(0).unwrap().id.into()),
-        Some(Ty::Int)
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
-    let (op, res, _literal) = func
-        .block
-        .inner
-        .nodes
-        .get(0)
+    let (op, res, _literal) = tree
+        .get(&tree.get_block(&func.block).inner[0])
         .unwrap()
         .as_expr()
         .unwrap()
         .as_bin_op()
         .unwrap();
-    assert_eq!(op.token, BinOp::SetEquals);
-    assert_eq!(env.ty_of(res.id.into()), Some(Ty::Int));
+    assert_eq!(*op, BinOp::SetEquals);
+    assert_eq!(
+        env.ty_of(res.id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+}
+
+#[test]
+fn very_simple() {
+    let table = parse(include_str!("examples/very-simple")).expect("failed to parse");
+    let ty_env = type_check(&table).expect("failed to type check a well-typed program");
+    let id = table
+        .ident
+        .iter()
+        .find_map(|(id, ident)| (ident.inner() == "main").then(|| id))
+        .unwrap();
+    assert_eq!(
+        ty_env.ty_of(*id).unwrap(),
+        Ty::PrimitiveType(PrimitiveType::Int)
+    );
 }
 
 #[test]
 fn fib_type_check() {
     let tree = crate::parse::parse(include_str!("examples/fib")).unwrap();
-    let tagged = tag(tree);
 
-    let env = type_check(&tagged).expect("failed to type check fibonacci");
+    let env = type_check(&tree).expect("failed to type check fibonacci");
 
-    let func = tagged.nodes.get(1).unwrap().as_func().unwrap();
-    assert_eq!(env.ty_of(func.name.id.into()), Some(Ty::Int));
+    env.pretty_print(&tree);
+
+    let func = tree.func.iter().next().unwrap();
     assert_eq!(
-        env.ty_of(func.parameters.get(0).unwrap().id.into()),
-        Some(Ty::Int)
+        env.ty_of(func.1.name.id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+    assert_eq!(
+        env.ty_of(func.1.parameters.get(0).unwrap().id.into()),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
 }

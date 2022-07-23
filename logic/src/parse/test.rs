@@ -1,16 +1,12 @@
 mod parse_reparse {
-    use crate::parse::{
-        utils::{Input, Parse},
-        Ast,
-    };
+    use crate::parse::{parse, utils::Input};
 
     fn inner((input, should_parse): (&str, bool)) {
-        let ast = match Ast::parse(&mut Input::new(input)) {
-            Ok(t) => {
+        match parse(&mut Input::new(input)) {
+            Ok(_) => {
                 if !should_parse {
                     panic!("The input `{}` should not have parsed, but it did.", input);
                 }
-                t
             }
             Err(e) => {
                 if should_parse {
@@ -21,24 +17,6 @@ mod parse_reparse {
                 } else {
                     return;
                 }
-            }
-        };
-        let output = ast.to_string();
-        match Ast::parse(&mut Input::new(&output)) {
-            Ok(reconstructed) => {
-                if ast != reconstructed {
-                    println!("INPUT: {}", input);
-                    println!("INTERMEDIATE: {}", output);
-                    panic!("the reconstructed ast does not equal the initially parsed one");
-                }
-            }
-            Err(e) => {
-                println!("INPUT: {}", input);
-                println!("INTERMEDIATE: {}", output);
-                panic!(
-                    "failed to parse the reconstructed output, with error: {:#?}",
-                    e
-                );
             }
         };
     }

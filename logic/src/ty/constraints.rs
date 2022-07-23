@@ -2,89 +2,79 @@
 
 use crate::{
     diagnostics::span::{HasSpan, Spanned},
-    id::{
-        TaggedAst, TaggedBranch, TaggedExpr, TaggedExprInner, TaggedFunc, TaggedNode, TaggedRecord,
-        UniversalId,
-    },
     parse::{
-        expr::{BinOp, UnOp},
+        expr::{BinOp, Expr, UnOp},
+        func::{Func, FuncRef, Return},
+        ident::Ident,
         lit::Literal,
-        Node,
+        r#for::ForLoop,
+        r#if::{Branch, If},
+        r#while::While,
+        record::{Record, RecordRef},
+        table::{Id, ParseTable, WithId},
     },
-    visitor::Visitor,
+    visitor::IdVisitor,
 };
 
-use super::{error::ConstraintGatheringError, track::ConstraintId, Ty};
+use super::{error::ConstraintGatheringError, track::ConstraintId, PrimitiveType, Ty};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 /// The possible constraints.
-pub(crate) enum ConstraintInner<'ctx> {
+pub(crate) enum ConstraintInner {
     #[allow(unused)]
     /// A specific item with the given [crate::id::Id] must have the given base type.
-    IdToTy {
-        id: Spanned<UniversalId<'ctx>>,
-        ty: Spanned<Ty<'ctx>>,
-    },
+    IdToTy { id: Spanned<Id>, ty: Spanned<Ty> },
     /// A specific item with the given [crate::id::Id] must have the same type as a different item.
     #[allow(unused)]
-    IdToId {
-        id: Spanned<UniversalId<'ctx>>,
-        to: Spanned<UniversalId<'ctx>>,
-    },
-    /// A specific type must be the same as a different item.
-    ///
-    /// Note that this is used later, while solving the constraints and not while collecting
-    /// constraints from the AST.
-    TyToTy {
-        ty: Spanned<Ty<'ctx>>,
-        to: Spanned<Ty<'ctx>>,
-    },
+    IdToId { id: Spanned<Id>, to: Spanned<Id> },
+    /// A specific type must be the same as a different item. This is never
+    /// produced during the constraint-gathering phase - it is used when we
+    /// eliminate the variable ids.
+    TyToTy { ty: Spanned<Ty>, to: Spanned<Ty> },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub(crate) struct Constraint<'ctx> {
+pub(crate) struct Constraint {
     pub(crate) id: ConstraintId,
-    pub(crate) inner: ConstraintInner<'ctx>,
+    pub(crate) inner: ConstraintInner,
 }
 
-impl<'ctx> Constraint<'ctx> {
-    pub(crate) fn new(id: ConstraintId, inner: ConstraintInner<'ctx>) -> Self {
+impl Constraint {
+    pub(crate) fn new(id: ConstraintId, inner: ConstraintInner) -> Self {
         Self { id, inner }
     }
 }
 
-pub(crate) fn collect<'ctx>(
-    ast: &'ctx TaggedAst,
-) -> Result<Vec<Constraint<'ctx>>, ConstraintGatheringError> {
-    let mut visitor = ConstraintVisitor::new(ast);
+pub(crate) fn collect<'i>(
+    ast: &'i ParseTable<'i>,
+) -> Result<Vec<Constraint>, ConstraintGatheringError> {
+    let mut visitor = ConstraintVisitor::new();
     visitor
-        .visit_ast(ast)
+        .visit_table(ast)
         .into_iter()
         .collect::<Result<_, _>>()?;
     Ok(visitor.take_constraints())
 }
 
-struct ConstraintVisitor<'ctx> {
-    constraints: Vec<Constraint<'ctx>>,
-    definitions: Vec<&'ctx TaggedFunc<'ctx>>,
-    records: Vec<&'ctx TaggedRecord<'ctx>>,
-    current_func: Option<&'ctx TaggedFunc<'ctx>>,
+struct ConstraintVisitor {
+    constraints: Vec<Constraint>,
+    current_func: Option<FuncRef>,
     id: ConstraintId,
 }
 
-impl<'ctx> ConstraintVisitor<'ctx> {
+impl ConstraintVisitor {
     fn new_id(&mut self) -> ConstraintId {
         let res = self.id;
         self.id.inner += 1;
         res
     }
 
-    fn add_constraint(&mut self, inner: ConstraintInner<'ctx>) {
+    fn add_constraint(&mut self, inner: ConstraintInner) {
         let id = self.new_id();
         self.constraints.push(Constraint::new(id, inner))
     }
 
-    fn extend_constraints(&mut self, inner: impl IntoIterator<Item = ConstraintInner<'ctx>>) {
+    fn extend_constraints(&mut self, inner: impl IntoIterator<Item = ConstraintInner>) {
         // todo: can this allocation be removed?
         // does it even matter?
         let res: Vec<Constraint> = inner
@@ -95,114 +85,114 @@ impl<'ctx> ConstraintVisitor<'ctx> {
     }
 }
 
-fn gather_function_definitions<'a, 'collect>(
-    ast: &'collect TaggedAst<'a>,
-) -> Vec<&'collect TaggedFunc<'a>> {
-    ast.nodes
-        .iter()
-        .filter_map(|node: &TaggedNode| match node {
-            Node::Func(f) => Some(f),
-            _ => None,
-        })
-        .collect()
-}
-
-/// Collects a reference to every records in a file.
-///
-/// todo: add a name resolution algorithm
-fn gather_record_definitions<'collect>(
-    ast: &'collect TaggedAst<'collect>,
-) -> Vec<&'collect TaggedRecord<'collect>> {
-    ast.nodes
-        .iter()
-        .filter_map(|node: &TaggedNode| match node {
-            Node::Record(r) => Some(r),
-            _ => None,
-        })
-        .collect()
-}
-
-impl<'ctx> ConstraintVisitor<'ctx> {
-    fn new(ast: &'ctx TaggedAst<'ctx>) -> Self {
+impl ConstraintVisitor {
+    fn new() -> Self {
         Self {
             constraints: vec![],
-            definitions: gather_function_definitions(ast),
-            records: gather_record_definitions(ast),
             current_func: None,
             id: ConstraintId::default(),
         }
     }
 
-    fn take_constraints(self) -> Vec<Constraint<'ctx>> {
+    fn take_constraints(self) -> Vec<Constraint> {
         self.constraints
     }
 }
 
-impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
+impl<'i> IdVisitor<'i> for ConstraintVisitor {
     type Output = Result<(), ConstraintGatheringError>;
 
-    fn visit_rec(&mut self, rec: &'ctx crate::id::TaggedRecord<'ctx>) -> Self::Output {
-        for field in &rec.fields {
+    fn visit_rec(&mut self, rec: WithId<&'i Record>, table: &'i ParseTable<'i>) -> Self::Output {
+        for field in &rec.inner().fields {
             self.add_constraint(ConstraintInner::IdToTy {
-                id: Spanned::new(field.name.span(), field.name.id.into()),
-                ty: field.ty.clone(),
+                id: Spanned::new(
+                    table.get_ident(field.name).span(table),
+                    field.name.id.into(),
+                ),
+                ty: field.ty.clone().map(Ty::PrimitiveType),
             })
         }
         Ok(())
     }
 
-    fn visit_expr(&mut self, expr: &'ctx TaggedExpr<'ctx>) -> Self::Output {
-        self.extend_constraints(collect_expr(expr, &self.definitions, &self.records, None)?);
+    fn visit_expr(
+        &mut self,
+        expr: WithId<&'i Expr<'i>>,
+        table: &'i ParseTable<'i>,
+    ) -> Self::Output {
+        self.extend_constraints(collect_expr(expr, table, None)?);
         Ok(())
     }
 
-    fn visit_for(&mut self, stmt: &'ctx crate::id::TaggedFor<'ctx>) -> Self::Output {
+    fn visit_for(&mut self, stmt: WithId<&'i ForLoop>, table: &'i ParseTable<'i>) -> Self::Output {
         self.add_constraint(ConstraintInner::IdToTy {
-            id: Spanned::new(stmt.var.span(), stmt.var.id.into()),
+            id: Spanned::new(
+                table.get_ident(stmt.inner().var).span(table),
+                table.get_ident_with_id(stmt.inner().var).id().into(),
+            ),
             // todo: better span here?
-            ty: Spanned::new(stmt.var.span(), Ty::Int),
+            ty: Spanned::new(
+                table.get_ident(stmt.inner().var).span(table),
+                Ty::PrimitiveType(PrimitiveType::Int),
+            ),
         });
         self.add_constraint(ConstraintInner::IdToTy {
-            id: Spanned::new(stmt.between.start.span(), stmt.between.start.id.into()),
-            ty: Spanned::new(stmt.between.start.span(), Ty::Int),
+            id: Spanned::new(
+                table.get_expr(&stmt.inner().between.start).span(table),
+                stmt.inner().between.start.id.into(),
+            ),
+            ty: Spanned::new(
+                table.get_expr(&stmt.inner().between.start).span(table),
+                Ty::PrimitiveType(PrimitiveType::Int),
+            ),
         });
         self.add_constraint(ConstraintInner::IdToTy {
-            id: Spanned::new(stmt.between.stop.span(), stmt.between.stop.id.into()),
-            ty: Spanned::new(stmt.between.stop.span(), Ty::Int),
+            id: Spanned::new(
+                table.get_expr(&stmt.inner().between.stop).span(table),
+                stmt.inner().between.stop.id.into(),
+            ),
+            ty: Spanned::new(
+                table.get_expr(&stmt.inner().between.stop).span(table),
+                Ty::PrimitiveType(PrimitiveType::Int),
+            ),
         });
-        if let Some(ref step) = stmt.between.step {
+        if let Some(ref step) = stmt.inner().between.step {
             self.add_constraint(ConstraintInner::IdToTy {
-                id: Spanned::new(step.span(), step.id.into()),
-                ty: Spanned::new(step.span(), Ty::Int),
+                id: Spanned::new(table.get_expr(step).span(table), step.id.into()),
+                ty: Spanned::new(
+                    table.get_expr(step).span(table),
+                    Ty::PrimitiveType(PrimitiveType::Int),
+                ),
             });
         }
-        self.visit_block(&stmt.block)
+        self.visit_block(table.get_block_with_id(stmt.inner().block), table)
             .into_iter()
             .collect::<Result<_, _>>()?;
         Ok(())
     }
 
-    fn visit_if(&mut self, stmt: &'ctx crate::id::TaggedIf<'ctx>) -> Self::Output {
-        fn branch_constraints<'ctx>(
-            branch: &'ctx TaggedBranch<'ctx>,
-            visitor: &mut ConstraintVisitor<'ctx>,
+    fn visit_if(&mut self, stmt: WithId<&'i If>, table: &'i ParseTable<'i>) -> Self::Output {
+        fn branch_constraints<'i>(
+            branch: &'i Branch,
+            table: &'i ParseTable<'i>,
+            visitor: &mut ConstraintVisitor,
         ) -> Result<(), ConstraintGatheringError> {
-            visitor.visit_expr(&branch.condition)?;
+            visitor.visit_expr(table.get_expr_with_id(branch.condition), table)?;
             visitor
-                .visit_block(&branch.block)
+                .visit_block(table.get_block_with_id(branch.block), table)
                 .into_iter()
                 .collect::<Result<_, _>>()?;
             Ok(())
         }
 
-        branch_constraints(&stmt.r#if, self)?;
+        branch_constraints(&stmt.inner().r#if, table, self)?;
 
-        for each in &stmt.else_ifs {
-            branch_constraints(each, self)?;
+        for each in &stmt.inner().else_ifs {
+            branch_constraints(each, table, self)?;
         }
 
-        if let Some(ref r#else) = stmt.r#else {
-            self.visit_block(r#else)
+        if let Some(ref r#else) = stmt.inner().r#else {
+            self.visit_block(table.get_block_with_id(*r#else), table)
                 .into_iter()
                 .collect::<Result<_, _>>()?;
         }
@@ -210,39 +200,51 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
         Ok(())
     }
 
-    fn visit_while(&mut self, stmt: &'ctx crate::id::TaggedWhile<'ctx>) -> Self::Output {
+    fn visit_while(&mut self, stmt: WithId<&'i While>, table: &'i ParseTable<'i>) -> Self::Output {
         self.add_constraint(ConstraintInner::IdToTy {
-            id: Spanned::new(stmt.condition.span(), stmt.condition.id.into()),
+            id: Spanned::new(
+                table.get_expr(&stmt.inner().condition).span(table),
+                stmt.inner().condition.id.into(),
+            ),
             // todo: better span?
-            ty: Spanned::new(stmt.condition.span(), Ty::Bool),
+            ty: Spanned::new(
+                table.get_expr(&stmt.inner().condition).span(table),
+                Ty::PrimitiveType(PrimitiveType::Bool),
+            ),
         });
 
-        self.visit_block(&stmt.block)
+        self.visit_block(table.get_block_with_id(stmt.inner().block), table)
             .into_iter()
             .collect::<Result<_, _>>()?;
 
         Ok(())
     }
 
-    fn visit_ret(&mut self, ret: &'ctx crate::id::TaggedReturn<'ctx>) -> Self::Output {
+    fn visit_ret(&mut self, ret: WithId<&'i Return>, table: &'i ParseTable<'i>) -> Self::Output {
         if let Some(func) = self.current_func {
             self.add_constraint(ConstraintInner::IdToId {
-                id: Spanned::new(func.name.span(), func.name.id.into()),
-                to: Spanned::new(ret.expr.span(), ret.expr.id.into()),
+                id: Spanned::new(
+                    table.get_ident(table.get_func(func).name).span(table),
+                    table.get_func(func).name.id.into(),
+                ),
+                to: Spanned::new(
+                    table.get_expr(&ret.inner().expr).span(table),
+                    table.get_expr_with_id(ret.inner().expr).id().into(),
+                ),
             });
-            self.visit_expr(&ret.expr)
+            self.visit_expr(table.get_expr_with_id(ret.inner().expr), table)
         } else {
             Err(ConstraintGatheringError::ReturnOutsideFunction {
-                span: ret.expr.span().into(),
+                span: table.get_expr(&ret.inner().expr).span(table).into(),
                 explanation: "Return statements can only be used inside functions".to_string(),
             })
         }
     }
 
-    fn visit_func(&mut self, func: &'ctx TaggedFunc<'ctx>) -> Self::Output {
+    fn visit_func(&mut self, func: WithId<&'i Func>, table: &'i ParseTable<'i>) -> Self::Output {
         let prev = self.current_func;
-        self.current_func = Some(func);
-        self.visit_block(&func.block)
+        self.current_func = Some(FuncRef { id: func.id() });
+        self.visit_block(table.get_block_with_id(func.inner().block), table)
             .into_iter()
             .collect::<Result<_, _>>()?;
         self.current_func = prev;
@@ -250,7 +252,7 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
     }
 
     /// Doesn't do anything.
-    fn visit_ident(&mut self, _: &crate::id::TaggedIdent) -> Self::Output {
+    fn visit_ident(&mut self, _: WithId<&Ident<'i>>, _: &'i ParseTable<'i>) -> Self::Output {
         Ok(())
     }
 }
@@ -259,63 +261,65 @@ impl<'ctx> Visitor<'ctx> for ConstraintVisitor<'ctx> {
 ///
 /// The type that this expression should conform to. The function will insert constraints as
 /// needed.
-fn collect_expr<'ctx>(
-    expr: &'ctx TaggedExpr<'ctx>,
-    definitions: &[&'ctx TaggedFunc<'ctx>],
-    record_definitions: &[&'ctx TaggedRecord<'ctx>],
-    ty: Option<Ty<'ctx>>,
-) -> Result<Vec<ConstraintInner<'ctx>>, ConstraintGatheringError> {
+fn collect_expr<'i>(
+    expr: WithId<&'i Expr<'i>>,
+    table: &'i ParseTable<'i>,
+    ty: Option<Ty>,
+) -> Result<Vec<ConstraintInner>, ConstraintGatheringError> {
     let mut constraints = vec![];
 
     if let Some(ty) = ty {
         constraints.push(ConstraintInner::IdToTy {
-            id: Spanned::new(expr.span(), expr.id.into()),
-            ty: Spanned::new(expr.span(), ty),
+            id: Spanned::new(expr.inner().span(table), expr.id().into()),
+            ty: Spanned::new(expr.inner().span(table), ty),
         });
     }
 
-    match &expr.token {
-        TaggedExprInner::Ident(ident) => constraints.push(ConstraintInner::IdToId {
-            id: Spanned::new(ident.span(), ident.id.into()),
-            to: Spanned::new(expr.span(), expr.id.into()),
+    match &expr.inner() {
+        Expr::Ident(ident) => constraints.push(ConstraintInner::IdToId {
+            id: Spanned::new(table.get_ident(*ident).span(table), ident.id.into()),
+            to: Spanned::new(expr.inner().span(table), expr.id().into()),
         }),
-        TaggedExprInner::Literal(lit) => {
+        Expr::Literal(lit) => {
             let ty = match lit.token {
-                Literal::String(_) => Ty::String,
-                Literal::Number(_) => Ty::Int,
-                Literal::Bool(_) => Ty::Bool,
+                Literal::String(_) => Ty::PrimitiveType(PrimitiveType::StrSlice),
+                Literal::Number(_) => Ty::PrimitiveType(PrimitiveType::Int),
+                Literal::Bool(_) => Ty::PrimitiveType(PrimitiveType::Bool),
             };
             constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(expr.span(), expr.id.into()),
-                ty: Spanned::new(expr.span(), ty),
+                id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                ty: Spanned::new(expr.inner().span(table), ty),
             });
         }
-        TaggedExprInner::BinOp(op, left, right) => match (op.token, left, right) {
+        Expr::BinOp(op, left, right) => match (op.token, left, right) {
             (BinOp::Add | BinOp::Divide | BinOp::Multiply | BinOp::Subtract, left, right) => {
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(left.span(), left.id.into()),
-                    to: Spanned::new(right.span(), right.id.into()),
+                    id: Spanned::new(table.get_expr(left).span(table), left.id.into()),
+                    to: Spanned::new(table.get_expr(right).span(table), right.id.into()),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(left.span(), left.id.into()),
-                    to: Spanned::new(expr.span(), expr.id.into()),
+                    id: Spanned::new(table.get_expr(left).span(table), left.id.into()),
+                    to: Spanned::new(expr.inner().span(table), expr.id().into()),
                 });
-                constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
-                constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
             }
-            (BinOp::Dot, _left, right) => match right.token {
-                TaggedExprInner::Ident(ref ident) => {
+            (BinOp::Dot, _left, right) => match table.get_expr(right) {
+                Expr::Ident(ref ident) => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(ident.span(), ident.id.into()),
-                        to: Spanned::new(right.span(), right.id.into()),
+                        id: Spanned::new(table.get_ident(*ident).span(table), ident.id.into()),
+                        to: Spanned::new(table.get_expr(&right).span(table), right.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(ident.span(), ident.id.into()),
-                        to: Spanned::new(expr.span(), expr.id.into()),
+                        id: Spanned::new(
+                            table.get_ident(*ident).span(table),
+                            table.get_ident_with_id(*ident).id().into(),
+                        ),
+                        to: Spanned::new(expr.inner().span(table), expr.id().into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(right.span(), right.id.into()),
-                        to: Spanned::new(expr.span(), expr.id.into()),
+                        id: Spanned::new(table.get_expr(right).span(table), right.id.into()),
+                        to: Spanned::new(expr.inner().span(table), expr.id().into()),
                     });
                 }
                 // todo: methods
@@ -324,62 +328,93 @@ fn collect_expr<'ctx>(
             // todo: add necessary additional type constraints
             (BinOp::IsEqual | BinOp::IsNotEqual, left, right) => {
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(left.span(), left.id.into()),
-                    to: Spanned::new(right.span(), right.id.into()),
+                    id: Spanned::new(
+                        table.get_expr(left).span(table),
+                        table.get_expr_with_id(*left).id().into(),
+                    ),
+                    to: Spanned::new(
+                        table.get_expr(right).span(table),
+                        table.get_expr_with_id(*right).id().into(),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(expr.span(), expr.id.into()),
-                    ty: Spanned::new(expr.span(), Ty::Bool),
+                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    ty: Spanned::new(
+                        expr.inner().span(table),
+                        Ty::PrimitiveType(PrimitiveType::Bool),
+                    ),
                 });
-                constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
-                constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
             }
-            (BinOp::SetEquals, left, right) => match left.token {
-                TaggedExprInner::Ident(ref ident) => {
+            (BinOp::SetEquals, left, right) => match table.get_expr(left) {
+                Expr::Ident(ref ident) => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(ident.span(), ident.id.into()),
-                        to: Spanned::new(right.span(), right.id.into()),
+                        id: Spanned::new(table.get_ident(*ident).span(table), ident.id.into()),
+                        to: Spanned::new(table.get_expr(right).span(table), right.id.into()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(left.span(), left.id.into()),
-                        to: Spanned::new(right.span(), right.id.into()),
+                        id: Spanned::new(
+                            table.get_expr(left).span(table),
+                            table.get_expr_with_id(*left).id().into(),
+                        ),
+                        to: Spanned::new(
+                            table.get_expr(right).span(table),
+                            table.get_expr_with_id(*right).id().into(),
+                        ),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(ident.span(), ident.id.into()),
-                        to: Spanned::new(left.span(), left.id.into()),
+                        id: Spanned::new(
+                            table.get_ident(*ident).span(table),
+                            table.get_ident_with_id(*ident).id().into(),
+                        ),
+                        to: Spanned::new(
+                            table.get_expr(left).span(table),
+                            table.get_expr_with_id(*left).id().into(),
+                        ),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(expr.span(), expr.id.into()),
-                        to: Spanned::new(left.span(), left.id.into()),
+                        id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        to: Spanned::new(
+                            table.get_expr(left).span(table),
+                            table.get_expr_with_id(*left).id().into(),
+                        ),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(expr.span(), expr.id.into()),
-                        to: Spanned::new(right.span(), right.id.into()),
+                        id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        to: Spanned::new(
+                            table.get_expr(right).span(table),
+                            table.get_expr_with_id(*right).id().into(),
+                        ),
                     });
-                    constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
-                    constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
+                    constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
+                    constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
                 }
-                TaggedExprInner::UnOp(op, ref pointer) if op.token.is_deref() => {
+                Expr::UnOp(op, ref pointer) if op.token.is_deref() => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(expr.span(), expr.id.into()),
+                        id: Spanned::new(expr.inner().span(table), expr.id().into()),
                         // todo: use the span of the operator
-                        to: Spanned::new(pointer.span(), pointer.id.into()),
+                        to: Spanned::new(
+                            table.get_expr(pointer).span(table),
+                            table.get_expr_with_id(*pointer).id().into(),
+                        ),
                     });
                     constraints.push(ConstraintInner::IdToTy {
-                        id: Spanned::new(pointer.span(), pointer.id.into()),
+                        id: Spanned::new(
+                            table.get_expr(pointer).span(table),
+                            table.get_expr_with_id(*pointer).id().into(),
+                        ),
                         // todo: use the span of the operator
-                        ty: Spanned::new(pointer.span(), Ty::Pointer),
+                        ty: Spanned::new(
+                            table.get_expr(pointer).span(table),
+                            Ty::PrimitiveType(PrimitiveType::Pointer),
+                        ),
                     });
-                    constraints.extend(collect_expr(
-                        pointer,
-                        definitions,
-                        record_definitions,
-                        None,
-                    )?)
+                    constraints.extend(collect_expr(table.get_expr_with_id(*pointer), table, None)?)
                 }
                 _ => {
                     return Err(ConstraintGatheringError::CannotAssignToExpression {
-                        span: expr.token.span().into(),
+                        span: expr.inner().span(table).into(),
                         explanation:
                             "Values can only be assigned to variables, not to expressions!"
                                 .to_string(),
@@ -389,75 +424,108 @@ fn collect_expr<'ctx>(
             // todo: sort this out (memory safety)
             (BinOp::Index, left, right) => {
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(expr.span(), expr.id.into()),
-                    ty: Spanned::new(expr.span(), Ty::Pointer),
+                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    ty: Spanned::new(
+                        expr.inner().span(table),
+                        Ty::PrimitiveType(PrimitiveType::Pointer),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(left.span(), left.id.into()),
+                    id: Spanned::new(table.get_expr(left).span(table), left.id.into()),
                     // todo: use the span of the operator
-                    ty: Spanned::new(left.span(), Ty::Pointer),
+                    ty: Spanned::new(
+                        table.get_expr(left).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Pointer),
+                    ),
                 });
-                constraints.extend(collect_expr(left, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(right.span(), right.id.into()),
-                    ty: Spanned::new(right.span(), Ty::Int),
+                    id: Spanned::new(
+                        table.get_expr(right).span(table),
+                        table.get_expr_with_id(*right).id().into(),
+                    ),
+                    ty: Spanned::new(
+                        table.get_expr(right).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Int),
+                    ),
                 });
-                constraints.extend(collect_expr(right, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
             }
         },
-        TaggedExprInner::UnOp(op, arg) => match op.token {
+        Expr::UnOp(op, arg) => match op.token {
             UnOp::Positive | UnOp::Negative => constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(arg.span(), arg.id.into()),
-                ty: Spanned::new(arg.span(), Ty::Int),
+                id: Spanned::new(table.get_expr(arg).span(table), arg.id.into()),
+                ty: Spanned::new(
+                    table.get_expr(arg).span(table),
+                    Ty::PrimitiveType(PrimitiveType::Int),
+                ),
             }),
             UnOp::Deref => constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(arg.span(), arg.id.into()),
-                ty: Spanned::new(arg.span(), Ty::Pointer),
+                id: Spanned::new(table.get_expr(arg).span(table), arg.id.into()),
+                ty: Spanned::new(
+                    table.get_expr(arg).span(table),
+                    Ty::PrimitiveType(PrimitiveType::Pointer),
+                ),
             }),
         },
-        TaggedExprInner::Constructor(rec) => {
-            let definition = record_definitions
+        Expr::Constructor(rec) => {
+            let definition = table
+                .record_
                 .iter()
-                .find(|candidate| rec.name.token == candidate.name.token)
+                .find(|(_, record)| table.get_ident(record.name) == table.get_ident(rec.name))
                 .unwrap();
 
             constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(expr.span(), expr.id.into()),
+                id: Spanned::new(expr.inner().span(table), expr.id()),
                 ty: Spanned::new(
-                    definition.span(),
-                    Ty::Record(
-                        definition
-                            .fields
-                            .iter()
-                            .map(|field| (field.name.token.inner(), field.ty.token.clone()))
-                            .collect(),
-                    ),
+                    definition.1.span(table),
+                    Ty::Record {
+                        ref_: RecordRef { id: *definition.0 },
+                    },
                 ),
             });
 
             // todo: proper checks for matching fields
             for (struct_field, (constructor_name, constructor_expr)) in
-                definition.fields.iter().zip(rec.fields.iter())
+                definition.1.fields.iter().zip(rec.fields.iter())
             {
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(struct_field.name.span(), struct_field.name.id.into()),
-                    to: Spanned::new(constructor_name.span(), constructor_name.id.into()),
+                    id: Spanned::new(
+                        table.get_ident(struct_field.name).span(table),
+                        struct_field.name.id.into(),
+                    ),
+                    to: Spanned::new(
+                        table.get_ident(*constructor_name).span(table),
+                        constructor_name.id.into(),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(struct_field.name.span(), struct_field.name.id.into()),
-                    to: Spanned::new(constructor_expr.span(), constructor_expr.id.into()),
+                    id: Spanned::new(
+                        table.get_ident(struct_field.name).span(table),
+                        struct_field.name.id.into(),
+                    ),
+                    to: Spanned::new(
+                        table.get_expr(constructor_expr).span(table),
+                        constructor_expr.id.into(),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(constructor_name.span(), constructor_name.id.into()),
-                    to: Spanned::new(constructor_expr.span(), constructor_expr.id.into()),
+                    id: Spanned::new(
+                        table.get_ident(*constructor_name).span(table),
+                        constructor_name.id.into(),
+                    ),
+                    to: Spanned::new(
+                        table.get_expr(constructor_expr).span(table),
+                        table.get_expr_with_id(*constructor_expr).id().into(),
+                    ),
                 });
             }
         }
-        TaggedExprInner::FunctionCall(func, params) => {
-            if *func.token == "print_int" {
+        Expr::FunctionCall(func, params) => {
+            if table.get_ident(*func).inner == "print_int" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span().into(),
+                        span: table.get_ident(*func).span(table).into(),
                         explanation: format!(
                             "This function accepts 1
                             parameter, but you've called it with `{}` arguments.",
@@ -467,23 +535,25 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(param.span(), param.id.into()),
-                    ty: Spanned::new(param.span(), Ty::Int),
+                    id: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    ty: Spanned::new(
+                        table.get_expr(param).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Int),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(expr.span(), expr.id.into()),
-                    to: Spanned::new(param.span(), param.id.into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    to: Spanned::new(table.get_expr(param).span(table), param.id.into()),
                 });
                 constraints.extend(collect_expr(
-                    param,
-                    definitions,
-                    record_definitions,
-                    Some(Ty::Int),
+                    table.get_expr_with_id(*param),
+                    table,
+                    Some(Ty::PrimitiveType(PrimitiveType::Int)),
                 )?);
-            } else if *func.token == "print" {
+            } else if table.get_ident(*func).inner == "print" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span().into(),
+                        span: table.get_ident(*func).span(table).into(),
                         explanation: format!(
                             "This function accepts 1
                             parameter, but you've called it with `{}` arguments.",
@@ -493,24 +563,29 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(param.span(), param.id.into()),
-                    ty: Spanned::new(param.span(), Ty::String),
+                    id: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    ty: Spanned::new(
+                        table.get_expr(param).span(table),
+                        Ty::PrimitiveType(PrimitiveType::StrSlice),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(expr.span(), expr.id.into()),
-                    to: Spanned::new(param.span(), param.id.into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    to: Spanned::new(
+                        table.get_expr(param).span(table),
+                        table.get_expr_with_id(*param).id().into(),
+                    ),
                 });
                 constraints.extend(collect_expr(
-                    param,
-                    definitions,
-                    record_definitions,
-                    Some(Ty::String),
+                    table.get_expr_with_id(*param),
+                    table,
+                    Some(Ty::PrimitiveType(PrimitiveType::StrSlice)),
                 )?);
             // todo: make memory allocation functions standard-library only!
-            } else if *func.token == "malloc" {
+            } else if table.get_ident(*func).inner == "malloc" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span().into(),
+                        span: table.get_ident(*func).span(table).into(),
                         explanation: format!(
                             "This function accepts 1
                             parameter, but you've called it with `{}` arguments.",
@@ -519,23 +594,38 @@ fn collect_expr<'ctx>(
                     });
                 }
                 let param = &params[0];
-                constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
+                constraints.extend(collect_expr(table.get_expr_with_id(*param), table, None)?);
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(param.span(), param.id.into()),
-                    ty: Spanned::new(param.span(), Ty::Int),
+                    id: Spanned::new(
+                        table.get_expr(param).span(table),
+                        table.get_expr_with_id(*param).id().into(),
+                    ),
+                    ty: Spanned::new(
+                        table.get_expr(param).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Int),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(func.span(), func.id.into()),
-                    ty: Spanned::new(func.span(), Ty::Pointer),
+                    id: Spanned::new(
+                        table.get_ident(*func).span(table),
+                        table.get_ident_with_id(*func).id().into(),
+                    ),
+                    ty: Spanned::new(
+                        table.get_ident(*func).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Pointer),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(func.span(), func.id.into()),
-                    to: Spanned::new(expr.span(), expr.id.into()),
+                    id: Spanned::new(
+                        table.get_ident(*func).span(table),
+                        table.get_ident_with_id(*func).id().into(),
+                    ),
+                    to: Spanned::new(expr.inner().span(table), expr.id().into()),
                 });
-            } else if *func.token == "free" {
+            } else if table.get_ident(*func).inner == "free" {
                 if params.len() != 1 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span().into(),
+                        span: table.get_ident(*func).span(table).into(),
                         explanation: format!(
                             "This function accepts 1
                             parameter, but you've called it with `{}` arguments.",
@@ -545,18 +635,24 @@ fn collect_expr<'ctx>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(param.span(), param.id.into()),
-                    ty: Spanned::new(param.span(), Ty::Pointer),
+                    id: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    ty: Spanned::new(
+                        table.get_expr(param).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Pointer),
+                    ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(expr.span(), expr.id.into()),
-                    to: Spanned::new(param.span(), param.id.into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    to: Spanned::new(
+                        table.get_expr(param).span(table),
+                        table.get_expr_with_id(*param).id().into(),
+                    ),
                 });
-                constraints.extend(collect_expr(param, definitions, record_definitions, None)?);
-            } else if *func.token == "realloc" {
+                constraints.extend(collect_expr(table.get_expr_with_id(*param), table, None)?);
+            } else if table.get_ident(*func).inner() == "realloc" {
                 if params.len() != 2 {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span().into(),
+                        span: table.get_ident(*func).span(table).into(),
                         explanation: format!(
                             "This function accepts 2
                             parameter, but you've called it with `{}` arguments.",
@@ -566,56 +662,80 @@ fn collect_expr<'ctx>(
                 }
                 let pointer = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(pointer.span(), pointer.id.into()),
-                    ty: Spanned::new(pointer.span(), Ty::Pointer),
+                    id: Spanned::new(table.get_expr(pointer).span(table), pointer.id.into()),
+                    ty: Spanned::new(
+                        table.get_expr(pointer).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Pointer),
+                    ),
                 });
                 constraints.extend(collect_expr(
-                    pointer,
-                    definitions,
-                    record_definitions,
-                    Some(Ty::Pointer),
+                    table.get_expr_with_id(*pointer),
+                    table,
+                    Some(Ty::PrimitiveType(PrimitiveType::Pointer)),
                 )?);
                 let new_size = &params[1];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(new_size.span(), new_size.id.into()),
-                    ty: Spanned::new(new_size.span(), Ty::Int),
+                    id: Spanned::new(
+                        table.get_expr(new_size).span(table),
+                        table.get_expr_with_id(*new_size).id().into(),
+                    ),
+                    ty: Spanned::new(
+                        table.get_expr(new_size).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Int),
+                    ),
                 });
                 constraints.extend(collect_expr(
-                    new_size,
-                    definitions,
-                    record_definitions,
-                    Some(Ty::Int),
+                    table.get_expr_with_id(*new_size),
+                    table,
+                    Some(Ty::PrimitiveType(PrimitiveType::Int)),
                 )?);
-            } else if let Some(function) = definitions
-                .iter()
-                .find(|function| function.name.token == func.token)
-            {
-                if function.parameters.len() != params.len() {
+            } else if let Some(function) = table.func.iter().find(|function| {
+                table.get_ident(function.1.name).inner == table.get_ident(*func).inner
+            }) {
+                if function.1.parameters.len() != params.len() {
                     return Err(ConstraintGatheringError::MismatchedFunctionCall {
-                        span: func.span().into(),
+                        span: table.get_ident(*func).span(table).into(),
                         explanation: format!(
                             "This function accepts `{}`
                             parameters, but you've called it with `{}` arguments.",
-                            function.parameters.len(),
+                            function.1.parameters.len(),
                             params.len()
                         ),
                     });
                 }
-                for (a, b) in function.parameters.iter().zip(params) {
+                for (parameter, argument_expression) in function.1.parameters.iter().zip(params) {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(b.span(), b.id.into()),
-                        to: Spanned::new(a.span(), a.id.into()),
+                        id: Spanned::new(
+                            table.get_expr(argument_expression).span(table),
+                            argument_expression.id.into(),
+                        ),
+                        to: Spanned::new(
+                            table.get_ident(*parameter).span(table),
+                            parameter.id.into(),
+                        ),
                     });
-                    constraints.extend(collect_expr(b, definitions, record_definitions, None)?);
+                    constraints.extend(collect_expr(
+                        table.get_expr_with_id(*argument_expression),
+                        table,
+                        None,
+                    )?);
                 }
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(func.span(), func.id.into()),
-                    to: Spanned::new(expr.span(), expr.id.into()),
+                    id: Spanned::new(
+                        table.get_ident(*func).span(table),
+                        table.get_ident_with_id(*func).id().into(),
+                    ),
+                    to: Spanned::new(expr.inner().span(table), expr.id().into()),
                 });
             } else {
                 return Err(ConstraintGatheringError::UnresolvableFunction {
-                    span: func.span().into(),
-                    explanation: { format!("A function with name `{}` cannot be found.", **func) },
+                    span: table.get_ident(*func).span(table).into(),
+                    explanation: {
+                        format!(
+                            "A function with name `{}` cannot be found.",
+                            table.get_ident(*func).inner
+                        )
+                    },
                 });
             }
         }

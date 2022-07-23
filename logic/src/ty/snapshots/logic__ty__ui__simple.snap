@@ -8,9 +8,9 @@ error: Your program contains a type error!
   ┌─ file:3:12
   │
 3 │     return "Hello World!"
-  │            ^^^^^^^^^^^^^^ this is of type `String` which is not the same as type `Int`
+  │            ^^^^^^^^^^^^^^ this is of type PrimitiveType(StrSlice)
 4 │   else
 5 │     return 1
-  │            ^ this is of type Int
+  │            ^ this is of type `PrimitiveType(Int)` which is not the same as type `PrimitiveType(StrSlice)`
 
 

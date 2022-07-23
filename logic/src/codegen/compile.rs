@@ -4,7 +4,7 @@
 //!
 //! todo: report errors properly
 
-use std::{convert::TryInto, env};
+use std::env;
 
 use cranelift_codegen::{
     entity::EntityRef,
@@ -16,36 +16,45 @@ use cranelift_module::{DataContext, Linkage, Module};
 use cranelift_object::{ObjectModule, ObjectProduct};
 
 use crate::{
-    codegen::make_module::make_module_for_compiler_host_architecture, parse::lit::Literal,
+    codegen::make_module::make_module_for_compiler_host_architecture,
+    parse::{
+        expr::Expr,
+        func::Return,
+        lit::Literal,
+        r#for::ForLoop,
+        r#if::If,
+        r#while::While,
+        table::{Item, ItemKind, ParseTable, WithId},
+    },
+    ty::PrimitiveType,
 };
 use crate::{
-    id::{TaggedAst, TaggedBlock, TaggedExpr, TaggedFor, TaggedIf, TaggedReturn, TaggedWhile},
     parse::expr::BinOp,
     ty::{Ty, TyEnv},
 };
 
 /// The core compiler struct.
-pub struct Compiler<'ctx> {
+pub struct Compiler<'i> {
     context: Context,
-    ty_env: &'ctx TyEnv<'ctx>,
+    ty_env: &'i TyEnv,
     module: ObjectModule,
 }
 
 // todo: pointer types
 fn cranelift_of_ty_module(module: &ObjectModule, ty: Ty) -> ir::Type {
     match ty {
-        Ty::Int => ir::Type::int(64).unwrap(),
-        Ty::Bool => ir::Type::int(8).unwrap().as_bool(),
-        Ty::String => module.target_config().pointer_type(),
+        Ty::PrimitiveType(PrimitiveType::Int) => ir::Type::int(64).unwrap(),
+        Ty::PrimitiveType(PrimitiveType::Bool) => ir::Type::int(8).unwrap().as_bool(),
+        Ty::PrimitiveType(PrimitiveType::StrSlice) => module.target_config().pointer_type(),
         // todo: compile structs (using stack slots)
-        Ty::Record(_) => todo!(),
-        Ty::Pointer => module.target_config().pointer_type(),
+        Ty::Record { ref_: _ } => todo!(),
+        Ty::PrimitiveType(PrimitiveType::Pointer) => module.target_config().pointer_type(),
     }
 }
 
-impl<'ctx> Compiler<'ctx> {
+impl<'i> Compiler<'i> {
     /// Create a new instance of the compiler.
-    pub fn new(ty_env: &'ctx TyEnv) -> Self {
+    pub fn new(ty_env: &'i TyEnv) -> Self {
         let module = make_module_for_compiler_host_architecture();
         Self {
             context: module.make_context(),
@@ -62,18 +71,23 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     /// Transforms the provided AST into Cranelift IR.
-    pub fn compile(&mut self, ast: &TaggedAst) {
-        let functions = ast.nodes.iter().filter_map(|item| match item {
-            crate::parse::Node::Func(func) => Some(func),
-            _ => None,
+    pub fn compile(&mut self, table: &ParseTable<'i>) {
+        let functions = table.root.1.inner.iter().filter_map(|item| {
+            if let ItemKind::Func = item.item_kind {
+                table.func.get(&item.id)
+            } else {
+                None
+            }
         });
 
         let mut function_builder_context = FunctionBuilderContext::new();
 
         for func in functions {
             // set up the signature
-            let returns = if *func.name.token == "print_int" || *func.name.token == "print" {
-                self.cranelift_of_ty(Ty::Int)
+            let returns = if table.get_ident(func.name).inner() == "print_int"
+                || table.get_ident(func.name).inner() == "print"
+            {
+                self.cranelift_of_ty(Ty::PrimitiveType(PrimitiveType::Int))
             } else {
                 self.ty_env
                     .ty_of(func.name.id.into())
@@ -97,7 +111,7 @@ impl<'ctx> Compiler<'ctx> {
             let func_id = self
                 .module
                 .declare_function(
-                    *func.name.token,
+                    table.get_ident(func.name).inner(),
                     Linkage::Export,
                     &self.context.func.signature,
                 )
@@ -115,7 +129,7 @@ impl<'ctx> Compiler<'ctx> {
             function_builder.seal_block(entry_block);
 
             for (i, param) in func.parameters.iter().enumerate() {
-                let var = Variable::new(param.id.raw_id());
+                let var = Variable::new(param.id.as_u32() as usize);
                 function_builder.declare_var(
                     var,
                     self.ty_env
@@ -132,7 +146,7 @@ impl<'ctx> Compiler<'ctx> {
             let mut function_compiler =
                 FunctionCompiler::new(&mut function_builder, self.ty_env, &mut self.module);
 
-            function_compiler.compile_block(&func.block);
+            function_compiler.compile_block(table.get_block(&func.block), table);
 
             function_compiler.builder.finalize();
 
@@ -154,16 +168,16 @@ impl<'ctx> Compiler<'ctx> {
 }
 
 /// Compiles one specific function.
-pub(crate) struct FunctionCompiler<'ctx, 'builder> {
-    pub(crate) builder: &'builder mut FunctionBuilder<'ctx>,
-    pub(crate) ty_env: &'ctx TyEnv<'ctx>,
+pub(crate) struct FunctionCompiler<'i, 'builder> {
+    pub(crate) builder: &'builder mut FunctionBuilder<'i>,
+    pub(crate) ty_env: &'i TyEnv,
     pub(crate) module: &'builder mut ObjectModule,
 }
 
-impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
+impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
     fn new(
-        function: &'builder mut FunctionBuilder<'ctx>,
-        ty_env: &'ctx TyEnv,
+        function: &'builder mut FunctionBuilder<'i>,
+        ty_env: &'i TyEnv,
         module: &'builder mut ObjectModule,
     ) -> Self {
         Self {
@@ -174,43 +188,54 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
     }
 
     /// Transforms the provided series of instructions into Cranelift IR.
-    fn compile_block(&mut self, block: &TaggedBlock<'_>) {
-        for block in &block.inner.nodes {
-            match block {
-                crate::parse::Node::Expr(e) => {
-                    self.compile_expr(e);
+    fn compile_block(&mut self, block: &crate::parse::block::Block, table: &ParseTable) {
+        for block in &block.inner {
+            match table.get(block).unwrap() {
+                Item::Expr(e) => {
+                    self.compile_expr(
+                        WithId {
+                            inner: e,
+                            id: block.id,
+                        },
+                        table,
+                    );
                 }
-                crate::parse::Node::For(f) => self.compile_for(f),
-                crate::parse::Node::If(i) => self.compile_if(i),
-                crate::parse::Node::While(w) => self.compile_while(w),
-                crate::parse::Node::Return(r) => self.compile_return(r),
-                crate::parse::Node::Func(_) => {
+                Item::For(f) => self.compile_for(f, table),
+                Item::If(i) => self.compile_if(i, table),
+                Item::While(w) => self.compile_while(w, table),
+                Item::Return(r) => self.compile_return(r, table),
+                Item::Func(_) => {
                     panic!("should have checked this error before now!");
                 }
-                crate::parse::Node::Record(_) => todo!(),
+                Item::Record(_) => todo!(),
+                Item::Ident(_) => unreachable!(),
+                Item::Block(b) => self.compile_block(b, table),
             };
         }
     }
 
     /// Compiles a return statement.
-    fn compile_return(&mut self, ret: &TaggedReturn<'_>) {
-        let return_value = self.compile_expr(&ret.expr);
+    fn compile_return(&mut self, ret: &Return, table: &ParseTable) {
+        let return_value = self.compile_expr(table.get_expr_with_id(ret.expr), table);
         self.builder.ins().return_(&[return_value]);
     }
 
-    /// Lowers an expression to the corresponding Cranelift IR.Ï
-    pub(crate) fn compile_expr(&mut self, expr: &TaggedExpr) -> ir::Value {
-        match &expr.token {
-            crate::id::TaggedExprInner::Ident(ident) => self
-                .builder
-                .use_var(Variable::with_u32(ident.id.raw_id().try_into().unwrap())),
-            crate::id::TaggedExprInner::Literal(lit) => match &lit.token {
+    /// Lowers an expression to the corresponding Cranelift IR.
+    pub(crate) fn compile_expr(&mut self, expr: WithId<&Expr>, table: &ParseTable) -> ir::Value {
+        match &expr.inner() {
+            Expr::Ident(ident) => self.builder.use_var(Variable::with_u32(ident.id.as_u32())),
+            Expr::Literal(lit) => match &lit.token {
                 crate::parse::lit::Literal::String(lit) => {
                     let mut data_ctx = DataContext::new();
                     data_ctx.define(lit.as_bytes().to_vec().into_boxed_slice());
                     let id = self
                         .module
-                        .declare_data(&format!("__data_{}", expr.id), Linkage::Local, true, false)
+                        .declare_data(
+                            &format!("__data_{}", expr.id()),
+                            Linkage::Local,
+                            true,
+                            false,
+                        )
                         .unwrap();
                     self.module.define_data(id, &data_ctx).unwrap();
                     drop(data_ctx);
@@ -232,40 +257,48 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 }
                 crate::parse::lit::Literal::Bool(_) => todo!(),
             },
-            crate::id::TaggedExprInner::BinOp(op, left, right)
-                if op.token == BinOp::SetEquals && left.is_ident() =>
+            Expr::BinOp(op, left, right)
+                if op.token == BinOp::SetEquals && table.get_expr(left).is_ident() =>
             {
-                let id = match &left.token {
-                    crate::id::TaggedExprInner::Ident(ident) => ident.id,
-                    _ => unreachable!(),
-                };
+                let id = table.get_ident_with_id(*table.get_expr(left).as_ident().unwrap());
 
-                let new_value = self.compile_expr(right);
+                let new_value = self.compile_expr(table.get_expr_with_id(*right), table);
 
                 let cranelift_ty = match self.ty_env.ty_of(right.id.into()).unwrap() {
-                    Ty::Int => cranelift_of_ty_module(self.module, Ty::Int),
-                    Ty::Bool | Ty::String => todo!(),
-                    Ty::Record(_) | Ty::Pointer => self.module.target_config().pointer_type(),
+                    Ty::PrimitiveType(PrimitiveType::Int) => {
+                        cranelift_of_ty_module(self.module, Ty::PrimitiveType(PrimitiveType::Int))
+                    }
+                    Ty::PrimitiveType(PrimitiveType::Bool | PrimitiveType::StrSlice) => todo!(),
+                    Ty::Record { .. } | Ty::PrimitiveType(PrimitiveType::Pointer) => {
+                        self.module.target_config().pointer_type()
+                    }
                 };
 
-                let var = Variable::with_u32(id.raw_id() as u32);
+                let var = Variable::with_u32(id.id().as_u32());
 
                 self.builder.declare_var(var, cranelift_ty);
                 self.builder.def_var(var, new_value);
                 new_value
             }
-            crate::id::TaggedExprInner::BinOp(op, ref left, ref right)
+            Expr::BinOp(op, ref left, ref right)
                 if op.token == BinOp::SetEquals
-                    && left
+                    && table
+                        .get_expr(left)
                         .as_un_op()
                         .map(|(op, _)| op.is_deref())
                         .unwrap_or(false) =>
             {
-                let val = self.compile_expr(right);
-                let addr = self.compile_expr(left.as_un_op().unwrap().1);
+                let val = self.compile_expr(table.get_expr_with_id(*right), table);
+                let addr = self.compile_expr(
+                    table.get_expr_with_id(*table.get_expr(left).as_un_op().unwrap().1),
+                    table,
+                );
                 self.builder.ins().store(ir::MemFlags::new(), val, addr, 0);
                 self.builder.ins().load(
-                    cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id.into()).unwrap()),
+                    cranelift_of_ty_module(
+                        self.module,
+                        self.ty_env.ty_of(expr.id().into()).unwrap(),
+                    ),
                     ir::MemFlags::new(),
                     addr,
                     0,
@@ -275,116 +308,122 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
              * compile standard operators
              * TODO: at some point add operator overloading with protocol classes
              */
-            crate::id::TaggedExprInner::BinOp(op, left, right) => match op.token {
+            Expr::BinOp(op, left, right) => match op.token {
                 BinOp::Add => {
-                    let lhs = self.compile_expr(left);
-                    let rhs = self.compile_expr(right);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                     self.builder.ins().iadd(lhs, rhs)
                 }
                 BinOp::Subtract => {
-                    let lhs = self.compile_expr(left);
-                    let rhs = self.compile_expr(right);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                     self.builder.ins().isub(lhs, rhs)
                 }
                 BinOp::Divide => {
-                    let lhs = self.compile_expr(left);
-                    let rhs = self.compile_expr(right);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                     self.builder.ins().udiv(lhs, rhs)
                 }
                 BinOp::Multiply => {
-                    let lhs = self.compile_expr(left);
-                    let rhs = self.compile_expr(right);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                     self.builder.ins().imul(lhs, rhs)
                 }
                 BinOp::IsEqual => {
-                    let lhs = self.compile_expr(left);
-                    let rhs = self.compile_expr(right);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                     let left_ty = self.ty_env.ty_of(left.id.into()).unwrap();
                     let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
                     match (left_ty, right_ty) {
-                        (Ty::Int, Ty::Int) => self.builder.ins().icmp(IntCC::Equal, lhs, rhs),
+                        (
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        ) => self.builder.ins().icmp(IntCC::Equal, lhs, rhs),
                         _ => todo!(),
                     }
                 }
                 BinOp::IsNotEqual => {
-                    let lhs = self.compile_expr(left);
-                    let rhs = self.compile_expr(right);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                     let left_ty = self.ty_env.ty_of(left.id.into()).unwrap();
                     let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
                     match (left_ty, right_ty) {
-                        (Ty::Int, Ty::Int) => self.builder.ins().icmp(IntCC::NotEqual, lhs, rhs),
+                        (
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        ) => self.builder.ins().icmp(IntCC::NotEqual, lhs, rhs),
                         _ => todo!(),
                     }
                 }
                 BinOp::SetEquals => unreachable!(),
                 BinOp::Dot => {
-                    if let (Some(record), Some(field)) =
-                        (left.token.as_ident(), right.token.as_ident())
-                    {
-                        let record_ty = match self.ty_env.ty_of(record.id.into()).unwrap() {
-                            Ty::Record(rec) => rec,
-                            _ => {
-                                // todo: report the correct error
-                                todo!()
-                            }
-                        };
+                    let record = table.get_expr_with_id(*left);
+                    let record_id = record.inner().as_ident().unwrap().id.into();
+                    let key = table.get_expr_with_id(*right).inner().as_ident().unwrap();
 
-                        let mut offset = 0;
-                        for (key, value) in &record_ty {
-                            if key != &field.token().inner() {
-                                offset += super::layout::type_size(value.clone());
-                            } else {
-                                break;
-                            }
+                    let record_ty = match self.ty_env.ty_of(record_id).unwrap() {
+                        Ty::Record { ref_ } => ref_,
+                        _ => {
+                            // todo: report the correct error
+                            todo!()
                         }
+                    };
 
-                        let field_type = {
-                            // todo: resolve fields properly
-                            let ty = self.ty_env.ty_of(field.id.into()).unwrap();
-                            cranelift_of_ty_module(self.module, ty)
-                        };
-
-                        let pointer = self
-                            .builder
-                            .use_var(Variable::with_u32(record.id.raw_id() as u32));
-                        self.builder.ins().load(
-                            field_type,
-                            ir::MemFlags::new(),
-                            pointer,
-                            offset as i32,
-                        )
-                    } else {
-                        // report a proper error
-                        todo!()
+                    let mut offset = 0;
+                    for field in &table.get_record(record_ty).fields {
+                        if table.get_ident(*key).inner() != table.get_ident(field.name).inner() {
+                            offset +=
+                                super::layout::type_size(self.ty_env.ty_of(field.name.id).unwrap());
+                        } else {
+                            break;
+                        }
                     }
+
+                    let field_type = {
+                        // todo: resolve fields properly
+                        let ty = self.ty_env.ty_of(key.id.into()).unwrap();
+                        cranelift_of_ty_module(self.module, ty)
+                    };
+
+                    let pointer = self.builder.use_var(Variable::with_u32(record_id.as_u32()));
+                    self.builder
+                        .ins()
+                        .load(field_type, ir::MemFlags::new(), pointer, offset as i32)
                 }
-                BinOp::Index => match self.ty_env.ty_of(expr.id.into()).unwrap() {
-                    Ty::Pointer => {
-                        let lhs = self.compile_expr(left);
-                        let rhs = self.compile_expr(right);
+                BinOp::Index => match self.ty_env.ty_of(expr.id().into()).unwrap() {
+                    Ty::PrimitiveType(PrimitiveType::Pointer) => {
+                        let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
+                        let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
                         return self.builder.ins().iadd(lhs, rhs);
                     }
                     _ => todo!(),
                 },
             },
-            crate::id::TaggedExprInner::UnOp(op, arg) if op.token.is_deref() => {
-                let arg_value = self.compile_expr(arg);
+            Expr::UnOp(op, arg) if op.token.is_deref() => {
+                let arg_value = self.compile_expr(table.get_expr_with_id(*arg), table);
                 self.builder.ins().load(
-                    cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id.into()).unwrap()),
+                    cranelift_of_ty_module(
+                        self.module,
+                        self.ty_env.ty_of(expr.id().into()).unwrap(),
+                    ),
                     ir::MemFlags::new(),
                     arg_value,
                     0,
                 )
             }
-            crate::id::TaggedExprInner::UnOp(_, _) => todo!(),
-            crate::id::TaggedExprInner::FunctionCall(name, params) => {
-                let local_callee = match *name.token {
+            Expr::UnOp(_, _) => todo!(),
+            Expr::FunctionCall(name, params) => {
+                let local_callee = match table.get_ident(*name).inner() {
                     "print_int" => {
                         let mut sig = self.module.make_signature();
-                        sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
-                        sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        )));
+                        sig.returns.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        )));
                         let func_id = self
                             .module
                             .declare_function("print_int", Linkage::Import, &sig)
@@ -394,11 +433,13 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     }
                     "malloc" => {
                         let mut sig = self.module.make_signature();
-                        sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        )));
                         sig.returns.push(AbiParam::new(cranelift_of_ty_module(
                             self.module,
-                            Ty::Pointer,
+                            Ty::PrimitiveType(PrimitiveType::Pointer),
                         )));
                         let func_id = self
                             .module
@@ -411,14 +452,16 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         let mut sig = self.module.make_signature();
                         sig.params.push(AbiParam::new(cranelift_of_ty_module(
                             self.module,
-                            Ty::Pointer,
+                            Ty::PrimitiveType(PrimitiveType::Pointer),
                         )));
-                        sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        )));
 
                         sig.returns.push(AbiParam::new(cranelift_of_ty_module(
                             self.module,
-                            Ty::Pointer,
+                            Ty::PrimitiveType(PrimitiveType::Pointer),
                         )));
                         let func_id = self
                             .module
@@ -431,10 +474,12 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                         let mut sig = self.module.make_signature();
                         sig.params.push(AbiParam::new(cranelift_of_ty_module(
                             self.module,
-                            Ty::Pointer,
+                            Ty::PrimitiveType(PrimitiveType::Pointer),
                         )));
-                        sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        sig.returns.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Pointer),
+                        )));
                         let func_id = self
                             .module
                             .declare_function("free", Linkage::Import, &sig)
@@ -444,14 +489,18 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                     }
                     "print" => {
                         let mut sig = self.module.make_signature();
-                        sig.params
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
                         sig.params.push(AbiParam::new(cranelift_of_ty_module(
                             self.module,
-                            Ty::String,
+                            Ty::PrimitiveType(PrimitiveType::Int),
                         )));
-                        sig.returns
-                            .push(AbiParam::new(cranelift_of_ty_module(self.module, Ty::Int)));
+                        sig.params.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::StrSlice),
+                        )));
+                        sig.returns.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        )));
 
                         let func_id = self
                             .module
@@ -462,15 +511,14 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
 
                         let string = params.iter().next().unwrap();
 
-                        let lit = match string.token {
-                            crate::id::TaggedExprInner::Literal(ref x) => match x.token {
-                                Literal::String(ref string) => string,
-                                _ => panic!("Only string literals can be printed (for now)."),
-                            },
+                        let lit = match table.get_expr(string) {
+                            Expr::Literal(lit) if matches!(lit.token, Literal::String(_)) => {
+                                lit.as_string().unwrap()
+                            }
                             _ => panic!("Only string literals can be printed (for now)."),
                         };
 
-                        let string = self.compile_expr(string);
+                        let string = self.compile_expr(table.get_expr_with_id(*string), table);
                         let len = self.builder.ins().iconst(ir::types::I64, lit.len() as i64);
 
                         let call = self.builder.ins().call(local_callee, &[len, string]);
@@ -497,7 +545,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
 
                         let callee = self
                             .module
-                            .declare_function(*name.token, Linkage::Import, &sig)
+                            .declare_function(table.get_ident(*name).inner(), Linkage::Import, &sig)
                             .expect("problem declaring function");
 
                         self.module.declare_func_in_func(callee, self.builder.func)
@@ -505,18 +553,18 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 };
                 let arg_values = params
                     .iter()
-                    .map(|param| self.compile_expr(param))
+                    .map(|param| self.compile_expr(table.get_expr_with_id(*param), table))
                     .collect::<Vec<_>>();
 
                 let call = self.builder.ins().call(local_callee, &arg_values);
                 self.builder.inst_results(call)[0]
             }
-            crate::id::TaggedExprInner::Constructor(con) => self.compile_constructor(con),
+            Expr::Constructor(con) => self.compile_constructor(con, table),
         }
     }
 
-    fn compile_if(&mut self, stmt: &TaggedIf) {
-        let condition_value = self.compile_expr(&stmt.r#if.condition);
+    fn compile_if(&mut self, stmt: &If, table: &ParseTable) {
+        let condition_value = self.compile_expr(table.get_expr_with_id(stmt.r#if.condition), table);
 
         let if_block = self.builder.create_block();
 
@@ -533,21 +581,21 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         self.builder.switch_to_block(if_block);
         self.builder.seal_block(if_block);
 
-        self.compile_block(&stmt.r#if.block);
+        self.compile_block(table.get_block(&stmt.r#if.block), table);
 
         self.builder.switch_to_block(else_block);
         self.builder.seal_block(else_block);
 
         if let Some(else_block) = &stmt.r#else {
-            self.compile_block(else_block);
+            self.compile_block(table.get_block(else_block), table);
         }
     }
 
-    fn compile_for(&self, _: &TaggedFor) {
+    fn compile_for(&self, _: &ForLoop, _: &ParseTable) {
         panic!("compilation of for loops is not yet implemented")
     }
 
-    fn compile_while(&mut self, stmt: &TaggedWhile) {
+    fn compile_while(&mut self, stmt: &While, table: &ParseTable) {
         let header_block = self.builder.create_block();
         let body_block = self.builder.create_block();
         let exit_block = self.builder.create_block();
@@ -555,7 +603,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         self.builder.ins().jump(header_block, &[]);
         self.builder.switch_to_block(header_block);
 
-        let condition_value = self.compile_expr(&stmt.condition);
+        let condition_value = self.compile_expr(table.get_expr_with_id(stmt.condition), table);
 
         self.builder.ins().brz(condition_value, exit_block, &[]);
         self.builder.ins().jump(body_block, &[]);
@@ -563,7 +611,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         self.builder.switch_to_block(body_block);
         self.builder.seal_block(body_block);
 
-        self.compile_block(&stmt.block);
+        self.compile_block(table.get_block(&stmt.block), table);
 
         self.builder.ins().jump(header_block, &[]);
 

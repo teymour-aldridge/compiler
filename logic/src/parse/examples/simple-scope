@@ -1,0 +1,10 @@
+function main()
+  x = 1
+  print(x)
+  for i = 1 to 2
+    ;; here y is declared in a scope
+    y = 1
+  next i
+  ;; this y is a different y
+  y = 3
+endfunction

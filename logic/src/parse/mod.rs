@@ -1,19 +1,17 @@
 //! The parser for programs. It's a recursive descent parser which I try to make emit friendly and
 //! helpful error messages.
 //!
-//! There is something approaching a formal grammar in [fuzz].
-
-use std::fmt::{self, Write};
+//! There is something approaching a formal grammar in [`crate::parse::fuzz`].
 
 use self::{
     expr::Expr,
     func::{Func, Return},
-    ident::Ident,
     r#for::ForLoop,
     r#if::If,
     r#while::While,
     record::Record,
-    utils::{write_indentation, Input, Parse, ParseError},
+    table::{ItemRef, ParseContext},
+    utils::{Input, Parse, ParseError},
 };
 
 pub mod r#block;
@@ -24,6 +22,7 @@ pub mod ident;
 pub mod r#if;
 pub mod lit;
 pub mod record;
+pub mod table;
 pub mod utils;
 pub mod r#while;
 
@@ -33,166 +32,77 @@ mod fuzz;
 #[cfg(test)]
 mod test;
 #[cfg(test)]
+mod test_scopes;
+#[cfg(test)]
+/// Tests to check that the compiler produces well-formed and comprehensible
+/// error messages.
 pub mod ui;
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Ast<'a, IDENT = Ident<'a>, EXPR = Expr<'a>> {
-    pub nodes: Vec<Node<'a, IDENT, EXPR>>,
-    pub(crate) indent: usize,
-}
+pub use table::parse;
 
-impl fmt::Display for Ast<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for node in &self.nodes {
-            write_indentation(self.indent, f)?;
-            node.fmt(f)?;
-            f.write_char('\n')?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Parse<'a> for Ast<'a> {
-    fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError> {
-        let mut nodes = vec![];
+/// Parses a list of statements, returning a list of [`ItemRef`]s.
+fn parse_statements<'i>(
+    input: &mut Input<'i>,
+    ctx: &mut ParseContext<'i>,
+) -> Result<Vec<ItemRef>, ParseError> {
+    let mut nodes = vec![];
+    loop {
+        // remove any lines which only consist of whitespace characters
         loop {
-            loop {
-                let mut tmp = *input;
-                tmp.skip_whitespace()?;
-                if tmp.starts_with('\n') {
-                    input.skip_whitespace()?;
-                    input.parse_token("\n")?;
-                } else {
-                    break;
-                }
-            }
-
-            if input.is_empty()
-                || (input.indent >= 2 && input.count_indent()? == input.indent - 2)
-                || input.chars().all(|char| char.is_whitespace())
-            {
-                return Ok(Self {
-                    nodes,
-                    indent: input.indent,
-                });
+            let mut tmp = *input;
+            tmp.skip_whitespace()?;
+            if tmp.starts_with('\n') {
+                input.skip_whitespace()?;
+                input.parse_token("\n")?;
             } else {
-                input.advance_indent()?;
-                // comments
-                if input.starts_with(";;") {
-                    input.eat_until_or_end(|c| c == '\n')?;
-                } else {
-                    nodes.push(Node::parse(input)?);
-                }
+                break;
+            }
+        }
+
+        if input.is_empty()
+            // note: we rely here on the fact that `&&` is short-circuiting (i.e. if the first
+            // operand is false, then the second operand should not be evaluated)
+            || (input.indent >= 2 && input.count_indent()? == input.indent - 2)
+            || input.chars().all(|char| char.is_whitespace())
+        {
+            return Ok(nodes);
+        } else {
+            input.advance_indent()?;
+            // comments
+            if input.starts_with(";;") {
+                input.eat_until_or_end(|c| c == '\n')?;
+            } else {
+                nodes.push(Node::parse(input, ctx)?);
             }
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Node<'a, IDENT = Ident<'a>, EXPR = Expr<'a, IDENT>> {
-    Expr(EXPR),
-    For(ForLoop<'a, IDENT, EXPR>),
-    If(If<'a, IDENT, EXPR>),
-    While(While<'a, IDENT, EXPR>),
-    Return(Return<'a, EXPR>),
-    Func(Func<'a, IDENT, EXPR>),
-    Record(Record<'a, IDENT>),
-}
+pub struct Node;
 
-impl<'a, IDENT, EXPR> Node<'a, IDENT, EXPR> {
-    pub fn as_expr(&self) -> Option<&EXPR> {
-        if let Self::Expr(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
+impl<'i> Parse<'i> for Node {
+    type Output = ItemRef;
+    type Context = ParseContext<'i>;
 
-    pub fn as_if(&self) -> Option<&If<'a, IDENT, EXPR>> {
-        if let Self::If(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_func(&self) -> Option<&Func<'a, IDENT, EXPR>> {
-        if let Self::Func(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_record(&self) -> Option<&Record<'a, IDENT>> {
-        if let Self::Record(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_return(&self) -> Option<&Return<'a, EXPR>> {
-        if let Self::Return(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_while(&self) -> Option<&While<'a, IDENT, EXPR>> {
-        if let Self::While(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_for(&self) -> Option<&ForLoop<'a, IDENT, EXPR>> {
-        if let Self::For(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> Parse<'a> for Node<'a> {
-    fn parse(input: &mut utils::Input<'a>) -> Result<Self, utils::ParseError> {
+    fn parse(
+        input: &mut utils::Input<'i>,
+        ctx: &mut ParseContext<'i>,
+    ) -> Result<ItemRef, ParseError> {
         if input.starts_with("for ") {
-            ForLoop::parse(input).map(Self::For)
+            ForLoop::parse(input, ctx).map(From::from)
         } else if input.starts_with("return ") {
-            Return::parse(input).map(Self::Return)
+            Return::parse(input, ctx).map(From::from)
         } else if input.starts_with("if ") {
-            If::parse(input).map(Self::If)
+            If::parse(input, ctx).map(From::from)
         } else if input.starts_with("while ") {
-            While::parse(input).map(Self::While)
+            While::parse(input, ctx).map(From::from)
         } else if input.starts_with("function ") {
-            Func::parse(input).map(Self::Func)
+            Func::parse(input, ctx).map(From::from)
         } else if input.starts_with("record") {
-            Record::parse(input).map(Self::Record)
+            Record::parse(input, ctx).map(From::from)
         } else {
-            Expr::parse(input).map(Self::Expr)
+            Expr::parse(input, ctx).map(From::from)
         }
     }
-}
-
-impl fmt::Display for Node<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Node::Expr(e) => e.fmt(f),
-            Node::For(l) => l.fmt(f),
-            Node::If(i) => i.fmt(f),
-            Node::While(w) => w.fmt(f),
-            Node::Return(r) => r.fmt(f),
-            Node::Func(func) => func.fmt(f),
-            Node::Record(rec) => rec.fmt(f),
-        }
-    }
-}
-
-pub fn parse(input: &str) -> Result<Ast<'_>, ParseError> {
-    let mut input = Input::new(input);
-    Ast::parse(&mut input)
 }

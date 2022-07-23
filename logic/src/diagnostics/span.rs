@@ -1,5 +1,7 @@
 use std::{hash, ops::Range};
 
+use crate::parse::table::ParseTable;
+
 use super::position::Position;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -29,7 +31,7 @@ impl From<Span> for IndexOnlySpan {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialOrd)]
 /// Relates objects in the compiler to the source code positions from which they came. Note that
 /// unlike [IndexOnlySpan] this includes line numbers (this is useful when debugging).
 pub struct Span {
@@ -100,7 +102,7 @@ pub struct Spanned<T> {
 }
 
 impl<T> HasSpan for Spanned<T> {
-    fn span(&self) -> Span {
+    fn span(&self, _: &ParseTable) -> Span {
         self.span
     }
 }
@@ -131,5 +133,5 @@ impl<T> std::ops::Deref for Spanned<T> {
 
 /// An object whose [Span] can be obtained.
 pub trait HasSpan {
-    fn span(&self) -> Span;
+    fn span<'i>(&self, table: &'i ParseTable<'i>) -> Span;
 }
