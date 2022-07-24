@@ -17,8 +17,27 @@ test_task:
       - rustc --version
       - cat Cargo.lock
   build_script: ./scripts/setup_ci.sh
-  test_script: ./scripts/ci.sh
+  test_script: ./scripts/ci_test.sh
   before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+lint_task:
+  alias: lint
+  matrix:
+    - container:
+        image: rust:latest
+
+  # only run on bors
+  only_if: $CIRRUS_BRANCH == 'staging' || $CIRRUS_BRANCH == 'trying'
+  registry_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.lock
+  target_cache:
+    folder: target
+    fingerprisnt_script:
+      - rustc --version
+      - cat Cargo.lock
+  build_script: rustup component add clippy rustfmt
+  test_script: ./scripts/ci_lint.sh
 
 success_task:
   name: ci passed?
@@ -27,3 +46,4 @@ success_task:
   only_if: $CIRRUS_BRANCH == 'staging' || $CIRRUS_BRANCH == 'trying'
   depends_on:
     - tests
+    - lint
