@@ -272,3 +272,26 @@ fn fib_type_check() {
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
 }
+
+#[test]
+fn catalan_numbers_type_check() {
+    let table = parse(include_str!("examples/catalan")).unwrap();
+    let env = type_check(&table).expect("failed to type check a valid program");
+
+    let (_, catalan_func) = table
+        .func
+        .iter()
+        .find(|(_, func)| table.get_ident(func.name).inner() == "catalan")
+        .unwrap();
+
+    assert_eq!(
+        env.ty_of(catalan_func.name.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+
+    let vertices = catalan_func.parameters[0];
+    assert_eq!(
+        env.ty_of(vertices.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+}

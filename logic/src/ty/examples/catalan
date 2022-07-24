@@ -1,0 +1,29 @@
+;; compiler:
+;;   status: success
+;; linker:
+;;   status: success
+;; run:
+;;   status: success
+;;   stdout: 233
+
+;; The Catalan numbers are a set of numbers which are very useful in combinatorics. One of their
+;; uses is that the nth Catalan number gives the number of possible arrangements of a binary tree
+;; with n vertices (see https://reasoning.page/programming/bio-2021-q1/ for more)
+function catalan(vertices)
+  if vertices == 1 then
+    return 1
+  endif
+  total = 0
+  count = vertices * 1
+  while count != 1
+    total = (total + catalan(count) * catalan(vertices - count)) * 1
+  endwhile
+  return total
+endfunction
+
+function main()
+  for i = 1 to 6
+    print_int(catalan(i))
+  next i
+  return 0
+endfunction
