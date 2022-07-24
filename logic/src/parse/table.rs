@@ -73,8 +73,7 @@ impl<'i> ParseTable<'i> {
                 .inner
                 .iter()
                 .find(|root_item| (root_item.id == ref_.id))
-                .map(|ref_| self.get(ref_))
-                .flatten(),
+                .and_then(|ref_| self.get(ref_)),
             ItemKind::If => self.if_.get(&ref_.id).map(Item::If),
             ItemKind::While => self.while_.get(&ref_.id).map(Item::While),
             ItemKind::For => self.for_.get(&ref_.id).map(Item::For),
@@ -208,6 +207,12 @@ pub struct ParseContext<'i> {
     pub(crate) tagging: Tagging<'i>,
 }
 
+impl Default for ParseContext<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParseContext<'_> {
     pub fn new() -> Self {
         ParseContext {
@@ -251,7 +256,7 @@ impl IdGen {
     }
 }
 
-pub fn parse<'i>(input: &'i str) -> Result<ParseTable<'i>, ParseError> {
+pub fn parse(input: &str) -> Result<ParseTable<'_>, ParseError> {
     let mut input = Input::new(input);
     let mut ctx = ParseContext::new();
 

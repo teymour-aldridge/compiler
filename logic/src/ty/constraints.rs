@@ -105,11 +105,8 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
     fn visit_rec(&mut self, rec: WithId<&'i Record>, table: &'i ParseTable<'i>) -> Self::Output {
         for field in &rec.inner().fields {
             self.add_constraint(ConstraintInner::IdToTy {
-                id: Spanned::new(
-                    table.get_ident(field.name).span(table),
-                    field.name.id.into(),
-                ),
-                ty: field.ty.clone().map(Ty::PrimitiveType),
+                id: Spanned::new(table.get_ident(field.name).span(table), field.name.id),
+                ty: field.ty.map(Ty::PrimitiveType),
             })
         }
         Ok(())
@@ -128,7 +125,7 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
         self.add_constraint(ConstraintInner::IdToTy {
             id: Spanned::new(
                 table.get_ident(stmt.inner().var).span(table),
-                table.get_ident_with_id(stmt.inner().var).id().into(),
+                table.get_ident_with_id(stmt.inner().var).id(),
             ),
             // todo: better span here?
             ty: Spanned::new(
@@ -139,7 +136,7 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
         self.add_constraint(ConstraintInner::IdToTy {
             id: Spanned::new(
                 table.get_expr(&stmt.inner().between.start).span(table),
-                stmt.inner().between.start.id.into(),
+                stmt.inner().between.start.id,
             ),
             ty: Spanned::new(
                 table.get_expr(&stmt.inner().between.start).span(table),
@@ -149,7 +146,7 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
         self.add_constraint(ConstraintInner::IdToTy {
             id: Spanned::new(
                 table.get_expr(&stmt.inner().between.stop).span(table),
-                stmt.inner().between.stop.id.into(),
+                stmt.inner().between.stop.id,
             ),
             ty: Spanned::new(
                 table.get_expr(&stmt.inner().between.stop).span(table),
@@ -158,7 +155,7 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
         });
         if let Some(ref step) = stmt.inner().between.step {
             self.add_constraint(ConstraintInner::IdToTy {
-                id: Spanned::new(table.get_expr(step).span(table), step.id.into()),
+                id: Spanned::new(table.get_expr(step).span(table), step.id),
                 ty: Spanned::new(
                     table.get_expr(step).span(table),
                     Ty::PrimitiveType(PrimitiveType::Int),
@@ -204,7 +201,7 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
         self.add_constraint(ConstraintInner::IdToTy {
             id: Spanned::new(
                 table.get_expr(&stmt.inner().condition).span(table),
-                stmt.inner().condition.id.into(),
+                stmt.inner().condition.id,
             ),
             // todo: better span?
             ty: Spanned::new(
@@ -225,11 +222,11 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
             self.add_constraint(ConstraintInner::IdToId {
                 id: Spanned::new(
                     table.get_ident(table.get_func(func).name).span(table),
-                    table.get_func(func).name.id.into(),
+                    table.get_func(func).name.id,
                 ),
                 to: Spanned::new(
                     table.get_expr(&ret.inner().expr).span(table),
-                    table.get_expr_with_id(ret.inner().expr).id().into(),
+                    table.get_expr_with_id(ret.inner().expr).id(),
                 ),
             });
             self.visit_expr(table.get_expr_with_id(ret.inner().expr), table)
@@ -270,15 +267,15 @@ fn collect_expr<'i>(
 
     if let Some(ty) = ty {
         constraints.push(ConstraintInner::IdToTy {
-            id: Spanned::new(expr.inner().span(table), expr.id().into()),
+            id: Spanned::new(expr.inner().span(table), expr.id()),
             ty: Spanned::new(expr.inner().span(table), ty),
         });
     }
 
     match &expr.inner() {
         Expr::Ident(ident) => constraints.push(ConstraintInner::IdToId {
-            id: Spanned::new(table.get_ident(*ident).span(table), ident.id.into()),
-            to: Spanned::new(expr.inner().span(table), expr.id().into()),
+            id: Spanned::new(table.get_ident(*ident).span(table), ident.id),
+            to: Spanned::new(expr.inner().span(table), expr.id()),
         }),
         Expr::Literal(lit) => {
             let ty = match lit.token {
@@ -287,19 +284,19 @@ fn collect_expr<'i>(
                 Literal::Bool(_) => Ty::PrimitiveType(PrimitiveType::Bool),
             };
             constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                id: Spanned::new(expr.inner().span(table), expr.id()),
                 ty: Spanned::new(expr.inner().span(table), ty),
             });
         }
         Expr::BinOp(op, left, right) => match (op.token, left, right) {
             (BinOp::Add | BinOp::Divide | BinOp::Multiply | BinOp::Subtract, left, right) => {
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(table.get_expr(left).span(table), left.id.into()),
-                    to: Spanned::new(table.get_expr(right).span(table), right.id.into()),
+                    id: Spanned::new(table.get_expr(left).span(table), left.id),
+                    to: Spanned::new(table.get_expr(right).span(table), right.id),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(table.get_expr(left).span(table), left.id.into()),
-                    to: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    id: Spanned::new(table.get_expr(left).span(table), left.id),
+                    to: Spanned::new(expr.inner().span(table), expr.id()),
                 });
                 constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
                 constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
@@ -307,19 +304,19 @@ fn collect_expr<'i>(
             (BinOp::Dot, _left, right) => match table.get_expr(right) {
                 Expr::Ident(ref ident) => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(table.get_ident(*ident).span(table), ident.id.into()),
-                        to: Spanned::new(table.get_expr(&right).span(table), right.id.into()),
+                        id: Spanned::new(table.get_ident(*ident).span(table), ident.id),
+                        to: Spanned::new(table.get_expr(right).span(table), right.id),
                     });
                     constraints.push(ConstraintInner::IdToId {
                         id: Spanned::new(
                             table.get_ident(*ident).span(table),
-                            table.get_ident_with_id(*ident).id().into(),
+                            table.get_ident_with_id(*ident).id(),
                         ),
-                        to: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        to: Spanned::new(expr.inner().span(table), expr.id()),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(table.get_expr(right).span(table), right.id.into()),
-                        to: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        id: Spanned::new(table.get_expr(right).span(table), right.id),
+                        to: Spanned::new(expr.inner().span(table), expr.id()),
                     });
                 }
                 // todo: methods
@@ -330,15 +327,15 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_expr(left).span(table),
-                        table.get_expr_with_id(*left).id().into(),
+                        table.get_expr_with_id(*left).id(),
                     ),
                     to: Spanned::new(
                         table.get_expr(right).span(table),
-                        table.get_expr_with_id(*right).id().into(),
+                        table.get_expr_with_id(*right).id(),
                     ),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id()),
                     ty: Spanned::new(
                         expr.inner().span(table),
                         Ty::PrimitiveType(PrimitiveType::Bool),
@@ -350,41 +347,41 @@ fn collect_expr<'i>(
             (BinOp::SetEquals, left, right) => match table.get_expr(left) {
                 Expr::Ident(ref ident) => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(table.get_ident(*ident).span(table), ident.id.into()),
-                        to: Spanned::new(table.get_expr(right).span(table), right.id.into()),
+                        id: Spanned::new(table.get_ident(*ident).span(table), ident.id),
+                        to: Spanned::new(table.get_expr(right).span(table), right.id),
                     });
                     constraints.push(ConstraintInner::IdToId {
                         id: Spanned::new(
                             table.get_expr(left).span(table),
-                            table.get_expr_with_id(*left).id().into(),
+                            table.get_expr_with_id(*left).id(),
                         ),
                         to: Spanned::new(
                             table.get_expr(right).span(table),
-                            table.get_expr_with_id(*right).id().into(),
+                            table.get_expr_with_id(*right).id(),
                         ),
                     });
                     constraints.push(ConstraintInner::IdToId {
                         id: Spanned::new(
                             table.get_ident(*ident).span(table),
-                            table.get_ident_with_id(*ident).id().into(),
+                            table.get_ident_with_id(*ident).id(),
                         ),
                         to: Spanned::new(
                             table.get_expr(left).span(table),
-                            table.get_expr_with_id(*left).id().into(),
+                            table.get_expr_with_id(*left).id(),
                         ),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        id: Spanned::new(expr.inner().span(table), expr.id()),
                         to: Spanned::new(
                             table.get_expr(left).span(table),
-                            table.get_expr_with_id(*left).id().into(),
+                            table.get_expr_with_id(*left).id(),
                         ),
                     });
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        id: Spanned::new(expr.inner().span(table), expr.id()),
                         to: Spanned::new(
                             table.get_expr(right).span(table),
-                            table.get_expr_with_id(*right).id().into(),
+                            table.get_expr_with_id(*right).id(),
                         ),
                     });
                     constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
@@ -392,17 +389,17 @@ fn collect_expr<'i>(
                 }
                 Expr::UnOp(op, ref pointer) if op.token.is_deref() => {
                     constraints.push(ConstraintInner::IdToId {
-                        id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                        id: Spanned::new(expr.inner().span(table), expr.id()),
                         // todo: use the span of the operator
                         to: Spanned::new(
                             table.get_expr(pointer).span(table),
-                            table.get_expr_with_id(*pointer).id().into(),
+                            table.get_expr_with_id(*pointer).id(),
                         ),
                     });
                     constraints.push(ConstraintInner::IdToTy {
                         id: Spanned::new(
                             table.get_expr(pointer).span(table),
-                            table.get_expr_with_id(*pointer).id().into(),
+                            table.get_expr_with_id(*pointer).id(),
                         ),
                         // todo: use the span of the operator
                         ty: Spanned::new(
@@ -424,14 +421,14 @@ fn collect_expr<'i>(
             // todo: sort this out (memory safety)
             (BinOp::Index, left, right) => {
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id()),
                     ty: Spanned::new(
                         expr.inner().span(table),
                         Ty::PrimitiveType(PrimitiveType::Pointer),
                     ),
                 });
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(table.get_expr(left).span(table), left.id.into()),
+                    id: Spanned::new(table.get_expr(left).span(table), left.id),
                     // todo: use the span of the operator
                     ty: Spanned::new(
                         table.get_expr(left).span(table),
@@ -442,7 +439,7 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToTy {
                     id: Spanned::new(
                         table.get_expr(right).span(table),
-                        table.get_expr_with_id(*right).id().into(),
+                        table.get_expr_with_id(*right).id(),
                     ),
                     ty: Spanned::new(
                         table.get_expr(right).span(table),
@@ -454,14 +451,14 @@ fn collect_expr<'i>(
         },
         Expr::UnOp(op, arg) => match op.token {
             UnOp::Positive | UnOp::Negative => constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(table.get_expr(arg).span(table), arg.id.into()),
+                id: Spanned::new(table.get_expr(arg).span(table), arg.id),
                 ty: Spanned::new(
                     table.get_expr(arg).span(table),
                     Ty::PrimitiveType(PrimitiveType::Int),
                 ),
             }),
             UnOp::Deref => constraints.push(ConstraintInner::IdToTy {
-                id: Spanned::new(table.get_expr(arg).span(table), arg.id.into()),
+                id: Spanned::new(table.get_expr(arg).span(table), arg.id),
                 ty: Spanned::new(
                     table.get_expr(arg).span(table),
                     Ty::PrimitiveType(PrimitiveType::Pointer),
@@ -492,31 +489,31 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_ident(struct_field.name).span(table),
-                        struct_field.name.id.into(),
+                        struct_field.name.id,
                     ),
                     to: Spanned::new(
                         table.get_ident(*constructor_name).span(table),
-                        constructor_name.id.into(),
+                        constructor_name.id,
                     ),
                 });
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_ident(struct_field.name).span(table),
-                        struct_field.name.id.into(),
+                        struct_field.name.id,
                     ),
                     to: Spanned::new(
                         table.get_expr(constructor_expr).span(table),
-                        constructor_expr.id.into(),
+                        constructor_expr.id,
                     ),
                 });
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_ident(*constructor_name).span(table),
-                        constructor_name.id.into(),
+                        constructor_name.id,
                     ),
                     to: Spanned::new(
                         table.get_expr(constructor_expr).span(table),
-                        table.get_expr_with_id(*constructor_expr).id().into(),
+                        table.get_expr_with_id(*constructor_expr).id(),
                     ),
                 });
             }
@@ -535,15 +532,15 @@ fn collect_expr<'i>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    id: Spanned::new(table.get_expr(param).span(table), param.id),
                     ty: Spanned::new(
                         table.get_expr(param).span(table),
                         Ty::PrimitiveType(PrimitiveType::Int),
                     ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
-                    to: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id()),
+                    to: Spanned::new(table.get_expr(param).span(table), param.id),
                 });
                 constraints.extend(collect_expr(
                     table.get_expr_with_id(*param),
@@ -563,17 +560,17 @@ fn collect_expr<'i>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    id: Spanned::new(table.get_expr(param).span(table), param.id),
                     ty: Spanned::new(
                         table.get_expr(param).span(table),
                         Ty::PrimitiveType(PrimitiveType::StrSlice),
                     ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id()),
                     to: Spanned::new(
                         table.get_expr(param).span(table),
-                        table.get_expr_with_id(*param).id().into(),
+                        table.get_expr_with_id(*param).id(),
                     ),
                 });
                 constraints.extend(collect_expr(
@@ -598,7 +595,7 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToTy {
                     id: Spanned::new(
                         table.get_expr(param).span(table),
-                        table.get_expr_with_id(*param).id().into(),
+                        table.get_expr_with_id(*param).id(),
                     ),
                     ty: Spanned::new(
                         table.get_expr(param).span(table),
@@ -608,7 +605,7 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToTy {
                     id: Spanned::new(
                         table.get_ident(*func).span(table),
-                        table.get_ident_with_id(*func).id().into(),
+                        table.get_ident_with_id(*func).id(),
                     ),
                     ty: Spanned::new(
                         table.get_ident(*func).span(table),
@@ -618,9 +615,9 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_ident(*func).span(table),
-                        table.get_ident_with_id(*func).id().into(),
+                        table.get_ident_with_id(*func).id(),
                     ),
-                    to: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    to: Spanned::new(expr.inner().span(table), expr.id()),
                 });
             } else if table.get_ident(*func).inner == "free" {
                 if params.len() != 1 {
@@ -635,17 +632,17 @@ fn collect_expr<'i>(
                 }
                 let param = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(table.get_expr(param).span(table), param.id.into()),
+                    id: Spanned::new(table.get_expr(param).span(table), param.id),
                     ty: Spanned::new(
                         table.get_expr(param).span(table),
                         Ty::PrimitiveType(PrimitiveType::Pointer),
                     ),
                 });
                 constraints.push(ConstraintInner::IdToId {
-                    id: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    id: Spanned::new(expr.inner().span(table), expr.id()),
                     to: Spanned::new(
                         table.get_expr(param).span(table),
-                        table.get_expr_with_id(*param).id().into(),
+                        table.get_expr_with_id(*param).id(),
                     ),
                 });
                 constraints.extend(collect_expr(table.get_expr_with_id(*param), table, None)?);
@@ -662,7 +659,7 @@ fn collect_expr<'i>(
                 }
                 let pointer = &params[0];
                 constraints.push(ConstraintInner::IdToTy {
-                    id: Spanned::new(table.get_expr(pointer).span(table), pointer.id.into()),
+                    id: Spanned::new(table.get_expr(pointer).span(table), pointer.id),
                     ty: Spanned::new(
                         table.get_expr(pointer).span(table),
                         Ty::PrimitiveType(PrimitiveType::Pointer),
@@ -677,7 +674,7 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToTy {
                     id: Spanned::new(
                         table.get_expr(new_size).span(table),
-                        table.get_expr_with_id(*new_size).id().into(),
+                        table.get_expr_with_id(*new_size).id(),
                     ),
                     ty: Spanned::new(
                         table.get_expr(new_size).span(table),
@@ -707,12 +704,9 @@ fn collect_expr<'i>(
                     constraints.push(ConstraintInner::IdToId {
                         id: Spanned::new(
                             table.get_expr(argument_expression).span(table),
-                            argument_expression.id.into(),
+                            argument_expression.id,
                         ),
-                        to: Spanned::new(
-                            table.get_ident(*parameter).span(table),
-                            parameter.id.into(),
-                        ),
+                        to: Spanned::new(table.get_ident(*parameter).span(table), parameter.id),
                     });
                     constraints.extend(collect_expr(
                         table.get_expr_with_id(*argument_expression),
@@ -723,9 +717,9 @@ fn collect_expr<'i>(
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_ident(*func).span(table),
-                        table.get_ident_with_id(*func).id().into(),
+                        table.get_ident_with_id(*func).id(),
                     ),
-                    to: Spanned::new(expr.inner().span(table), expr.id().into()),
+                    to: Spanned::new(expr.inner().span(table), expr.id()),
                 });
             } else {
                 return Err(ConstraintGatheringError::UnresolvableFunction {

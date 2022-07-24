@@ -10,7 +10,7 @@ pub enum TyCheckError {
     Reportable(ErrorReporter),
 }
 
-impl<'ctx> From<ConstraintGatheringError> for TyCheckError {
+impl From<ConstraintGatheringError> for TyCheckError {
     fn from(err: ConstraintGatheringError) -> Self {
         Self::ConstraintGatheringError(err)
     }

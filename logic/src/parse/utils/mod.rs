@@ -145,7 +145,8 @@ impl<'a> Input<'a> {
             .ok_or(ParseError::UnexpectedEndOfInput {
                 span: IndexOnlySpan::new(self.position.index, self.position.index),
             })?;
-        let ret = if peek == token {
+
+        if peek == token {
             self.advance_n(token.len())?;
             Ok(peek)
         } else {
@@ -156,8 +157,7 @@ impl<'a> Input<'a> {
                 ),
                 span: IndexOnlySpan::new(self.position.index, self.position.index + token.len()),
             })
-        };
-        ret
+        }
     }
 
     pub fn delimited_list<P: Fn(&mut Input<'a>, &mut C) -> Result<T, ParseError>, T, C>(
@@ -407,13 +407,13 @@ impl<'a> Input<'a> {
         if whitespace_units == self.indent {
             Ok(())
         } else {
-            return Err(ParseError::InvalidWhitespace {
+            Err(ParseError::InvalidWhitespace {
                 span: start_recording.finish_recording(self).into(),
                 explanation: format!(
                     "Expected exactly {} spaces here, but instead found {} spaces.",
                     self.indent, whitespace_units
                 ),
-            });
+            })
         }
     }
 

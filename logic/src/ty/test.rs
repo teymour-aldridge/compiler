@@ -48,14 +48,8 @@ fn simple_type_check() {
         },
         _ => panic!(),
     };
-    assert_eq!(
-        ty_env.ty_of(x.into()),
-        Some(Ty::PrimitiveType(PrimitiveType::Int))
-    );
-    assert_eq!(
-        ty_env.ty_of(y.into()),
-        Some(Ty::PrimitiveType(PrimitiveType::Int))
-    )
+    assert_eq!(ty_env.ty_of(x), Some(Ty::PrimitiveType(PrimitiveType::Int)));
+    assert_eq!(ty_env.ty_of(y), Some(Ty::PrimitiveType(PrimitiveType::Int)))
 }
 
 #[test]
@@ -91,14 +85,14 @@ fn factorial_type_check() {
         .r#if;
 
     assert_eq!(
-        ty_env.ty_of(if_branch.condition.id.into()),
+        ty_env.ty_of(if_branch.condition.id),
         Some(Ty::PrimitiveType(PrimitiveType::Bool))
     );
 
     match tree.get_expr(&if_branch.condition) {
         Expr::BinOp(_, ref left, _) => {
             assert_eq!(
-                ty_env.ty_of(left.id.into()),
+                ty_env.ty_of(left.id),
                 Some(Ty::PrimitiveType(PrimitiveType::Int))
             )
         }
@@ -125,13 +119,13 @@ fn test_record_type_check() {
         .as_bin_op()
         .unwrap();
     assert_eq!(
-        ty_env.ty_of(right.id.into()),
+        ty_env.ty_of(right.id),
         Some(Ty::Record {
             ref_: RecordRef { id: *record_id }
         })
     );
     assert_eq!(
-        ty_env.ty_of(left.id.into()),
+        ty_env.ty_of(left.id),
         Some(Ty::Record {
             ref_: RecordRef { id: *record_id }
         })
@@ -150,18 +144,18 @@ fn test_record_type_check() {
         "x"
     );
     assert_eq!(
-        ty_env.ty_of(x.id.into()),
+        ty_env.ty_of(x.id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
     assert_eq!(
-        ty_env.ty_of(expr.id.into()),
+        ty_env.ty_of(expr.id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
 
     let record = tree.record_.iter().next().unwrap();
     let record_id = record.1.fields.get(0).unwrap().name.id;
     assert_eq!(
-        ty_env.ty_of(record_id.into()),
+        ty_env.ty_of(record_id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     )
 }
@@ -172,28 +166,28 @@ fn simple_unify_check() {
         Constraint::new(
             ConstraintId::new(0),
             ConstraintInner::IdToTy {
-                id: Spanned::new(Span::null(), Id::new(1).into()),
+                id: Spanned::new(Span::null(), Id::new(1)),
                 ty: Spanned::new(Span::null(), Ty::PrimitiveType(PrimitiveType::Int)),
             },
         ),
         Constraint::new(
             ConstraintId::new(1),
             ConstraintInner::IdToId {
-                id: Spanned::new(Span::null(), Id::new(2).into()),
-                to: Spanned::new(Span::null(), Id::new(1).into()),
+                id: Spanned::new(Span::null(), Id::new(2)),
+                to: Spanned::new(Span::null(), Id::new(1)),
             },
         ),
         Constraint::new(
             ConstraintId::new(2),
             ConstraintInner::IdToId {
-                id: Spanned::new(Span::null(), Id::new(3).into()),
-                to: Spanned::new(Span::null(), Id::new(1).into()),
+                id: Spanned::new(Span::null(), Id::new(3)),
+                to: Spanned::new(Span::null(), Id::new(1)),
             },
         ),
         Constraint::new(
             ConstraintId::new(3),
             ConstraintInner::IdToTy {
-                id: Spanned::new(Span::null(), Id::new(3).into()),
+                id: Spanned::new(Span::null(), Id::new(3)),
                 ty: Spanned::new(Span::null(), Ty::PrimitiveType(PrimitiveType::Int)),
             },
         ),
@@ -202,15 +196,15 @@ fn simple_unify_check() {
     let env = unify(set, TyEnv::new(), &mut TraceTable::default()).unwrap();
 
     assert_eq!(
-        env.ty_of(Id::new(1).into()).unwrap(),
+        env.ty_of(Id::new(1)).unwrap(),
         Ty::PrimitiveType(PrimitiveType::Int)
     );
     assert_eq!(
-        env.ty_of(Id::new(2).into()).unwrap(),
+        env.ty_of(Id::new(2)).unwrap(),
         Ty::PrimitiveType(PrimitiveType::Int)
     );
     assert_eq!(
-        env.ty_of(Id::new(3).into()).unwrap(),
+        env.ty_of(Id::new(3)).unwrap(),
         Ty::PrimitiveType(PrimitiveType::Int)
     );
 }
@@ -224,11 +218,11 @@ fn iterative_factorial_type_check() {
     let item = tree.get(&tree.root.1.inner[0]).unwrap();
     let func = item.as_func().unwrap();
     assert_eq!(
-        env.ty_of(func.name.id.into()),
+        env.ty_of(func.name.id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
     assert_eq!(
-        env.ty_of(func.parameters.get(0).unwrap().id.into()),
+        env.ty_of(func.parameters.get(0).unwrap().id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
     let (op, res, _literal) = tree
@@ -240,7 +234,7 @@ fn iterative_factorial_type_check() {
         .unwrap();
     assert_eq!(*op, BinOp::SetEquals);
     assert_eq!(
-        env.ty_of(res.id.into()),
+        env.ty_of(res.id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
 }
@@ -270,11 +264,11 @@ fn fib_type_check() {
 
     let func = tree.func.iter().next().unwrap();
     assert_eq!(
-        env.ty_of(func.1.name.id.into()),
+        env.ty_of(func.1.name.id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
     assert_eq!(
-        env.ty_of(func.1.parameters.get(0).unwrap().id.into()),
+        env.ty_of(func.1.parameters.get(0).unwrap().id),
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
 }

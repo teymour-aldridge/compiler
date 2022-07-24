@@ -15,7 +15,6 @@ mod parse_reparse {
                         input, e
                     );
                 } else {
-                    return;
                 }
             }
         };
