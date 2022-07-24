@@ -310,9 +310,9 @@ dependencies = [
 
 [[package]]
 name = "fuzzcheck"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9897db452803afda6b7cc081eba1ddeeef6c4e7569ad4d886569213a664b8a12"
+checksum = "ee76e8096c3fcd82ab23177edddcc9b81b72c123caab54bb1e2dc19fd09d2dec"
 dependencies = [
  "ahash",
  "bit-vec",
