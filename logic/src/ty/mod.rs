@@ -113,14 +113,14 @@ impl TyEnv {
         for _ in 0..15 * 3 {
             print!("-")
         }
-        println!("");
+        println!();
         for (id, ident) in table.ident.iter() {
             let ty = self.ty_of(*id);
             println!(
-                "{0: <15} | {1: <15} | {2: <15}",
+                "{0: <15} | {1: <15} | {2: <15?}",
                 ident.inner(),
                 id.as_u32(),
-                format!("{:?}", ty)
+                ty
             )
         }
     }
@@ -169,7 +169,7 @@ impl TyEnv {
             SubstitutionInner::ConcreteForX(ty, x) => self.map.insert(
                 *x,
                 Info {
-                    ty: TyInfo::EqTy((*ty).clone()),
+                    ty: TyInfo::EqTy(*ty),
                 },
             ),
         };
@@ -179,7 +179,7 @@ impl TyEnv {
 /// Unify a set of constraints (i.e. solve them, if that is possible).
 ///
 /// note: for details on error reporting, please see [track].
-fn unify<'i>(
+fn unify(
     set: FxHashSet<Constraint>,
     mut solved: TyEnv,
     trace_table: &mut TraceTable,
@@ -291,7 +291,7 @@ fn unify<'i>(
                             constraint.id,
                             UnificationOperation::Concretise {
                                 preexisting: id,
-                                with: sub_with.clone(),
+                                with: sub_with,
                                 pos: ConstraintPosition::One,
                             },
                         );
@@ -315,7 +315,7 @@ fn unify<'i>(
                             constraint.id,
                             UnificationOperation::Concretise {
                                 preexisting: id,
-                                with: sub_with.clone(),
+                                with: sub_with,
                                 pos: ConstraintPosition::One,
                             },
                         );
@@ -331,7 +331,7 @@ fn unify<'i>(
                             constraint.id,
                             UnificationOperation::Concretise {
                                 preexisting: to,
-                                with: sub_with.clone(),
+                                with: sub_with,
                                 pos: ConstraintPosition::One,
                             },
                         );
@@ -342,7 +342,7 @@ fn unify<'i>(
                 }
                 // these substitutions cannot be applied to the constraint set
                 (SubstitutionInner::XforY(_, _), _)
-                | (SubstitutionInner::ConcreteForX(_, _), _) => constraint.clone(),
+                | (SubstitutionInner::ConcreteForX(_, _), _) => constraint,
             })
             .collect();
 

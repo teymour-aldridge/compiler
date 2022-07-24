@@ -92,7 +92,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
                 con.fields
                     .iter()
                     .map(|(_, expr)| {
-                        let ty = self.ty_env.ty_of(expr.id.into()).unwrap();
+                        let ty = self.ty_env.ty_of(expr.id).unwrap();
                         type_size(ty)
                     })
                     .sum()
@@ -103,7 +103,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         for expr in con.fields.values() {
             let expr_value = self.compile_expr(table.get_expr_with_id(*expr), table);
             self.builder.ins().stack_store(expr_value, slot, offset);
-            offset += type_size(self.ty_env.ty_of(expr.id.into()).unwrap()) as i32;
+            offset += type_size(self.ty_env.ty_of(expr.id).unwrap()) as i32;
         }
 
         self.builder

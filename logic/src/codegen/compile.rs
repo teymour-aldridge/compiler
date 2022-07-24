@@ -90,7 +90,7 @@ impl<'i> Compiler<'i> {
                 self.cranelift_of_ty(Ty::PrimitiveType(PrimitiveType::Int))
             } else {
                 self.ty_env
-                    .ty_of(func.name.id.into())
+                    .ty_of(func.name.id)
                     .map(|x| self.cranelift_of_ty(x))
                     .unwrap()
             };
@@ -100,7 +100,7 @@ impl<'i> Compiler<'i> {
             let parameters = func
                 .parameters
                 .iter()
-                .map(|ident| self.ty_env.ty_of(ident.id.into()).unwrap())
+                .map(|ident| self.ty_env.ty_of(ident.id).unwrap())
                 .map(|x| self.cranelift_of_ty(x))
                 .map(AbiParam::new)
                 .collect::<Vec<_>>();
@@ -133,7 +133,7 @@ impl<'i> Compiler<'i> {
                 function_builder.declare_var(
                     var,
                     self.ty_env
-                        .ty_of(param.id.into())
+                        .ty_of(param.id)
                         .map(|x| cranelift_of_ty_module(&self.module, x))
                         .unwrap(),
                 );
@@ -264,7 +264,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
 
                 let new_value = self.compile_expr(table.get_expr_with_id(*right), table);
 
-                let cranelift_ty = match self.ty_env.ty_of(right.id.into()).unwrap() {
+                let cranelift_ty = match self.ty_env.ty_of(right.id).unwrap() {
                     Ty::PrimitiveType(PrimitiveType::Int) => {
                         cranelift_of_ty_module(self.module, Ty::PrimitiveType(PrimitiveType::Int))
                     }
@@ -295,10 +295,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 );
                 self.builder.ins().store(ir::MemFlags::new(), val, addr, 0);
                 self.builder.ins().load(
-                    cranelift_of_ty_module(
-                        self.module,
-                        self.ty_env.ty_of(expr.id().into()).unwrap(),
-                    ),
+                    cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id()).unwrap()),
                     ir::MemFlags::new(),
                     addr,
                     0,
@@ -332,8 +329,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 BinOp::IsEqual => {
                     let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
                     let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
-                    let left_ty = self.ty_env.ty_of(left.id.into()).unwrap();
-                    let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
+                    let left_ty = self.ty_env.ty_of(left.id).unwrap();
+                    let right_ty = self.ty_env.ty_of(right.id).unwrap();
                     match (left_ty, right_ty) {
                         (
                             Ty::PrimitiveType(PrimitiveType::Int),
@@ -345,8 +342,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 BinOp::IsNotEqual => {
                     let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
                     let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
-                    let left_ty = self.ty_env.ty_of(left.id.into()).unwrap();
-                    let right_ty = self.ty_env.ty_of(right.id.into()).unwrap();
+                    let left_ty = self.ty_env.ty_of(left.id).unwrap();
+                    let right_ty = self.ty_env.ty_of(right.id).unwrap();
                     match (left_ty, right_ty) {
                         (
                             Ty::PrimitiveType(PrimitiveType::Int),
@@ -358,7 +355,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 BinOp::SetEquals => unreachable!(),
                 BinOp::Dot => {
                     let record = table.get_expr_with_id(*left);
-                    let record_id = record.inner().as_ident().unwrap().id.into();
+                    let record_id = record.inner().as_ident().unwrap().id;
                     let key = table.get_expr_with_id(*right).inner().as_ident().unwrap();
 
                     let record_ty = match self.ty_env.ty_of(record_id).unwrap() {
@@ -381,7 +378,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
 
                     let field_type = {
                         // todo: resolve fields properly
-                        let ty = self.ty_env.ty_of(key.id.into()).unwrap();
+                        let ty = self.ty_env.ty_of(key.id).unwrap();
                         cranelift_of_ty_module(self.module, ty)
                     };
 
@@ -390,7 +387,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         .ins()
                         .load(field_type, ir::MemFlags::new(), pointer, offset as i32)
                 }
-                BinOp::Index => match self.ty_env.ty_of(expr.id().into()).unwrap() {
+                BinOp::Index => match self.ty_env.ty_of(expr.id()).unwrap() {
                     Ty::PrimitiveType(PrimitiveType::Pointer) => {
                         let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
                         let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
@@ -402,10 +399,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
             Expr::UnOp(op, arg) if op.token.is_deref() => {
                 let arg_value = self.compile_expr(table.get_expr_with_id(*arg), table);
                 self.builder.ins().load(
-                    cranelift_of_ty_module(
-                        self.module,
-                        self.ty_env.ty_of(expr.id().into()).unwrap(),
-                    ),
+                    cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id()).unwrap()),
                     ir::MemFlags::new(),
                     arg_value,
                     0,
@@ -530,7 +524,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         for param in params {
                             sig.params.push(AbiParam::new(
                                 self.ty_env
-                                    .ty_of(param.id.into())
+                                    .ty_of(param.id)
                                     .map(|x| cranelift_of_ty_module(self.module, x))
                                     .unwrap(),
                             ))
@@ -538,7 +532,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
 
                         sig.returns.push(AbiParam::new(
                             self.ty_env
-                                .ty_of(name.id.into())
+                                .ty_of(name.id)
                                 .map(|x| cranelift_of_ty_module(self.module, x))
                                 .unwrap(),
                         ));

@@ -98,23 +98,20 @@ impl FileContainer {
             Err(not) => not,
         };
 
-        match cast_not::<DidChangeTextDocument>(not) {
-            Ok(change) => {
-                let path = change.text_document.uri.path();
-                if !path.ends_with(".pseudo") {
-                    return;
-                }
-
-                if self.inner.contains_key(&change.text_document.uri) {
-                    self.apply_edits_to_file(&change.text_document.uri, &change.content_changes);
-                } else {
-                    self.inner
-                        .insert(change.text_document.uri.clone(), SingleFile::new(""));
-                    self.apply_edits_to_file(&change.text_document.uri, &change.content_changes);
-                }
-                self.publish_diagnostics(conn);
+        if let Ok(change) = cast_not::<DidChangeTextDocument>(not) {
+            let path = change.text_document.uri.path();
+            if !path.ends_with(".pseudo") {
+                return;
             }
-            Err(_) => (),
+
+            if self.inner.contains_key(&change.text_document.uri) {
+                self.apply_edits_to_file(&change.text_document.uri, &change.content_changes);
+            } else {
+                self.inner
+                    .insert(change.text_document.uri.clone(), SingleFile::new(""));
+                self.apply_edits_to_file(&change.text_document.uri, &change.content_changes);
+            }
+            self.publish_diagnostics(conn);
         };
     }
 

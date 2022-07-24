@@ -58,7 +58,7 @@ impl PartialEq for Ident<'_> {
 
 impl PartialOrd for Ident<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.inner.partial_cmp(&other.inner)
+        self.inner.partial_cmp(other.inner)
     }
 }
 
