@@ -43,7 +43,7 @@ fn main() {
     }
 
     LangTester::new()
-        .test_dir("../../examples")
+        .test_dir("../../filetests")
         .test_file_filter(|p| p.extension().unwrap().to_str().unwrap() == "pseudo")
         .test_extract(|p| {
             read_to_string(p)

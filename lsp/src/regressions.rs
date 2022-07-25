@@ -15,7 +15,7 @@ use serde_json::to_value;
 use crate::run;
 
 #[test]
-/// A basic test to check that at least some thing work.
+/// A basic test to check that at least something works.
 #[allow(deprecated)]
 fn smoke_test_1() {
     let (server, client) = Connection::memory();
