@@ -1,0 +1,23 @@
+;; compiler:
+;;   status: success
+;; linker:
+;;   status: success
+;; run:
+;;   status: success
+;;   stdout:
+;;          2
+;;          1
+
+function main()
+  print_int(choose(42))
+  print_int(choose(4))
+  return 0
+endfunction
+
+function choose(input)
+  if input == 42 then
+    return 2
+  else
+    return 1
+  endif
+endfunction
