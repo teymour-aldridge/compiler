@@ -180,9 +180,9 @@ fn fuzz_parser() {
 
     let ast = repetition(alternation([block, statement]), 0..);
 
-    let ast_mutator = grammar_based_ast_mutator(ast);
+    let ast_mutator = grammar_based_ast_mutator(ast).with_string();
 
-    let result = fuzzcheck::fuzz_test(|ast: &AST| run_test(&ast.to_string()))
+    let result = fuzzcheck::fuzz_test(|input: &(String, AST)| run_test(&input.0))
         .mutator(ast_mutator)
         .serde_serializer()
         .default_sensor_and_pool()
