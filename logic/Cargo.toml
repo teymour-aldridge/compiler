@@ -21,5 +21,5 @@ optional = true
 [dev-dependencies]
 codegen = { path = "../tests/codegen" }
 insta = "1.12.0"
-rustversion = "1.0.6"
+rustversion = "1.0.8"
 serde = { version = "1.0.136", features = ["derive"] }
