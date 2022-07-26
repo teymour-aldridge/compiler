@@ -51,5 +51,5 @@ fn main() {
         }
     };
 
-    compile(&ast, &env, output);
+    compile(&ast, &env, Some(output.as_ref()));
 }

@@ -1,11 +1,15 @@
 target
-fuzz
 runin
 
+# editors
 .idea
 .vscode
 
+# for the vscode extension
 node_modules
+
+# fuzzer
+fuzz
 out
 
 default.profraw

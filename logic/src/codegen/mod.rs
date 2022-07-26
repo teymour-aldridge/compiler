@@ -18,7 +18,7 @@ pub(self) mod make_module;
 pub fn compile<'compiler>(
     ast: &'compiler ParseTable<'compiler>,
     env: &'compiler TyEnv,
-    path: impl AsRef<Path>,
+    path: Option<&Path>,
 ) {
     let mut compiler = Compiler::new(env);
 
@@ -28,5 +28,7 @@ pub fn compile<'compiler>(
 
     let res = output.emit().unwrap();
 
-    std::fs::write(path, res).expect("failed to write code to file");
+    if let Some(path) = path {
+        std::fs::write(path, res).expect("failed to write code to file");
+    }
 }
