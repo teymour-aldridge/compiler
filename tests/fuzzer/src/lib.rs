@@ -1,7 +1,9 @@
 #[cfg(test)]
+#[cfg(feature = "fuzzcheck")]
 use fuzzcheck::fuzz_test;
 
 #[test]
+#[cfg(feature = "fuzzcheck")]
 pub fn main() {
     let result = fuzz_test(|input: &(String, generator::Block)| compile_for_fuzzing(&input.0))
         .mutator(generator::block_with_string_mutator())
@@ -12,6 +14,7 @@ pub fn main() {
     assert!(!result.found_test_failure);
 }
 
+#[cfg(feature = "fuzzcheck")]
 #[cfg(test)]
 fn compile_for_fuzzing(input: &str) {
     let table = logic::parse::parse(input).unwrap();

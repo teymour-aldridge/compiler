@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 logic = { path = "../../logic" }
 generator = { path = "../generator" }
-fuzzcheck = "0.12.1"
+fuzzcheck = { version = "0.12.1", optional = true }
