@@ -2,4 +2,11 @@
 debug = true
 
 [workspace]
-members = ["cli", "logic", "runtime", "tests/codegen", "tests/oracle", "lsp"]
+members = [
+    "cli",
+    "logic",
+    "tests/oracle",
+    "tests/generator",
+    "tests/fuzzer",
+    "lsp",
+]

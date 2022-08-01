@@ -120,7 +120,7 @@ impl<'i> Parse<'i> for Field {
         let ty = match ty_symbol.inner() {
             "Bool" => PrimitiveType::Bool,
             "Int" => PrimitiveType::Int,
-            "StrSlice" => PrimitiveType::StrSlice,
+            "String" => PrimitiveType::StrSlice,
             "Pointer" => PrimitiveType::Pointer,
             _ => {
                 return Err(ParseError::UnexpectedToken {

@@ -1,9 +1,5 @@
 ;; compiler:
 ;;   status: success
-;; linker:
-;;   status: success
-;; run:
-;;   status: success
 ;;   stdout: 233
 function main()
   print_int(fib(13))

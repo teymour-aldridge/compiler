@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{parse::table::ParseTable, ty::TyEnv};
 
 use self::compile::Compiler;
@@ -15,18 +13,13 @@ pub(self) mod make_module;
 ///
 /// todo: automatically link
 /// todo: allow custom file outputs
-pub fn compile<'compiler>(
-    ast: &'compiler ParseTable<'compiler>,
-    env: &'compiler TyEnv,
-    path: impl AsRef<Path>,
-) {
+pub fn compile<'compiler>(ast: &'compiler ParseTable<'compiler>, env: &'compiler TyEnv) -> i32 {
     let mut compiler = Compiler::new(env);
 
     compiler.compile(ast);
 
     let output = compiler.finish();
 
-    let res = output.emit().unwrap();
-
-    std::fs::write(path, res).expect("failed to write code to file");
+    let code_fn = unsafe { std::mem::transmute::<_, fn(()) -> i32>(output) };
+    code_fn(())
 }
