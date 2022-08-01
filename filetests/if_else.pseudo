@@ -1,9 +1,5 @@
 ;; compiler:
 ;;   status: success
-;; linker:
-;;   status: success
-;; run:
-;;   status: success
 ;;   stdout:
 ;;          2
 ;;          1

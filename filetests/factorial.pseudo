@@ -1,10 +1,6 @@
 
 ;; compiler:
 ;;   status: success
-;; linker:
-;;   status: success
-;; run:
-;;   status: success
 ;;   stdout: 720
 function main()
   print_int(factorial(6))

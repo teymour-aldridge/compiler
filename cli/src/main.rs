@@ -16,13 +16,12 @@ use logic::{codegen::compile, parse, ty::type_check};
 fn main() {
     let args = env::args().collect::<Vec<_>>();
 
-    if args.len() < 2 {
+    if args.len() < 1 {
         println!("You must provide the name of the file you would like to compile!");
         process::exit(1);
     }
 
     let file_name = args.get(1).unwrap();
-    let output = args.get(2).map(|a| a.as_str()).unwrap();
 
     let input = fs::read_to_string(file_name)
         .expect("the file in question could not be opened; are you sure it exists");
@@ -51,5 +50,5 @@ fn main() {
         }
     };
 
-    compile(&ast, &env, Some(output.as_ref()));
+    compile(&ast, &env);
 }

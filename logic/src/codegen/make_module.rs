@@ -1,21 +1,40 @@
 use cranelift_codegen::settings::{self, Configurable};
+use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::default_libcall_names;
-use cranelift_native::builder_with_options;
-use cranelift_object::{ObjectBuilder, ObjectModule};
 
-/// Instantiates a module configured for the Instruction Set Architecture (ISA) of the machine that
-/// is currently running the compiler.
-///
-/// Cross-compiling is planned, but not yet supported.
-pub(crate) fn make_module_for_compiler_host_architecture() -> ObjectModule {
-    let mut builder = settings::builder();
-    builder.set("is_pic", "true").unwrap();
+#[no_mangle]
+unsafe fn print(len: i32, ptr: *const u8) {
+    let slice = std::str::from_utf8(std::slice::from_raw_parts(ptr, len as usize)).unwrap();
+    println!("{}", slice)
+}
 
-    let flags = settings::Flags::new(builder);
+#[no_mangle]
+fn print_int(int: i32) {
+    println!("{}", int)
+}
 
-    let target = builder_with_options(true).unwrap().finish(flags).unwrap();
+pub(crate) fn make_module_for_compiler_host_architecture() -> JITModule {
+    let mut flag_builder = settings::builder();
+    flag_builder.set("use_colocated_libcalls", "false").unwrap();
 
-    let builder = ObjectBuilder::new(target, vec![], default_libcall_names()).unwrap();
+    // workaround for https://github.com/bytecodealliance/wasmtime/issues/2735
+    if cfg!(target_arch = "aarch64") || cfg!(target_arch = "arm") {
+        flag_builder.set("is_pic", "false").unwrap();
+    } else {
+        flag_builder.set("is_pic", "true").unwrap();
+    }
 
-    ObjectModule::new(builder)
+    let isa_builder = cranelift_native::builder().unwrap_or_else(|msg| {
+        panic!("host machine is not supported: {}", msg);
+    });
+    let isa = isa_builder
+        .finish(settings::Flags::new(flag_builder))
+        .unwrap();
+    let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
+
+    // define some standard library items
+    builder.symbol("print", print as *const u8);
+    builder.symbol("print_int", print_int as *const u8);
+
+    JITModule::new(builder)
 }

@@ -12,8 +12,8 @@ use cranelift_codegen::{
     Context,
 };
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
+use cranelift_jit::JITModule;
 use cranelift_module::{DataContext, Linkage, Module};
-use cranelift_object::{ObjectModule, ObjectProduct};
 
 use crate::{
     codegen::make_module::make_module_for_compiler_host_architecture,
@@ -37,11 +37,11 @@ use crate::{
 pub struct Compiler<'i> {
     context: Context,
     ty_env: &'i TyEnv,
-    module: ObjectModule,
+    module: JITModule,
 }
 
 // todo: pointer types
-fn cranelift_of_ty_module(module: &ObjectModule, ty: Ty) -> ir::Type {
+fn cranelift_of_ty_module(module: &JITModule, ty: Ty) -> ir::Type {
     match ty {
         Ty::PrimitiveType(PrimitiveType::Int) => ir::Type::int(64).unwrap(),
         Ty::PrimitiveType(PrimitiveType::Bool) => ir::Type::int(8).unwrap().as_bool(),
@@ -162,8 +162,15 @@ impl<'i> Compiler<'i> {
         }
     }
 
-    pub fn finish(self) -> ObjectProduct {
-        self.module.finish()
+    pub fn finish(mut self) -> *const u8 {
+        self.module.finalize_definitions();
+        let main_func = match self.module.get_name("main").unwrap() {
+            cranelift_module::FuncOrDataId::Func(func) => func,
+            cranelift_module::FuncOrDataId::Data(_) => {
+                panic!("should not have data with name `main`")
+            }
+        };
+        self.module.get_finalized_function(main_func)
     }
 }
 
@@ -171,14 +178,14 @@ impl<'i> Compiler<'i> {
 pub(crate) struct FunctionCompiler<'i, 'builder> {
     pub(crate) builder: &'builder mut FunctionBuilder<'i>,
     pub(crate) ty_env: &'i TyEnv,
-    pub(crate) module: &'builder mut ObjectModule,
+    pub(crate) module: &'builder mut JITModule,
 }
 
 impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
     fn new(
         function: &'builder mut FunctionBuilder<'i>,
         ty_env: &'i TyEnv,
-        module: &'builder mut ObjectModule,
+        module: &'builder mut JITModule,
     ) -> Self {
         Self {
             builder: function,
