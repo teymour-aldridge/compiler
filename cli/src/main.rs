@@ -16,7 +16,7 @@ use logic::{codegen::compile, parse, ty::type_check};
 fn main() {
     let args = env::args().collect::<Vec<_>>();
 
-    if args.len() < 1 {
+    if args.is_empty() {
         println!("You must provide the name of the file you would like to compile!");
         process::exit(1);
     }

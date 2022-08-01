@@ -19,6 +19,6 @@ pub fn main() {
 fn compile_for_fuzzing(input: &str) {
     let table = logic::parse::parse(input).unwrap();
     if let Ok(ty_checked) = logic::ty::type_check(&table) {
-        let _ = logic::codegen::compile(&table, &ty_checked, None);
+        let _ = logic::codegen::compile(&table, &ty_checked);
     }
 }
