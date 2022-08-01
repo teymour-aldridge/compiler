@@ -46,6 +46,10 @@ pub enum ConstraintGatheringError {
         span: IndexOnlySpan,
         explanation: String,
     },
+    LiteralForFieldOrMethodAccess {
+        span: IndexOnlySpan,
+        explanation: String,
+    },
 }
 
 impl ConstraintGatheringError {
@@ -57,10 +61,12 @@ impl ConstraintGatheringError {
             ConstraintGatheringError::CannotAssignToExpression { span, explanation }
             | ConstraintGatheringError::UnresolvableFunction { span, explanation }
             | ConstraintGatheringError::MismatchedFunctionCall { span, explanation }
-            | ConstraintGatheringError::ReturnOutsideFunction { span, explanation } => diagnostic
-                .with_labels(vec![
+            | ConstraintGatheringError::ReturnOutsideFunction { span, explanation }
+            | ConstraintGatheringError::LiteralForFieldOrMethodAccess { span, explanation } => {
+                diagnostic.with_labels(vec![
                     Label::primary(id, span.range()).with_message(explanation)
-                ]),
+                ])
+            }
         }
     }
 }

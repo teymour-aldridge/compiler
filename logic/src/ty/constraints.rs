@@ -319,8 +319,19 @@ fn collect_expr<'i>(
                         to: Spanned::new(expr.inner().span(table), expr.id()),
                     });
                 }
+                Expr::FunctionCall(_, _) => {
+                    todo!("methods have not yet been implemented")
+                }
                 // todo: methods
-                _ => todo!(),
+                e => {
+                    return Err(ConstraintGatheringError::LiteralForFieldOrMethodAccess {
+                        span: e.span(table).index_only(),
+                        explanation:
+                            "The dot (`.`) operator calls fields, or accesses methods on structs. Only \
+                            function calls or identifiers (variable names) are valid in this position."
+                                .to_owned(),
+                    })
+                }
             },
             // todo: add necessary additional type constraints
             (BinOp::IsEqual | BinOp::IsNotEqual, left, right) => {

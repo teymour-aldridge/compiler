@@ -57,6 +57,7 @@ mod parse_reparse {
     #[test]
     fn comments() {
         inner((include_str!("examples/comments"), true));
+        inner((include_str!("examples/more-comments"), true));
     }
 
     #[test]

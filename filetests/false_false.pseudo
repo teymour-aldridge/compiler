@@ -1,0 +1,6 @@
+;; compiler:
+;;   status: error
+
+function main()
+  False.False
+endfunction

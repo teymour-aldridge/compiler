@@ -1,0 +1,5 @@
+;; expected stdout:
+;;  1| error: Your program contains an invalid reference
+;;  2|   ┌─ filetests/false_false.pseudo:7:9
+;;  3|   │
+;;  4| 7 │   False.True

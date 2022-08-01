@@ -259,6 +259,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "453440c271cf5577fd2a40e4942540cb7d0d2f85e27c8d07dd0023c925a67541"
 
 [[package]]
+name = "e2e"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "lang_tester",
+ "run_script",
+ "tempfile",
+]
+
+[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -654,16 +664,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da32515d9f6e6e489d7bc9d84c71b060db7247dc035bbe44eac88cf87486d8d5"
 
 [[package]]
-name = "oracle"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "lang_tester",
- "run_script",
- "tempfile",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -920,13 +920,6 @@ dependencies = [
  "ryu",
  "serde",
  "yaml-rust",
-]
-
-[[package]]
-name = "should_fail_e2e"
-version = "0.1.0"
-dependencies = [
- "logic",
 ]
 
 [[package]]
