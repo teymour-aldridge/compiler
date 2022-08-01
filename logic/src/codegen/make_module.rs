@@ -3,7 +3,7 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::default_libcall_names;
 
 #[no_mangle]
-unsafe fn print(len: i32, ptr: *const u8) {
+unsafe fn print(len: i64, ptr: *const u8) {
     let slice = std::str::from_utf8(std::slice::from_raw_parts(ptr, len as usize)).unwrap();
     println!("{}", slice)
 }

@@ -1,8 +1,0 @@
-;; compiler:
-;;   status: success
-;;   stdout: Hello World!
-
-function main()
-  print("Hello World!")
-  return 0
-endfunction
