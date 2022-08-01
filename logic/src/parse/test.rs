@@ -115,5 +115,6 @@ mod parse_reparse {
         inner(("True.False", true));
         inner(("True.\"T\"", true));
         inner(("11178649669038950710.False", true));
+        inner(("True.N()", true));
     }
 }
