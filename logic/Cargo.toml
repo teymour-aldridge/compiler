@@ -15,7 +15,8 @@ cranelift-native = "0.86.1"
 rustc-hash = "1.1.0"
 
 [dependencies.fuzzcheck]
-version = "0.12.1"
+git = "https://github.com/loiclec/fuzzcheck-rs"
+rev = "2bfa9f0"
 optional = true
 
 [dev-dependencies]

@@ -100,7 +100,7 @@ make_mutator! {
                                 Tuple2<Expr, Vec<Node>>
                             >
                          = {
-                        TupleMutatorWrapper::new(Tuple2Mutator::new(Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX, false)))
+                        TupleMutatorWrapper::new(Tuple2Mutator::new(Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX)))
                     }
                 )]
                 if_branch: (Expr, Vec<Node>),
@@ -115,14 +115,14 @@ make_mutator! {
                                 >
                             >
                         > = {
-                        VecMutator::new(TupleMutatorWrapper::new(Tuple2Mutator::new(Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX, false))), 0..=usize::MAX, false)
+                        VecMutator::new(TupleMutatorWrapper::new(Tuple2Mutator::new(Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX))), 0..=usize::MAX)
                     }
                 )]
 
                 elseif_branches: Vec<(Expr, Vec<Node>)>,
                 #[field_mutator(
                     OptionMutator<Vec<Node>, VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>>> = {
-                        OptionMutator::new(VecMutator::new(self_.into(), 0..=usize::MAX, false))
+                        OptionMutator::new(VecMutator::new(self_.into(), 0..=usize::MAX))
                     }
                 )]
 
@@ -134,7 +134,7 @@ make_mutator! {
                 stop: Expr,
                 #[field_mutator(
                     VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>> = {
-                        VecMutator::new(self_.into(), 0..=usize::MAX, false)
+                        VecMutator::new(self_.into(), 0..=usize::MAX)
                     }
                 )]
                 block: Vec<Node>,
@@ -144,7 +144,7 @@ make_mutator! {
                 condition: Expr,
                 #[field_mutator(
                     VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>> = {
-                        VecMutator::new(self_.into(), 0..=usize::MAX, false)
+                        VecMutator::new(self_.into(), 0..=usize::MAX)
                     }
                 )]
                 block: Vec<Node>,
@@ -373,7 +373,7 @@ make_mutator! {
             Call {
                 name: Ident,
                 #[field_mutator(
-                    VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { VecMutator::new(self_.into(), 0..=usize::MAX, false) }
+                    VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { VecMutator::new(self_.into(), 0..=usize::MAX) }
                 )]
                 args: Vec<Expr>,
             },
