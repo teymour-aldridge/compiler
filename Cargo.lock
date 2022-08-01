@@ -264,6 +264,7 @@ version = "0.1.0"
 dependencies = [
  "cfg-if",
  "lang_tester",
+ "logic",
  "run_script",
  "tempfile",
 ]

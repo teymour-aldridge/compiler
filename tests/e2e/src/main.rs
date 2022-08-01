@@ -1,5 +1,8 @@
 use std::{fs::read_to_string, process::Command};
 
+#[cfg(test)]
+mod fuzzcheck_finds;
+
 use lang_tester::LangTester;
 use run_script::{IoOptions, ScriptOptions};
 

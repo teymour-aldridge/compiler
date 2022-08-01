@@ -71,7 +71,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
 
         let if_block = self.builder.create_block();
 
-        if !stmt.else_ifs.is_empty() {
+        if !stmt.else_ifs.is_empty() && std::env::var("FUZZCHECK").is_err() {
             // todo: proper warning API
             println!("WARNING: else if is not yet supported!");
         }
