@@ -108,4 +108,10 @@ mod parse_reparse {
     fn blank() {
         inner(("", true));
     }
+
+    #[test]
+    fn dot_operator() {
+        inner(("True.False", true));
+        inner(("True.\"T\"", true))
+    }
 }

@@ -8,5 +8,6 @@ members = [
     "tests/oracle",
     "tests/generator",
     "tests/fuzzer",
+    "tests/should_fail_e2e",
     "lsp",
 ]

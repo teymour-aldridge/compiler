@@ -116,12 +116,24 @@ mod inner {
                             TupleMutatorWrapper<
                                     Tuple2Mutator<
                                         <Expr as DefaultMutator>::Mutator,
-                                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>>>,
+                                        VecMutator<
+                                            Node,
+                                            RecurToMutator<
+                                                NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>
+                                            >
+                                        >,
                                         Tuple2<Expr, Vec<Node>
                                     >
                                 >
                             > = {
-                            VecMutator::new(TupleMutatorWrapper::new(Tuple2Mutator::new(Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX))), 0..=usize::MAX)
+                            VecMutator::new(
+                                TupleMutatorWrapper::new(
+                                    Tuple2Mutator::new(
+                                        Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX)
+                                    )
+                                ),
+                                0..=usize::MAX
+                            )
                         }
                     )]
 
@@ -318,6 +330,9 @@ mod inner {
         Subtract,
         Divide,
         Multiply,
+        Dot,
+        IsEqual,
+        IsNotEqual,
     }
 
     impl BinOp {
@@ -327,6 +342,10 @@ mod inner {
                 BinOp::Subtract => "-",
                 BinOp::Divide => "/",
                 BinOp::Multiply => "*",
+                // note: `SetEquals` is handled separately
+                BinOp::IsEqual => "==",
+                BinOp::Dot => ".",
+                BinOp::IsNotEqual => "!=",
             };
             f.write_str(symbol)
         }
@@ -380,7 +399,8 @@ mod inner {
                 Call {
                     name: Ident,
                     #[field_mutator(
-                        VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { VecMutator::new(self_.into(), 0..=usize::MAX) }
+                        VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>>
+                            = { VecMutator::new(self_.into(), 0..=usize::MAX) }
                     )]
                     args: Vec<Expr>,
                 },
