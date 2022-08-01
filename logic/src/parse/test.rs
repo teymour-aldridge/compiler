@@ -57,6 +57,7 @@ mod parse_reparse {
     #[test]
     fn comments() {
         inner((include_str!("examples/comments"), true));
+        inner((include_str!("examples/more-comments"), true));
     }
 
     #[test]
@@ -87,5 +88,33 @@ mod parse_reparse {
     #[test]
     fn fuzzcheck_record_failure() {
         inner(("record MJ\n  VY of String\nendrecord", true));
+    }
+
+    #[test]
+    fn ident_with_space_does_not_crash() {
+        inner((" s \n", false));
+    }
+
+    #[test]
+    fn call_with_no_arguments() {
+        inner(("C()", true));
+    }
+
+    #[test]
+    fn if_else_if() {
+        inner(("if J67k then\nelseif \"o\" then\nb = hS\nendif\n", false));
+    }
+
+    #[test]
+    fn blank() {
+        inner(("", true));
+    }
+
+    #[test]
+    fn dot_operator() {
+        inner(("True.False", true));
+        inner(("True.\"T\"", true));
+        inner(("11178649669038950710.False", true));
+        inner(("True.N()", true));
     }
 }

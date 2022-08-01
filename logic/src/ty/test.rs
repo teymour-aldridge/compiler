@@ -295,3 +295,9 @@ fn catalan_numbers_type_check() {
         Some(Ty::PrimitiveType(PrimitiveType::Int))
     );
 }
+
+#[test]
+fn true_true_errors() {
+    let table = parse("True.True").unwrap();
+    type_check(&table).expect_err("incorrectly claimed a program with a type error doesn't");
+}

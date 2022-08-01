@@ -76,10 +76,10 @@ pub struct Number<'i> {
 }
 
 impl Number<'_> {
-    pub(crate) fn as_int(&self) -> i32 {
-        let int_part = self.int.parse::<i32>().unwrap();
+    pub(crate) fn as_int(&self) -> i64 {
+        let int_part = self.int.parse::<i64>().unwrap();
         if let Some(exp) = self.exp {
-            i32::pow(int_part, exp.parse::<u32>().unwrap())
+            i64::pow(int_part, exp.parse::<u32>().unwrap())
         } else {
             int_part
         }
@@ -138,10 +138,18 @@ impl<'i> Parse<'i> for Number<'i> {
                         State::Int
                     }
                     num @ Some('.') => {
-                        let num = num.unwrap();
-                        index += num.len_utf8();
-                        nth += 1;
-                        State::Float(index)
+                        if input
+                            .peek_nth(nth + 1)
+                            .map(|nth_plus_1| !nth_plus_1.is_numeric())
+                            .unwrap_or(false)
+                        {
+                            State::End
+                        } else {
+                            let num = num.unwrap();
+                            index += num.len_utf8();
+                            nth += 1;
+                            State::Float(index)
+                        }
                     }
                     num @ Some('e') => {
                         let num = num.unwrap();

@@ -81,7 +81,7 @@ impl ParseError {
                 .with_message("__NonExhaustive.")
                 .with_labels(vec![Label::primary(id, IndexOnlySpan::new(0, 0).range())
                     .with_message(
-                        "You're welcome for this unhelpful message. Fear not – a proper error
+                        "You're welcome for this unhelpful message. Fear not - a proper error
                         message will (hopefully) replace it soon.",
                     )]),
             ParseError::MismatchedBrackets {
@@ -210,8 +210,11 @@ impl<'a> Input<'a> {
     /// Advance n characters
     pub fn advance_n(&mut self, n: usize) -> Result<&'a str, ParseError> {
         let n = n - 1;
-        if let Some((index, _)) = self.inner.char_indices().nth(n) {
-            if let (Some(ret), slice) = (self.inner.get(..=index), self.inner.get(index + 1..)) {
+        if let Some((index, char)) = self.inner.char_indices().nth(n) {
+            if let (Some(ret), slice) = (
+                self.inner.get(..index + char.len_utf8()),
+                self.inner.get(index + char.len_utf8()..),
+            ) {
                 self.inner = slice.unwrap_or("");
                 self.position = ret.chars().fold(self.position, |mut position, char| {
                     position.index += char.len_utf8();
@@ -246,10 +249,10 @@ impl<'a> Input<'a> {
         stop_eating_if_true: impl Fn(char) -> bool,
         should_error_if_reaches_end: bool,
     ) -> Result<&'a str, ParseError> {
-        let mut n = 0;
+        let mut character_count = 0;
 
         loop {
-            let should_stop = if let Some(next) = self.peek_nth(n) {
+            let should_stop = if let Some(next) = self.peek_nth(character_count) {
                 (stop_eating_if_true)(next)
             } else if should_error_if_reaches_end {
                 return Err(ParseError::UnexpectedEndOfInput {
@@ -262,14 +265,14 @@ impl<'a> Input<'a> {
             if should_stop {
                 break;
             } else {
-                n += 1;
+                character_count += 1;
             }
         }
 
-        if n == 0 {
+        if character_count == 0 {
             Ok("")
         } else {
-            self.advance_n(n)
+            self.advance_n(character_count)
         }
     }
 
@@ -431,4 +434,12 @@ impl IncompleteSpan {
     pub fn finish_recording(self, input: &Input) -> Span {
         input.finish_recording(self)
     }
+}
+
+#[cfg(test)]
+#[test]
+fn test_advance_non_ascii() {
+    let mut i = Input::new("│some");
+    i.advance_n(1).unwrap();
+    assert_eq!(i.inner(), "some");
 }

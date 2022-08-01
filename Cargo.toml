@@ -5,7 +5,7 @@ debug = true
 members = [
     "cli",
     "logic",
-    "tests/oracle",
+    "tests/e2e",
     "tests/generator",
     "tests/fuzzer",
     "lsp",

@@ -1,0 +1,11 @@
+;; compiler:
+;;   status: success
+;;   stdout:
+
+record I
+  A of Bool
+endrecord
+
+function main()
+  return 0
+endfunction

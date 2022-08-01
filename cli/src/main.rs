@@ -37,7 +37,7 @@ fn main() {
         Err(error) => {
             let report = error.report(file_id);
             emit(&mut writer, &config, &files, &report).unwrap();
-            return;
+            process::exit(1);
         }
     };
 
@@ -46,7 +46,7 @@ fn main() {
         Err(error) => {
             let report = error.report(file_id, &ast);
             emit(&mut writer, &config, &files, &report).unwrap();
-            return;
+            process::exit(1);
         }
     };
 

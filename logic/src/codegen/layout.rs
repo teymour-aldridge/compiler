@@ -1,5 +1,4 @@
 use cranelift_codegen::ir::{self, InstBuilder};
-
 use cranelift_module::Module;
 
 use crate::{
@@ -7,7 +6,7 @@ use crate::{
     ty::{PrimitiveType, Ty},
 };
 
-use super::compile::FunctionCompiler;
+use super::func::FunctionCompiler;
 
 /// Returns the size (in bits) of the type in question.
 ///

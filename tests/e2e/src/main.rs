@@ -5,8 +5,6 @@ use run_script::{IoOptions, ScriptOptions};
 
 fn main() {
     static COMMENT_PREFIX: &str = ";;";
-    // build runtime
-
     let options = ScriptOptions {
         output_redirection: IoOptions::Inherit,
         ..ScriptOptions::new()
@@ -14,7 +12,6 @@ fn main() {
     let args = vec![];
     run_script::run(
         r#"
-            (cd ../../runtime && cargo build)
             (cd ../../cli && cargo build)
             mv ../../target/debug/pseudo ${CARGO_HOME}/bin
             "#,

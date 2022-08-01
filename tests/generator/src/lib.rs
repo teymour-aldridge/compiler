@@ -116,12 +116,24 @@ mod inner {
                             TupleMutatorWrapper<
                                     Tuple2Mutator<
                                         <Expr as DefaultMutator>::Mutator,
-                                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>>>,
+                                        VecMutator<
+                                            Node,
+                                            RecurToMutator<
+                                                NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>
+                                            >
+                                        >,
                                         Tuple2<Expr, Vec<Node>
                                     >
                                 >
                             > = {
-                            VecMutator::new(TupleMutatorWrapper::new(Tuple2Mutator::new(Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX))), 0..=usize::MAX)
+                            VecMutator::new(
+                                TupleMutatorWrapper::new(
+                                    Tuple2Mutator::new(
+                                        Expr::default_mutator(), VecMutator::new(self_.into(), 0..=usize::MAX)
+                                    )
+                                ),
+                                0..=usize::MAX
+                            )
                         }
                     )]
 
@@ -186,25 +198,26 @@ mod inner {
 
                     f.write_str("if ")?;
                     if_branch.0.fmt(None, f)?;
-                    f.write_str("then\n")?;
+                    f.write_str(" then\n")?;
                     fmt_block(&if_branch.1, units + 2, f)?;
 
                     for (expr, block) in elseif_branches {
                         fmt_indent(units, f)?;
                         f.write_str("elseif ")?;
                         expr.fmt(None, f)?;
-                        f.write_str("then\n")?;
-                        fmt_block(&block, units, f)?;
+                        f.write_str(" then\n")?;
+
+                        fmt_block(&block, units + 2, f)?;
                     }
 
                     if let Some(branch) = else_branch {
                         fmt_indent(units, f)?;
-
                         f.write_str("else\n")?;
+
                         fmt_block(branch, units + 2, f)?;
                     }
-                    fmt_indent(units, f)?;
 
+                    fmt_indent(units, f)?;
                     f.write_str("endif")?;
 
                     Ok(())
@@ -317,6 +330,9 @@ mod inner {
         Subtract,
         Divide,
         Multiply,
+        Dot,
+        IsEqual,
+        IsNotEqual,
     }
 
     impl BinOp {
@@ -326,6 +342,10 @@ mod inner {
                 BinOp::Subtract => "-",
                 BinOp::Divide => "/",
                 BinOp::Multiply => "*",
+                // note: `SetEquals` is handled separately
+                BinOp::IsEqual => "==",
+                BinOp::Dot => ".",
+                BinOp::IsNotEqual => "!=",
             };
             f.write_str(symbol)
         }
@@ -379,7 +399,8 @@ mod inner {
                 Call {
                     name: Ident,
                     #[field_mutator(
-                        VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { VecMutator::new(self_.into(), 0..=usize::MAX) }
+                        VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>>
+                            = { VecMutator::new(self_.into(), 0..=usize::MAX) }
                     )]
                     args: Vec<Expr>,
                 },
@@ -491,8 +512,7 @@ mod inner {
         B,
         C,
         D,
-        E,
-        F,
+        // no 'e' and 'f' because it prevents the fuzzer from generating keywords
         G,
         H,
         I,
@@ -518,8 +538,6 @@ mod inner {
                 AlphabeticInner::B => 'b',
                 AlphabeticInner::C => 'c',
                 AlphabeticInner::D => 'd',
-                AlphabeticInner::E => 'e',
-                AlphabeticInner::F => 'f',
                 AlphabeticInner::G => 'g',
                 AlphabeticInner::H => 'h',
                 AlphabeticInner::I => 'i',
@@ -548,12 +566,11 @@ mod inner {
 
     impl Ident {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.write_char(' ')?;
             self.start.fmt(f)?;
             for each in &self.rest {
                 each.fmt(f)?;
             }
-            f.write_char(' ')
+            Ok(())
         }
     }
 
