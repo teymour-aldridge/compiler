@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a28b32d32ca44b70c3e4acd7db1babf555fa026e385fb95f18028f88848b3c31"
+checksum = "89eab4d20ce20cea182308bca13088fecea9c05f6776cf287205d41a0ed3c847"
 dependencies = [
  "encode_unicode",
  "libc",
@@ -234,9 +234,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.1"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
+checksum = "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
@@ -469,9 +469,9 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.12.0"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4c0c443f6dceb3a1cb7607c87501aa91e4b9c976044f725c2a74ca2152c91a4"
+checksum = "1585a0f4924236ca3c8dac97bc6a3efaacc08b1ed9264ff2155ec7ab2906a8ea"
 dependencies = [
  "console",
  "once_cell",
@@ -666,9 +666,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.9.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da32515d9f6e6e489d7bc9d84c71b060db7247dc035bbe44eac88cf87486d8d5"
+checksum = "18a6dbe30758c9f83eb00cbea4ac95966305f5a7772f3f42ebfc7fc7eddbd8e1"
 
 [[package]]
 name = "overload"
