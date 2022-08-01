@@ -83,6 +83,11 @@ mod inner {
             to: Ident,
             value: Box<Expr>,
         },
+        Function {
+            name: Ident,
+            params: Vec<Ident>,
+            block: Vec<Node>,
+        },
     }
 
     make_mutator! {
@@ -99,7 +104,7 @@ mod inner {
                                             VecMutator<
                                                     Node,
                                                     RecurToMutator<
-                                                            NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>
+                                                        NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>
                                                         >
                                                 >
                                         >,
@@ -119,7 +124,7 @@ mod inner {
                                         VecMutator<
                                             Node,
                                             RecurToMutator<
-                                                NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>
+                                                NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>
                                             >
                                         >,
                                         Tuple2<Expr, Vec<Node>
@@ -139,7 +144,7 @@ mod inner {
 
                     elseif_branches: Vec<(Expr, Vec<Node>)>,
                     #[field_mutator(
-                        OptionMutator<Vec<Node>, VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>>> = {
+                        OptionMutator<Vec<Node>, VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>>> = {
                             OptionMutator::new(VecMutator::new(self_.into(), 0..=usize::MAX))
                         }
                     )]
@@ -151,7 +156,7 @@ mod inner {
                     start: Expr,
                     stop: Expr,
                     #[field_mutator(
-                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>> = {
+                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>> = {
                             VecMutator::new(self_.into(), 0..=usize::MAX)
                         }
                     )]
@@ -161,7 +166,7 @@ mod inner {
                 While {
                     condition: Expr,
                     #[field_mutator(
-                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1>>> = {
+                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>> = {
                             VecMutator::new(self_.into(), 0..=usize::MAX)
                         }
                     )]
@@ -175,6 +180,17 @@ mod inner {
                     to: Ident,
                     value: Box<Expr>,
                 },
+                Function {
+                    name: Ident,
+                    params: Vec<Ident>,
+                    #[field_mutator(
+                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>> = {
+                            VecMutator::new(self_.into(), 0..=usize::MAX)
+                        }
+                    )]
+                    block: Vec<Node>,
+                },
+
             }
     }
 
@@ -280,6 +296,24 @@ mod inner {
                     f.write_str(" = ")?;
                     value.fmt(None, f)
                 }
+                Node::Function {
+                    name,
+                    params,
+                    block,
+                } => {
+                    fmt_indent(units, f)?;
+                    f.write_str("function ")?;
+                    name.fmt(f)?;
+                    f.write_str(" (")?;
+                    for param in params {
+                        param.fmt(f)?;
+                        f.write_char(',')?;
+                    }
+                    f.write_str(")\n")?;
+                    fmt_block(block, units + 2, f)?;
+                    fmt_indent(units, f)?;
+                    f.write_str("endfunction")
+                }
             }
         }
     }
@@ -368,6 +402,10 @@ mod inner {
             name: Ident,
             args: Vec<Expr>,
         },
+        Constructor {
+            name: Ident,
+            fields: Vec<(Ident, Box<Expr>)>,
+        },
     }
 
     make_mutator! {
@@ -379,18 +417,18 @@ mod inner {
                 BinOp {
                     op: BinOp,
                     #[field_mutator(
-                        BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { BoxMutator::new(self_.into()) }
+                        BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0, M5_0>>> = { BoxMutator::new(self_.into()) }
                     )]
                     left: Box<Expr>,
                     #[field_mutator(
-                        BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { BoxMutator::new(self_.into()) }
+                        BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0, M5_0>>> = { BoxMutator::new(self_.into()) }
                     )]
                     right: Box<Expr>,
                 },
                 UnOp {
                     operator: UnOp,
                     #[field_mutator(
-                        BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>> = { BoxMutator::new(self_.into()) }
+                        BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0, M5_0>>> = { BoxMutator::new(self_.into()) }
                     )]
                     operand: Box<Expr>,
                 },
@@ -399,11 +437,23 @@ mod inner {
                 Call {
                     name: Ident,
                     #[field_mutator(
-                        VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0>>>
+                        VecMutator<Expr, RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0, M5_0>>>
                             = { VecMutator::new(self_.into(), 0..=usize::MAX) }
                     )]
                     args: Vec<Expr>,
                 },
+                Constructor {
+                    name: Ident,
+                    #[field_mutator(
+                        VecMutator<(Ident, Box<Expr>), TupleMutatorWrapper<Tuple2Mutator<<Ident as DefaultMutator>::Mutator, BoxMutator<RecurToMutator<ExprMutator<M0_0, M1_0, M2_0, M3_0, M4_0, M5_0>>>>, Tuple2<Ident, Box<Expr>>>>
+                        = {
+                            VecMutator::new(TupleMutatorWrapper::new(
+                                Tuple2Mutator::new(Ident::default_mutator(), BoxMutator::new(self_.into()))
+                            ), 0..=usize::MAX)
+                        }
+                    )]
+                    fields: Vec<(Ident, Box<Expr>)>
+                }
             }
     }
 
@@ -437,6 +487,17 @@ mod inner {
                         f.write_char(',')?;
                     }
                     f.write_char(')')?;
+                }
+                Expr::Constructor { name, fields } => {
+                    name.fmt(f)?;
+                    f.write_str(" { ")?;
+                    for (name, expression) in fields {
+                        name.fmt(f)?;
+                        f.write_str(": ")?;
+                        expression.fmt(None, f)?;
+                        f.write_char(',')?;
+                    }
+                    f.write_char('}')?;
                 }
             };
             Ok(())
