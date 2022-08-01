@@ -83,6 +83,14 @@ impl Expr<'_> {
     pub fn is_ident(&self) -> bool {
         matches!(self, Self::Ident(..))
     }
+
+    /// Returns `true` if the expr is [`FunctionCall`].
+    ///
+    /// [`FunctionCall`]: Expr::FunctionCall
+    #[must_use]
+    pub fn is_function_call(&self) -> bool {
+        matches!(self, Self::FunctionCall(..))
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -236,7 +244,13 @@ impl<'i> Expr<'i> {
                         }
 
                         input.parse_token("(")?;
-                        let args = input.delimited_list(parse, ')', ",", ctx)?;
+
+                        let args;
+                        if !input.starts_with(")") {
+                            args = input.delimited_list(parse, ')', ",", ctx)?;
+                        } else {
+                            args = vec![];
+                        }
                         input.parse_token(")")?;
                         Some(Self::FunctionCall(ident, args)).map(|expr| {
                             let id = ctx.new_id();

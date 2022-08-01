@@ -81,7 +81,7 @@ impl ParseError {
                 .with_message("__NonExhaustive.")
                 .with_labels(vec![Label::primary(id, IndexOnlySpan::new(0, 0).range())
                     .with_message(
-                        "You're welcome for this unhelpful message. Fear not – a proper error
+                        "You're welcome for this unhelpful message. Fear not - a proper error
                         message will (hopefully) replace it soon.",
                     )]),
             ParseError::MismatchedBrackets {

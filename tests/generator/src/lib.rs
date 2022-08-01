@@ -186,14 +186,14 @@ mod inner {
 
                     f.write_str("if ")?;
                     if_branch.0.fmt(None, f)?;
-                    f.write_str("then\n")?;
+                    f.write_str(" then\n")?;
                     fmt_block(&if_branch.1, units + 2, f)?;
 
                     for (expr, block) in elseif_branches {
                         fmt_indent(units, f)?;
                         f.write_str("elseif ")?;
                         expr.fmt(None, f)?;
-                        f.write_str("then\n")?;
+                        f.write_str(" then\n")?;
                         fmt_block(&block, units, f)?;
                     }
 
@@ -548,12 +548,11 @@ mod inner {
 
     impl Ident {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.write_char(' ')?;
             self.start.fmt(f)?;
             for each in &self.rest {
                 each.fmt(f)?;
             }
-            f.write_char(' ')
+            Ok(())
         }
     }
 

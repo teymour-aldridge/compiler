@@ -88,4 +88,14 @@ mod parse_reparse {
     fn fuzzcheck_record_failure() {
         inner(("record MJ\n  VY of String\nendrecord", true));
     }
+
+    #[test]
+    fn ident_with_space_does_not_crash() {
+        inner((" s \n", false));
+    }
+
+    #[test]
+    fn call_with_no_arguments() {
+        inner(("C()", true));
+    }
 }
