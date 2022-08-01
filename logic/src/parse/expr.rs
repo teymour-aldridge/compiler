@@ -245,12 +245,11 @@ impl<'i> Expr<'i> {
 
                         input.parse_token("(")?;
 
-                        let args;
-                        if !input.starts_with(")") {
-                            args = input.delimited_list(parse, ')', ",", ctx)?;
+                        let args = if !input.starts_with(')') {
+                            input.delimited_list(parse, ')', ",", ctx)?
                         } else {
-                            args = vec![];
-                        }
+                            vec![]
+                        };
                         input.parse_token(")")?;
                         Some(Self::FunctionCall(ident, args)).map(|expr| {
                             let id = ctx.new_id();

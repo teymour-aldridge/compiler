@@ -98,4 +98,14 @@ mod parse_reparse {
     fn call_with_no_arguments() {
         inner(("C()", true));
     }
+
+    #[test]
+    fn if_else_if() {
+        inner(("if J67k then\nelseif \"o\" then\nb = hS\nendif\n", false));
+    }
+
+    #[test]
+    fn blank() {
+        inner(("", true));
+    }
 }

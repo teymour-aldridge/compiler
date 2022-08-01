@@ -4,6 +4,10 @@ use self::compile::Compiler;
 
 /// Performs the actual AST -> Cranelift IR pass
 mod compile;
+/// Translation of expressions into Cranelift IR.
+mod expr;
+/// Translation of individual functions into Cranelift IR.
+mod func;
 /// Layouts of objects in memory.
 pub(self) mod layout;
 /// Produces the `ObjectModule` necessary for the compiler target in question.

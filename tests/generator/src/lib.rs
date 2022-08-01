@@ -194,17 +194,18 @@ mod inner {
                         f.write_str("elseif ")?;
                         expr.fmt(None, f)?;
                         f.write_str(" then\n")?;
-                        fmt_block(&block, units, f)?;
+
+                        fmt_block(&block, units + 2, f)?;
                     }
 
                     if let Some(branch) = else_branch {
                         fmt_indent(units, f)?;
-
                         f.write_str("else\n")?;
+
                         fmt_block(branch, units + 2, f)?;
                     }
-                    fmt_indent(units, f)?;
 
+                    fmt_indent(units, f)?;
                     f.write_str("endif")?;
 
                     Ok(())
@@ -491,8 +492,7 @@ mod inner {
         B,
         C,
         D,
-        E,
-        F,
+        // no 'e' and 'f' because it prevents the fuzzer from generating keywords
         G,
         H,
         I,
@@ -518,8 +518,6 @@ mod inner {
                 AlphabeticInner::B => 'b',
                 AlphabeticInner::C => 'c',
                 AlphabeticInner::D => 'd',
-                AlphabeticInner::E => 'e',
-                AlphabeticInner::F => 'f',
                 AlphabeticInner::G => 'g',
                 AlphabeticInner::H => 'h',
                 AlphabeticInner::I => 'i',
