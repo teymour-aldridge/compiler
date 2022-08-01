@@ -113,6 +113,7 @@ mod parse_reparse {
     #[test]
     fn dot_operator() {
         inner(("True.False", true));
-        inner(("True.\"T\"", true))
+        inner(("True.\"T\"", true));
+        inner(("11178649669038950710.False", true));
     }
 }

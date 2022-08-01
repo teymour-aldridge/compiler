@@ -138,10 +138,18 @@ impl<'i> Parse<'i> for Number<'i> {
                         State::Int
                     }
                     num @ Some('.') => {
-                        let num = num.unwrap();
-                        index += num.len_utf8();
-                        nth += 1;
-                        State::Float(index)
+                        if input
+                            .peek_nth(nth + 1)
+                            .map(|nth_plus_1| !nth_plus_1.is_numeric())
+                            .unwrap_or(false)
+                        {
+                            State::End
+                        } else {
+                            let num = num.unwrap();
+                            index += num.len_utf8();
+                            nth += 1;
+                            State::Float(index)
+                        }
                     }
                     num @ Some('e') => {
                         let num = num.unwrap();
