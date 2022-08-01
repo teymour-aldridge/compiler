@@ -76,10 +76,10 @@ pub struct Number<'i> {
 }
 
 impl Number<'_> {
-    pub(crate) fn as_int(&self) -> i32 {
-        let int_part = self.int.parse::<i32>().unwrap();
+    pub(crate) fn as_int(&self) -> i64 {
+        let int_part = self.int.parse::<i64>().unwrap();
         if let Some(exp) = self.exp {
-            i32::pow(int_part, exp.parse::<u32>().unwrap())
+            i64::pow(int_part, exp.parse::<u32>().unwrap())
         } else {
             int_part
         }

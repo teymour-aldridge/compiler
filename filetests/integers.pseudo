@@ -1,0 +1,22 @@
+;; compiler:
+;;   status: success
+;;   stdout:
+;;          42
+;;          -7
+;;          2
+;;          -28
+;;          -7
+
+function main()
+  ;; multiplication
+  print_int(6 * 7)
+  ;; subtraction where the result is negative
+  print_int(7 - 14)
+  ;; division
+  print_int(14 / 7)
+  ;; addition of negative numbers
+  print_int(-14 + -14)
+  ;; negation
+  print_int(---7)
+  return 0
+endfunction

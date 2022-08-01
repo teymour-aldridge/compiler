@@ -45,9 +45,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         panic!("Exponents are not yet supported!")
                     }
 
-                    self.builder
-                        .ins()
-                        .iconst(ir::types::I64, number.as_int() as i64)
+                    self.builder.ins().iconst(ir::types::I64, number.as_int())
                 }
                 crate::parse::lit::Literal::Bool(_) => todo!(),
             },
@@ -199,7 +197,20 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                     0,
                 )
             }
-            Expr::UnOp(_, _) => todo!(),
+            Expr::UnOp(op, arg) => match op.token {
+                crate::parse::expr::UnOp::Positive => {
+                    // todo: check that the integer is an integer
+                    self.compile_expr(table.get_expr_with_id(*arg), table)
+                }
+                crate::parse::expr::UnOp::Negative => {
+                    // todo: check that the integer is an integer
+                    let integer = self.compile_expr(table.get_expr_with_id(*arg), table);
+                    self.builder.ins().ineg(integer)
+                }
+                crate::parse::expr::UnOp::Deref => {
+                    unreachable!("Pointer dereferencing should have been handled separately.")
+                }
+            },
             Expr::FunctionCall(name, params) => {
                 let local_callee = match table.get_ident(*name).inner() {
                     "print_int" => {
