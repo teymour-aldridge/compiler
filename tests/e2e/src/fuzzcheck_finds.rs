@@ -159,3 +159,16 @@ fn empty_string() {
     let error = result.as_failed_code_generation().unwrap();
     assert!(error.explanation().contains("`main` function"))
 }
+
+#[test]
+fn invalid_bool_access() {
+    let result = run_test("function L ()\n  False.k\n  return   False\nendfunction\n");
+    let error = result.as_failed_code_generation().unwrap();
+    assert!(error.explanation().contains("used"));
+    assert!(error.explanation().contains("never defined"));
+}
+
+#[test]
+fn bad_expression() {
+    compile_for_fuzzing("function t ()\n  return   -False==-False\nendfunction\n");
+}
