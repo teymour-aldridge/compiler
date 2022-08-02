@@ -14,7 +14,7 @@ rustc-hash = "1.1.0"
 
 # we match `codespan-lsp`
 [dependencies.lsp-types]
-version = ">=0.84, <0.89"
+version = ">=0.84, <0.94"
 
 [dependencies.logic]
 path = "../logic"
