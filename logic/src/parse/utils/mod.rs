@@ -17,7 +17,7 @@ pub trait Parse<'a>: Sized {
     fn parse(input: &mut Input<'a>, ctx: &mut Self::Context) -> Result<Self::Output, ParseError>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 /// An error encountered while parsing.
 ///
 /// This can be converted into a [codespan_reporting::diagnostic::Diagnostic] for error reporting.
