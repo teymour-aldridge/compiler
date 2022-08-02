@@ -1,0 +1,22 @@
+;; compiler:
+;;   status: success
+;;   stdout: 1
+
+function main()
+  true() == True
+  choose() + 1
+  return 0
+endfunction
+
+function choose()
+  if true() then
+    print_int(1)
+    return 0
+  else
+    return 0
+  endif
+endfunction
+
+function true()
+  return True
+endfunction

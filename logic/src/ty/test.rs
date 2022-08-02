@@ -291,3 +291,17 @@ fn true_true_errors() {
     let table = parse("True.True").unwrap();
     type_check(&table).expect_err("incorrectly claimed a program with a type error doesn't");
 }
+
+#[test]
+fn function_returning_bool() {
+    let table = parse(include_str!("examples/bool")).unwrap();
+
+    let env = type_check(&table).unwrap();
+
+    let (_, func) = table.func.iter().next().unwrap();
+
+    assert_eq!(
+        env.ty_of(func.name.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Bool))
+    );
+}

@@ -1,0 +1,3 @@
+function true()
+  return True
+endfunction
