@@ -50,5 +50,12 @@ fn main() {
         }
     };
 
-    compile(&ast, &env);
+    match compile(&ast, &env) {
+        Ok(env) => env,
+        Err(error) => {
+            let report = error.report(file_id);
+            emit(&mut writer, &config, &files, &report).unwrap();
+            process::exit(1);
+        }
+    };
 }
