@@ -152,3 +152,10 @@ fn bad_expressions() {
         run_test("for v = False to True\nnext v\nfunction v ()\n  h = +-False\nendfunction\n");
     result.as_failed_type_checking().unwrap();
 }
+
+#[test]
+fn empty_string() {
+    let result = run_test("");
+    let error = result.as_failed_code_generation().unwrap();
+    assert!(error.explanation().contains("`main` function"))
+}
