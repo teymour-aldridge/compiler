@@ -88,13 +88,14 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
             self.compile_expr(table.get_expr_with_id(stmt.r#if.condition), table)?;
 
         let if_block = self.builder.create_block();
+        let else_block = self.builder.create_block();
+        // all instructions exit through this block
+        let exit_block = self.builder.create_block();
 
         if !stmt.else_ifs.is_empty() && std::env::var("FUZZCHECK").is_err() {
             // todo: proper warning API
             println!("WARNING: else if is not yet supported!");
         }
-
-        let else_block = self.builder.create_block();
 
         self.builder.ins().brz(condition_value, else_block, &[]);
         self.builder.ins().jump(if_block, &[]);
@@ -104,12 +105,29 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
 
         self.compile_block(table.get_block(&stmt.r#if.block), table)?;
 
+        // the block we just compiled might have included a terminator instruction; if it didn't
+        // then we jump to the exit block
+        if !self.builder.is_filled() {
+            self.builder.ins().jump(exit_block, &[]);
+        }
+
         self.builder.switch_to_block(else_block);
         self.builder.seal_block(else_block);
 
         if let Some(else_block) = &stmt.r#else {
             self.compile_block(table.get_block(else_block), table)?;
         }
+
+        // the block we just compiled might have included a terminator instruction; if it didn't
+        // then we jump to the exit block
+        if !self.builder.is_filled() {
+            self.builder.ins().jump(exit_block, &[]);
+        }
+
+        self.builder.switch_to_block(exit_block);
+        self.builder.seal_block(exit_block);
+
+        assert!(!self.builder.is_filled());
 
         Ok(())
     }
@@ -141,6 +159,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         self.builder.switch_to_block(exit_block);
         self.builder.seal_block(header_block);
         self.builder.seal_block(exit_block);
+
+        assert!(!self.builder.is_filled());
 
         Ok(())
     }
