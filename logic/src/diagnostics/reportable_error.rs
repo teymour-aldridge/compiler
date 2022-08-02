@@ -18,7 +18,7 @@ impl ReportableError {
         ID: Copy,
     {
         let diagnostic: Diagnostic<ID> =
-            Diagnostic::error().with_message("Your program contains a syntax error!");
+            Diagnostic::error().with_message("Your program contains an error!");
 
         diagnostic.with_labels(vec![
             Label::primary(id, self.span.index_only().range()).with_message(&self.explanation)

@@ -52,7 +52,9 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
 
                     self.builder.ins().iconst(ir::types::I64, number.as_int())
                 }
-                crate::parse::lit::Literal::Bool(_) => todo!(),
+                crate::parse::lit::Literal::Bool(boolean) => {
+                    self.builder.ins().bconst(ir::types::B1, *boolean)
+                }
             },
             Expr::BinOp(op, left, right)
                 if op.token == BinOp::SetEquals && table.get_expr(left).is_ident() =>
@@ -133,6 +135,24 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                             Ty::PrimitiveType(PrimitiveType::Int),
                             Ty::PrimitiveType(PrimitiveType::Int),
                         ) => self.builder.ins().icmp(IntCC::Equal, lhs, rhs),
+                        (
+                            Ty::PrimitiveType(PrimitiveType::Bool),
+                            Ty::PrimitiveType(PrimitiveType::Bool),
+                        ) => {
+                            let truth = self.builder.ins().bconst(ir::types::B1, true);
+                            // exclusive or
+                            // A | B | Output
+                            // T | T | F
+                            // T | F | T
+                            // F | T | T
+                            // F | F | F
+                            // essentially, if A == B is true then A XOR B is false (and if A==B is false,
+                            // then A XOR B is true)
+                            // to compare if two boolean values are equal we want to negate A XOR B
+                            // which we can do by evaluating A XOR True
+                            let xor_res = self.builder.ins().bxor(lhs, rhs);
+                            self.builder.ins().bxor(xor_res, truth)
+                        }
                         _ => todo!(),
                     }
                 }
@@ -146,6 +166,11 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                             Ty::PrimitiveType(PrimitiveType::Int),
                             Ty::PrimitiveType(PrimitiveType::Int),
                         ) => self.builder.ins().icmp(IntCC::NotEqual, lhs, rhs),
+                        // see the implementation of `IsEqual` (above) for documentation
+                        (
+                            Ty::PrimitiveType(PrimitiveType::Bool),
+                            Ty::PrimitiveType(PrimitiveType::Bool),
+                        ) => self.builder.ins().bxor(lhs, rhs),
                         _ => todo!(),
                     }
                 }
@@ -350,10 +375,20 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         }
 
                         sig.returns.push(AbiParam::new(
-                            self.ty_env
+                            match self
+                                .ty_env
                                 .ty_of(name.id)
                                 .map(|x| cranelift_of_ty_module(self.module, x))
-                                .unwrap(),
+                            {
+                                Some(ty) => ty,
+                                None => {
+                                    return Err(ReportableError::new(
+                                        table.get_ident(*name).span(table),
+                                        "The return type of this function could not be inferred."
+                                            .to_owned(),
+                                    ))
+                                }
+                            },
                         ));
 
                         let callee = self
