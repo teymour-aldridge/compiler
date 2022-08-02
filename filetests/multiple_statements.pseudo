@@ -1,0 +1,23 @@
+;; compiler:
+;;   status: success
+;;   stdout:
+;;          1
+;;          2
+;;          3
+
+function main()
+  if True != False then
+    print_int(1)
+  endif
+
+  if True == True then
+    print_int(2)
+  endif
+
+  while False
+    print_int(8)
+  endwhile
+
+  print_int(3)
+  return 0
+endfunction
