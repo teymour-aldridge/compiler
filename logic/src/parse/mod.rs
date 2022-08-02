@@ -78,6 +78,15 @@ fn parse_statements<'i>(
     }
 }
 
+#[cfg(test)]
+#[test]
+fn empty_statements() {
+    assert_eq!(
+        parse_statements(&mut Input::new(""), &mut ParseContext::new()),
+        Ok(Vec::new())
+    );
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Node;
 

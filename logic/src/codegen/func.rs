@@ -52,12 +52,12 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                             id: block.id,
                         },
                         table,
-                    );
+                    )?;
                 }
                 Item::For(f) => self.compile_for(f, table),
                 Item::If(i) => self.compile_if(i, table)?,
                 Item::While(w) => self.compile_while(w, table)?,
-                Item::Return(r) => self.compile_return(r, table),
+                Item::Return(r) => self.compile_return(r, table)?,
                 Item::Func(_) => {
                     panic!("should have checked this error before now!");
                 }
@@ -77,13 +77,15 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
     }
 
     /// Compiles a return statement.
-    pub(crate) fn compile_return(&mut self, ret: &Return, table: &ParseTable) {
-        let return_value = self.compile_expr(table.get_expr_with_id(ret.expr), table);
+    pub(crate) fn compile_return(&mut self, ret: &Return, table: &ParseTable) -> ReportableResult {
+        let return_value = self.compile_expr(table.get_expr_with_id(ret.expr), table)?;
         self.builder.ins().return_(&[return_value]);
+        Ok(())
     }
 
     pub(crate) fn compile_if(&mut self, stmt: &If, table: &ParseTable) -> ReportableResult {
-        let condition_value = self.compile_expr(table.get_expr_with_id(stmt.r#if.condition), table);
+        let condition_value =
+            self.compile_expr(table.get_expr_with_id(stmt.r#if.condition), table)?;
 
         let if_block = self.builder.create_block();
 
@@ -124,7 +126,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         self.builder.ins().jump(header_block, &[]);
         self.builder.switch_to_block(header_block);
 
-        let condition_value = self.compile_expr(table.get_expr_with_id(stmt.condition), table);
+        let condition_value = self.compile_expr(table.get_expr_with_id(stmt.condition), table)?;
 
         self.builder.ins().brz(condition_value, exit_block, &[]);
         self.builder.ins().jump(body_block, &[]);

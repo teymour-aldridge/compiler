@@ -117,4 +117,9 @@ mod parse_reparse {
         inner(("11178649669038950710.False", true));
         inner(("True.N()", true));
     }
+
+    #[test]
+    fn function_inside_while() {
+        inner((include_str!("examples/func-inside-while"), true));
+    }
 }

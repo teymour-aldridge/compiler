@@ -25,7 +25,6 @@ impl<'i> Parse<'i> for Func {
         input: &mut super::utils::Input<'i>,
         ctx: &mut ParseContext<'i>,
     ) -> Result<FuncRef, ParseError> {
-        input.advance_indent()?;
         input.parse_token("function")?;
         input.skip_whitespace()?;
         let name = Ident::parse(input, ctx)?;
