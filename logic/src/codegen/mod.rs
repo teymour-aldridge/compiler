@@ -1,4 +1,4 @@
-use crate::{parse::table::ParseTable, ty::TyEnv};
+use crate::{diagnostics::reportable_error::ReportableError, parse::table::ParseTable, ty::TyEnv};
 
 use self::compile::Compiler;
 
@@ -17,13 +17,16 @@ pub(self) mod make_module;
 ///
 /// todo: automatically link
 /// todo: allow custom file outputs
-pub fn compile<'compiler>(ast: &'compiler ParseTable<'compiler>, env: &'compiler TyEnv) -> i32 {
-    let mut compiler = Compiler::new(env);
+pub fn compile<'compiler>(
+    ast: &'compiler ParseTable<'compiler>,
+    env: &'compiler TyEnv,
+) -> Result<i32, ReportableError> {
+    let mut compiler = Compiler::new(env, ast);
 
-    compiler.compile(ast);
+    compiler.compile(ast)?;
 
     let output = compiler.finish();
 
     let code_fn = unsafe { std::mem::transmute::<_, fn(()) -> i32>(output) };
-    code_fn(())
+    Ok(code_fn(()))
 }

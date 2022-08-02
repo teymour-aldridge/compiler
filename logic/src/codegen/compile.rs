@@ -15,11 +15,15 @@ use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::JITModule;
 use cranelift_module::{Linkage, Module};
 
-use crate::ty::{Ty, TyEnv};
 use crate::{
     codegen::make_module::make_module_for_compiler_host_architecture,
+    diagnostics::{reportable_error::ReportableError, span::HasSpan},
     parse::table::{ItemKind, ParseTable},
     ty::PrimitiveType,
+};
+use crate::{
+    diagnostics::reportable_error::ReportableResult,
+    ty::{Ty, TyEnv},
 };
 
 use super::func::FunctionCompiler;
@@ -28,6 +32,7 @@ use super::func::FunctionCompiler;
 pub struct Compiler<'i> {
     context: Context,
     ty_env: &'i TyEnv,
+    table: &'i ParseTable<'i>,
     module: JITModule,
 }
 
@@ -45,11 +50,12 @@ pub fn cranelift_of_ty_module(module: &JITModule, ty: Ty) -> ir::Type {
 
 impl<'i> Compiler<'i> {
     /// Create a new instance of the compiler.
-    pub fn new(ty_env: &'i TyEnv) -> Self {
+    pub fn new(ty_env: &'i TyEnv, table: &'i ParseTable<'i>) -> Self {
         let module = make_module_for_compiler_host_architecture();
         Self {
             context: module.make_context(),
             ty_env,
+            table,
             module,
         }
     }
@@ -62,7 +68,7 @@ impl<'i> Compiler<'i> {
     }
 
     /// Transforms the provided AST into Cranelift IR.
-    pub fn compile(&mut self, table: &ParseTable<'i>) {
+    pub fn compile(&mut self, table: &ParseTable<'i>) -> ReportableResult {
         let functions = table.root.1.inner.iter().filter_map(|item| {
             if let ItemKind::Func = item.item_kind {
                 table.func.get(&item.id)
@@ -79,14 +85,34 @@ impl<'i> Compiler<'i> {
                 || table.get_ident(func.name).inner() == "print"
             {
                 self.cranelift_of_ty(Ty::PrimitiveType(PrimitiveType::Int))
+            } else if let Some(ty) = self
+                .ty_env
+                .ty_of(func.name.id)
+                .map(|x| self.cranelift_of_ty(x))
+            {
+                ty
             } else {
-                self.ty_env
-                    .ty_of(func.name.id)
-                    .map(|x| self.cranelift_of_ty(x))
-                    .unwrap()
+                return Err(ReportableError::new(
+                    table.get_ident(func.name).span(table),
+                    "The return type of this function could not be deduced.".to_owned(),
+                ));
             };
             let returns = AbiParam::new(returns);
             self.context.func.signature.returns = vec![returns];
+
+            let mut parameters = Vec::with_capacity(func.parameters.len());
+
+            for ident in &func.parameters {
+                if let Some(ty) = self.ty_env.ty_of(ident.id) {
+                    parameters.push(AbiParam::new(self.cranelift_of_ty(ty)));
+                } else {
+                    return Err(ReportableError::new(
+                        self.table.get_ident(*ident).span(table),
+                        "A type of variable could not be established for this function parameter."
+                            .to_owned(),
+                    ));
+                }
+            }
 
             let parameters = func
                 .parameters
@@ -137,7 +163,7 @@ impl<'i> Compiler<'i> {
             let mut function_compiler =
                 FunctionCompiler::new(&mut function_builder, self.ty_env, &mut self.module);
 
-            function_compiler.compile_block(table.get_block(&func.block), table);
+            function_compiler.compile_block(table.get_block(&func.block), table)?;
 
             function_compiler.builder.finalize();
 
@@ -151,6 +177,8 @@ impl<'i> Compiler<'i> {
 
             self.module.clear_context(&mut self.context);
         }
+
+        Ok(())
     }
 
     pub fn finish(mut self) -> *const u8 {

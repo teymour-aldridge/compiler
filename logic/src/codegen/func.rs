@@ -3,6 +3,10 @@ use cranelift_frontend::FunctionBuilder;
 use cranelift_jit::JITModule;
 
 use crate::{
+    diagnostics::{
+        reportable_error::{ReportableError, ReportableResult},
+        span::HasSpan,
+    },
     parse::{
         func::Return,
         r#for::ForLoop,
@@ -34,7 +38,11 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
     }
 
     /// Transforms the provided series of instructions into Cranelift IR.
-    pub(crate) fn compile_block(&mut self, block: &crate::parse::block::Block, table: &ParseTable) {
+    pub(crate) fn compile_block(
+        &mut self,
+        block: &crate::parse::block::Block,
+        table: &ParseTable,
+    ) -> ReportableResult {
         for block in &block.inner {
             match table.get(block).unwrap() {
                 Item::Expr(e) => {
@@ -47,17 +55,25 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                     );
                 }
                 Item::For(f) => self.compile_for(f, table),
-                Item::If(i) => self.compile_if(i, table),
-                Item::While(w) => self.compile_while(w, table),
+                Item::If(i) => self.compile_if(i, table)?,
+                Item::While(w) => self.compile_while(w, table)?,
                 Item::Return(r) => self.compile_return(r, table),
                 Item::Func(_) => {
                     panic!("should have checked this error before now!");
                 }
-                Item::Record(_) => todo!(),
+                Item::Record(rec) => {
+                    // todo: this restriction may be lifted in the future
+                    return Err(ReportableError::new(
+                        table.get_ident(rec.name).span(table),
+                        "Record definitions are not allowed inside functions.".to_owned(),
+                    ));
+                }
                 Item::Ident(_) => unreachable!(),
-                Item::Block(b) => self.compile_block(b, table),
+                Item::Block(b) => self.compile_block(b, table)?,
             };
         }
+
+        Ok(())
     }
 
     /// Compiles a return statement.
@@ -66,7 +82,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         self.builder.ins().return_(&[return_value]);
     }
 
-    pub(crate) fn compile_if(&mut self, stmt: &If, table: &ParseTable) {
+    pub(crate) fn compile_if(&mut self, stmt: &If, table: &ParseTable) -> ReportableResult {
         let condition_value = self.compile_expr(table.get_expr_with_id(stmt.r#if.condition), table);
 
         let if_block = self.builder.create_block();
@@ -84,21 +100,23 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         self.builder.switch_to_block(if_block);
         self.builder.seal_block(if_block);
 
-        self.compile_block(table.get_block(&stmt.r#if.block), table);
+        self.compile_block(table.get_block(&stmt.r#if.block), table)?;
 
         self.builder.switch_to_block(else_block);
         self.builder.seal_block(else_block);
 
         if let Some(else_block) = &stmt.r#else {
-            self.compile_block(table.get_block(else_block), table);
+            self.compile_block(table.get_block(else_block), table)?;
         }
+
+        Ok(())
     }
 
     pub(crate) fn compile_for(&self, _: &ForLoop, _: &ParseTable) {
         panic!("compilation of for loops is not yet implemented")
     }
 
-    pub(crate) fn compile_while(&mut self, stmt: &While, table: &ParseTable) {
+    pub(crate) fn compile_while(&mut self, stmt: &While, table: &ParseTable) -> ReportableResult {
         let header_block = self.builder.create_block();
         let body_block = self.builder.create_block();
         let exit_block = self.builder.create_block();
@@ -114,12 +132,14 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         self.builder.switch_to_block(body_block);
         self.builder.seal_block(body_block);
 
-        self.compile_block(table.get_block(&stmt.block), table);
+        self.compile_block(table.get_block(&stmt.block), table)?;
 
         self.builder.ins().jump(header_block, &[]);
 
         self.builder.switch_to_block(exit_block);
         self.builder.seal_block(header_block);
         self.builder.seal_block(exit_block);
+
+        Ok(())
     }
 }

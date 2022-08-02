@@ -23,12 +23,7 @@ fn simple_type_check() {
 
     let ty_env = type_check(&tree).expect("failed to type check");
 
-    let x = match tree
-        .get(tree.root.1.inner.iter().nth(1).unwrap())
-        .unwrap()
-        .as_expr()
-        .unwrap()
-    {
+    let x = match tree.get(&tree.root.1.inner[1]).unwrap().as_expr().unwrap() {
         Expr::BinOp(_, ref left, _) => match tree.get_expr(left) {
             Expr::Ident(ref ident) => ident.id,
             _ => panic!(),
@@ -36,12 +31,7 @@ fn simple_type_check() {
         _ => panic!(),
     };
 
-    let y = match tree
-        .get(tree.root.1.inner.iter().nth(2).unwrap())
-        .unwrap()
-        .as_expr()
-        .unwrap()
-    {
+    let y = match tree.get(&tree.root.1.inner[2]).unwrap().as_expr().unwrap() {
         Expr::BinOp(_, ref left, _) => match tree.get_expr(left) {
             Expr::Ident(ref ident) => ident.id,
             _ => panic!(),
@@ -246,7 +236,7 @@ fn very_simple() {
     let id = table
         .ident
         .iter()
-        .find_map(|(id, ident)| (ident.inner() == "main").then(|| id))
+        .find_map(|(id, ident)| (ident.inner() == "main").then_some(id))
         .unwrap();
     assert_eq!(
         ty_env.ty_of(*id).unwrap(),

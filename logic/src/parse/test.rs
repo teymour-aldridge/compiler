@@ -1,8 +1,8 @@
 mod parse_reparse {
-    use crate::parse::{parse, utils::Input};
+    use crate::parse::parse;
 
     fn inner((input, should_parse): (&str, bool)) {
-        match parse(&mut Input::new(input)) {
+        match parse(input) {
             Ok(_) => {
                 if !should_parse {
                     panic!("The input `{}` should not have parsed, but it did.", input);
