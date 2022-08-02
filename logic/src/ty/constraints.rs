@@ -725,6 +725,12 @@ fn collect_expr<'i>(
                         None,
                     )?);
                 }
+                constraints.push(
+                    ConstraintInner::IdToId {
+                        id: Spanned::new(table.get_ident(*func).span(table), func.id),
+                        to: Spanned::new(table.get_ident(function.1.name).span(table), function.1.name.id)
+                    }
+                );
                 constraints.push(ConstraintInner::IdToId {
                     id: Spanned::new(
                         table.get_ident(*func).span(table),

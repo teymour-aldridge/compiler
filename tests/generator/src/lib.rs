@@ -12,7 +12,7 @@ pub use inner::*;
 mod inner {
     use std::fmt::{self, Display, Write};
 
-    use fuzzcheck::mutators::map::MapMutator;
+    use fuzzcheck::mutators::map::AndMapMutator;
     use fuzzcheck::mutators::tuples::{Tuple2, Tuple2Mutator};
     use fuzzcheck::{
         make_mutator,
@@ -26,13 +26,13 @@ mod inner {
     use serde::{Deserialize, Serialize};
 
     pub fn block_with_string_mutator() -> impl Mutator<(String, Block)> {
-        MapMutator::new(
+        AndMapMutator::new(
             Block::default_mutator(),
-            |block_with_string: &(String, Block)| -> Option<Block> {
-                Some(block_with_string.1.clone())
+            |block, string| {
+                string.clear();
+                write!(string, "{block}").unwrap();
             },
-            |block: &Block| -> (String, Block) { (block.to_string(), block.clone()) },
-            |_, cplx| cplx,
+            String::new(),
         )
     }
 
@@ -88,6 +88,7 @@ mod inner {
             params: Vec<Ident>,
             block: Vec<Node>,
         },
+        Return(Expr),
     }
 
     make_mutator! {
@@ -104,7 +105,7 @@ mod inner {
                                             VecMutator<
                                                     Node,
                                                     RecurToMutator<
-                                                        NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>
+                                                        NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1, M7_0>
                                                         >
                                                 >
                                         >,
@@ -124,7 +125,7 @@ mod inner {
                                         VecMutator<
                                             Node,
                                             RecurToMutator<
-                                                NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>
+                                                NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1, M7_0>>
                                             >
                                         >,
                                         Tuple2<Expr, Vec<Node>
@@ -144,7 +145,7 @@ mod inner {
 
                     elseif_branches: Vec<(Expr, Vec<Node>)>,
                     #[field_mutator(
-                        OptionMutator<Vec<Node>, VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>>> = {
+                        OptionMutator<Vec<Node>, VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1, M7_0>>>> = {
                             OptionMutator::new(VecMutator::new(self_.into(), 0..=usize::MAX))
                         }
                     )]
@@ -156,7 +157,7 @@ mod inner {
                     start: Expr,
                     stop: Expr,
                     #[field_mutator(
-                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>> = {
+                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1, M7_0>>> = {
                             VecMutator::new(self_.into(), 0..=usize::MAX)
                         }
                     )]
@@ -166,7 +167,7 @@ mod inner {
                 While {
                     condition: Expr,
                     #[field_mutator(
-                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>> = {
+                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1, M7_0>>> = {
                             VecMutator::new(self_.into(), 0..=usize::MAX)
                         }
                     )]
@@ -184,13 +185,13 @@ mod inner {
                     name: Ident,
                     params: Vec<Ident>,
                     #[field_mutator(
-                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1>>> = {
+                        VecMutator<Node, RecurToMutator<NodeMutator<M1_0, M1_1, M1_2, M2_0, M3_0, M4_0, M4_1, M5_0, M5_1, M6_0, M6_1, M7_0>>> = {
                             VecMutator::new(self_.into(), 0..=usize::MAX)
                         }
                     )]
                     block: Vec<Node>,
                 },
-
+                Return(Expr)
             }
     }
 
@@ -313,6 +314,11 @@ mod inner {
                     fmt_block(block, units + 2, f)?;
                     fmt_indent(units, f)?;
                     f.write_str("endfunction")
+                }
+                Node::Return(expr) => {
+                    fmt_indent(units, f)?;
+                    f.write_str("return ")?;
+                    expr.fmt((units != 0).then(|| units), f)
                 }
             }
         }
@@ -453,7 +459,7 @@ mod inner {
                         }
                     )]
                     fields: Vec<(Ident, Box<Expr>)>
-                }
+                },
             }
     }
 

@@ -5,10 +5,22 @@ use fuzzcheck::fuzz_test;
 #[test]
 #[cfg(feature = "fuzzcheck")]
 pub fn main() {
+    use fuzzcheck::{builder::basic_sensor_and_pool, mutators::unique::UniqueMutator};
+
+    // as per suggestions in
+    // https://github.com/loiclec/fuzzcheck-rs/issues/31#issuecomment-1200470065
+    let (sensor, pool) = basic_sensor_and_pool()
+        .find_most_diverse_set_of_test_cases(20)
+        .finish();
+
+    let mutator = generator::block_with_string_mutator();
+    // also as per the suggestions from the aforementioned issue
+    let mutator = UniqueMutator::new(mutator, |(string, _block)| string);
+
     let result = fuzz_test(|input: &(String, generator::Block)| compile_for_fuzzing(&input.0))
-        .mutator(generator::block_with_string_mutator())
+        .mutator(mutator)
         .serde_serializer()
-        .default_sensor_and_pool()
+        .sensor_and_pool(sensor, pool)
         .arguments_from_cargo_fuzzcheck()
         .launch();
     assert!(!result.found_test_failure);

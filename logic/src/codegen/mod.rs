@@ -25,7 +25,7 @@ pub fn compile<'compiler>(
 
     compiler.compile(ast)?;
 
-    let output = compiler.finish();
+    let output = compiler.finish()?;
 
     let code_fn = unsafe { std::mem::transmute::<_, fn(()) -> i32>(output) };
     Ok(code_fn(()))

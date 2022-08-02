@@ -30,6 +30,22 @@ impl ExecutionStatus {
             None
         }
     }
+
+    fn as_failed_parsing(&self) -> Option<&ParseError> {
+        if let Self::FailedParsing(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    fn as_failed_type_checking(&self) -> Option<&TyCheckError> {
+        if let Self::FailedTypeChecking(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 /// Runs the provided code fragment, returning the status of the execution.
@@ -118,4 +134,41 @@ fn while_with_function_call_inside_function() {
     let error = binding.as_failed_code_generation().unwrap();
     assert!(error.explanation().contains("type"));
     assert!(error.explanation().contains("function parameter"));
+}
+
+#[test]
+fn invalid_return() {
+    let result = run_test("while return True\nendwhile");
+    result.as_failed_parsing().unwrap();
+}
+
+#[test]
+#[ignore = "todo: fix type checking for this function"]
+fn bad_expressions() {
+    let result = run_test("O()-4957547627119355237\nfunction O ()\n  O()-False\nendfunction\n");
+    result.as_failed_type_checking().unwrap();
+
+    let result =
+        run_test("for v = False to True\nnext v\nfunction v ()\n  h = +-False\nendfunction\n");
+    result.as_failed_type_checking().unwrap();
+}
+
+#[test]
+fn empty_string() {
+    let result = run_test("");
+    let error = result.as_failed_code_generation().unwrap();
+    assert!(error.explanation().contains("`main` function"))
+}
+
+#[test]
+fn invalid_bool_access() {
+    let result = run_test("function L ()\n  False.k\n  return   False\nendfunction\n");
+    let error = result.as_failed_code_generation().unwrap();
+    assert!(error.explanation().contains("used"));
+    assert!(error.explanation().contains("never defined"));
+}
+
+#[test]
+fn bad_expression() {
+    compile_for_fuzzing("function t ()\n  return   -False==-False\nendfunction\n");
 }

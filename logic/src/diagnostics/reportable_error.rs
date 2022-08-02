@@ -28,6 +28,13 @@ impl ReportableError {
     pub fn explanation(&self) -> &str {
         self.explanation.as_ref()
     }
+
+    pub fn could_not_infer_ty(span: Span) -> ReportableError {
+        Self::new(
+            span,
+            "Could not infer the type of this variable.".to_owned(),
+        )
+    }
 }
 
 pub type ReportableResult = Result<(), ReportableError>;

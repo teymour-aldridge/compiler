@@ -17,7 +17,11 @@ use cranelift_module::{Linkage, Module};
 
 use crate::{
     codegen::make_module::make_module_for_compiler_host_architecture,
-    diagnostics::{reportable_error::ReportableError, span::HasSpan},
+    diagnostics::{
+        position::Position,
+        reportable_error::ReportableError,
+        span::{HasSpan, Span},
+    },
     parse::table::{ItemKind, ParseTable},
     ty::PrimitiveType,
 };
@@ -181,14 +185,20 @@ impl<'i> Compiler<'i> {
         Ok(())
     }
 
-    pub fn finish(mut self) -> *const u8 {
+    pub fn finish(mut self) -> Result<*const u8, ReportableError> {
         self.module.finalize_definitions();
-        let main_func = match self.module.get_name("main").unwrap() {
-            cranelift_module::FuncOrDataId::Func(func) => func,
-            cranelift_module::FuncOrDataId::Data(_) => {
+        let main_func = match self.module.get_name("main") {
+            Some(cranelift_module::FuncOrDataId::Func(func)) => func,
+            Some(cranelift_module::FuncOrDataId::Data(_)) => {
                 panic!("should not have data with name `main`")
             }
+            None => {
+                return Err(ReportableError::new(
+                    Span::new(Position::default(), Position::default()),
+                    "Your program does not have a `main` function.".to_owned(),
+                ))
+            }
         };
-        self.module.get_finalized_function(main_func)
+        Ok(self.module.get_finalized_function(main_func))
     }
 }

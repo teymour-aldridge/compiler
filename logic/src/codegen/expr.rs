@@ -128,8 +128,12 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 BinOp::IsEqual => {
                     let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
                     let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
-                    let left_ty = self.ty_env.ty_of(left.id).unwrap();
-                    let right_ty = self.ty_env.ty_of(right.id).unwrap();
+                    let left_ty = self.ty_env.ty_of(left.id).ok_or_else(|| {
+                        ReportableError::could_not_infer_ty(table.get_expr(left).span(table))
+                    })?;
+                    let right_ty = self.ty_env.ty_of(right.id).ok_or_else(|| {
+                        ReportableError::could_not_infer_ty(table.get_expr(left).span(table))
+                    })?;
                     match (left_ty, right_ty) {
                         (
                             Ty::PrimitiveType(PrimitiveType::Int),
@@ -177,7 +181,15 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 BinOp::SetEquals => unreachable!(),
                 BinOp::Dot => {
                     let record = table.get_expr_with_id(*left);
-                    let record_id = record.inner().as_ident().unwrap().id;
+                    let record_id = match record.inner().as_ident() {
+                        Some(r) => r.id,
+                        None => {
+                            return Err(ReportableError::new(
+                                record.inner.span(table),
+                                "This variable has been used, but it was never defined.".to_owned(),
+                            ))
+                        }
+                    };
                     let key = table.get_expr_with_id(*right).inner().as_ident().unwrap();
 
                     let record_ty = match self.ty_env.ty_of(record_id).unwrap() {

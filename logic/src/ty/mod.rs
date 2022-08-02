@@ -142,7 +142,6 @@ impl TyEnv {
     }
 
     /// Obtain the type of the item in question (if it exists).
-    #[allow(unused)]
     pub(crate) fn ty_of(&self, id: Id) -> Option<Ty> {
         self.map.get(&id).and_then(|info| match info.ty.clone() {
             TyInfo::EqId(equal_to) => self.ty_of(equal_to),
