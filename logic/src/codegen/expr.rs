@@ -3,6 +3,7 @@ use cranelift_frontend::Variable;
 use cranelift_module::{DataContext, Linkage, Module};
 
 use crate::{
+    diagnostics::{reportable_error::ReportableError, span::HasSpan},
     parse::{
         expr::{BinOp, Expr},
         lit::Literal,
@@ -15,8 +16,12 @@ use super::{compile::cranelift_of_ty_module, func::FunctionCompiler};
 
 impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
     /// Lowers an expression to the corresponding Cranelift IR.
-    pub(crate) fn compile_expr(&mut self, expr: WithId<&Expr>, table: &ParseTable) -> ir::Value {
-        match &expr.inner() {
+    pub(crate) fn compile_expr(
+        &mut self,
+        expr: WithId<&Expr>,
+        table: &ParseTable,
+    ) -> Result<ir::Value, ReportableError> {
+        Ok(match &expr.inner() {
             Expr::Ident(ident) => self.builder.use_var(Variable::with_u32(ident.id.as_u32())),
             Expr::Literal(lit) => match &lit.token {
                 crate::parse::lit::Literal::String(lit) => {
@@ -54,7 +59,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
             {
                 let id = table.get_ident_with_id(*table.get_expr(left).as_ident().unwrap());
 
-                let new_value = self.compile_expr(table.get_expr_with_id(*right), table);
+                let new_value = self.compile_expr(table.get_expr_with_id(*right), table)?;
 
                 let cranelift_ty = match self.ty_env.ty_of(right.id).unwrap() {
                     Ty::PrimitiveType(PrimitiveType::Int) => {
@@ -80,11 +85,11 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         .map(|(op, _)| op.is_deref())
                         .unwrap_or(false) =>
             {
-                let val = self.compile_expr(table.get_expr_with_id(*right), table);
+                let val = self.compile_expr(table.get_expr_with_id(*right), table)?;
                 let addr = self.compile_expr(
                     table.get_expr_with_id(*table.get_expr(left).as_un_op().unwrap().1),
                     table,
-                );
+                )?;
                 self.builder.ins().store(ir::MemFlags::new(), val, addr, 0);
                 self.builder.ins().load(
                     cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id()).unwrap()),
@@ -99,28 +104,28 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
              */
             Expr::BinOp(op, left, right) => match op.token {
                 BinOp::Add => {
-                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
                     self.builder.ins().iadd(lhs, rhs)
                 }
                 BinOp::Subtract => {
-                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
                     self.builder.ins().isub(lhs, rhs)
                 }
                 BinOp::Divide => {
-                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
                     self.builder.ins().udiv(lhs, rhs)
                 }
                 BinOp::Multiply => {
-                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
                     self.builder.ins().imul(lhs, rhs)
                 }
                 BinOp::IsEqual => {
-                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
                     let left_ty = self.ty_env.ty_of(left.id).unwrap();
                     let right_ty = self.ty_env.ty_of(right.id).unwrap();
                     match (left_ty, right_ty) {
@@ -132,8 +137,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                     }
                 }
                 BinOp::IsNotEqual => {
-                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
+                    let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                    let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
                     let left_ty = self.ty_env.ty_of(left.id).unwrap();
                     let right_ty = self.ty_env.ty_of(right.id).unwrap();
                     match (left_ty, right_ty) {
@@ -181,15 +186,15 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 }
                 BinOp::Index => match self.ty_env.ty_of(expr.id()).unwrap() {
                     Ty::PrimitiveType(PrimitiveType::Pointer) => {
-                        let lhs = self.compile_expr(table.get_expr_with_id(*left), table);
-                        let rhs = self.compile_expr(table.get_expr_with_id(*right), table);
-                        return self.builder.ins().iadd(lhs, rhs);
+                        let lhs = self.compile_expr(table.get_expr_with_id(*left), table)?;
+                        let rhs = self.compile_expr(table.get_expr_with_id(*right), table)?;
+                        return Ok(self.builder.ins().iadd(lhs, rhs));
                     }
                     _ => todo!(),
                 },
             },
             Expr::UnOp(op, arg) if op.token.is_deref() => {
-                let arg_value = self.compile_expr(table.get_expr_with_id(*arg), table);
+                let arg_value = self.compile_expr(table.get_expr_with_id(*arg), table)?;
                 self.builder.ins().load(
                     cranelift_of_ty_module(self.module, self.ty_env.ty_of(expr.id()).unwrap()),
                     ir::MemFlags::new(),
@@ -200,11 +205,11 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
             Expr::UnOp(op, arg) => match op.token {
                 crate::parse::expr::UnOp::Positive => {
                     // todo: check that the integer is an integer
-                    self.compile_expr(table.get_expr_with_id(*arg), table)
+                    self.compile_expr(table.get_expr_with_id(*arg), table)?
                 }
                 crate::parse::expr::UnOp::Negative => {
                     // todo: check that the integer is an integer
-                    let integer = self.compile_expr(table.get_expr_with_id(*arg), table);
+                    let integer = self.compile_expr(table.get_expr_with_id(*arg), table)?;
                     self.builder.ins().ineg(integer)
                 }
                 crate::parse::expr::UnOp::Deref => {
@@ -317,21 +322,30 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                             _ => panic!("Only string literals can be printed (for now)."),
                         };
 
-                        let string = self.compile_expr(table.get_expr_with_id(*string), table);
+                        let string = self.compile_expr(table.get_expr_with_id(*string), table)?;
                         let len = self.builder.ins().iconst(ir::types::I64, lit.len() as i64);
 
                         let call = self.builder.ins().call(local_callee, &[len, string]);
-                        return self.builder.inst_results(call)[0];
+                        return Ok(self.builder.inst_results(call)[0]);
                     }
                     _ => {
                         let mut sig = self.module.make_signature();
 
                         for param in params {
                             sig.params.push(AbiParam::new(
-                                self.ty_env
+                                match self
+                                    .ty_env
                                     .ty_of(param.id)
                                     .map(|x| cranelift_of_ty_module(self.module, x))
-                                    .unwrap(),
+                                {
+                                    Some(ty) => ty,
+                                    None => {
+                                        return Err(ReportableError::new(
+                                            table.get_expr(param).span(table),
+                                            "The type of this function parameter could not be inferred.".to_owned()
+                                        ))
+                                    }
+                                },
                             ))
                         }
 
@@ -353,12 +367,12 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 let arg_values = params
                     .iter()
                     .map(|param| self.compile_expr(table.get_expr_with_id(*param), table))
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<ir::Value>, ReportableError>>()?;
 
                 let call = self.builder.ins().call(local_callee, &arg_values);
                 self.builder.inst_results(call)[0]
             }
-            Expr::Constructor(con) => self.compile_constructor(con, table),
-        }
+            Expr::Constructor(con) => self.compile_constructor(con, table)?,
+        })
     }
 }

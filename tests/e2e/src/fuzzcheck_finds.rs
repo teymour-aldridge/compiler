@@ -106,3 +106,16 @@ fn constructor_without_record_definition() {
 fn boolean_method_call() {
     compile_for_fuzzing("True.m()\n");
 }
+
+#[test]
+fn loop_and_record_inside_function() {
+    compile_for_fuzzing("function Q ()\n  while i { }\n  endwhile\nendfunction\n");
+}
+
+#[test]
+fn while_with_function_call_inside_function() {
+    let binding = run_test("function Q ()\n  while R(p,)\n  endwhile\nendfunction\nQ = False\n");
+    let error = binding.as_failed_code_generation().unwrap();
+    assert!(error.explanation().contains("type"));
+    assert!(error.explanation().contains("function parameter"));
+}

@@ -2,6 +2,7 @@ use cranelift_codegen::ir::{self, InstBuilder};
 use cranelift_module::Module;
 
 use crate::{
+    diagnostics::reportable_error::ReportableError,
     parse::{expr::Constructor, table::ParseTable},
     ty::{PrimitiveType, Ty},
 };
@@ -84,7 +85,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         &mut self,
         con: &Constructor,
         table: &ParseTable,
-    ) -> ir::Value {
+    ) -> Result<ir::Value, ReportableError> {
         let slot = self.builder.create_stack_slot(ir::StackSlotData::new(
             ir::StackSlotKind::ExplicitSlot,
             {
@@ -100,13 +101,14 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
 
         let mut offset = 0;
         for expr in con.fields.values() {
-            let expr_value = self.compile_expr(table.get_expr_with_id(*expr), table);
+            let expr_value = self.compile_expr(table.get_expr_with_id(*expr), table)?;
             self.builder.ins().stack_store(expr_value, slot, offset);
             offset += type_size(self.ty_env.ty_of(expr.id).unwrap()) as i32;
         }
 
-        self.builder
+        Ok(self
+            .builder
             .ins()
-            .stack_addr(self.module.target_config().pointer_type(), slot, 0)
+            .stack_addr(self.module.target_config().pointer_type(), slot, 0))
     }
 }
