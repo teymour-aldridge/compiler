@@ -172,3 +172,20 @@ fn invalid_bool_access() {
 fn bad_expression() {
     compile_for_fuzzing("function t ()\n  return   -False==-False\nendfunction\n");
 }
+
+#[test]
+#[ignore = "todo: fix Cranelift IR generation"]
+fn type_not_declared() {
+    compile_for_fuzzing("g = True\nfunction g ()\n  T\nendfunction\n");
+}
+
+#[test]
+fn function_with_while_and_boolean() {
+    compile_for_fuzzing("g = False\nfunction g ()\n  while True==False\n  endwhile\nendfunction\n");
+}
+
+#[test]
+#[ignore = "todo: fix Cranelift IR generation for this function"]
+fn infinite_loop_of_functions() {
+    compile_for_fuzzing("function v (v,)\n  return   v(True!=+v(),)\nendfunction\n");
+}

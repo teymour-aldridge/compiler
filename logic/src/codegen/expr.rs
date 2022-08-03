@@ -22,6 +22,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         table: &ParseTable,
     ) -> Result<ir::Value, ReportableError> {
         Ok(match &expr.inner() {
+            // todo: use https://github.com/bytecodealliance/wasmtime/pull/4588
+            // to report better errors here
             Expr::Ident(ident) => self.builder.use_var(Variable::with_u32(ident.id.as_u32())),
             Expr::Literal(lit) => match &lit.token {
                 crate::parse::lit::Literal::String(lit) => {
