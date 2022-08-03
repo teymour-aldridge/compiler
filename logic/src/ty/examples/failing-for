@@ -1,0 +1,5 @@
+function p ()
+  return   False
+  for p = True to False
+  next p
+endfunction

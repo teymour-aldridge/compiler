@@ -153,6 +153,7 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
                 Ty::PrimitiveType(PrimitiveType::Int),
             ),
         });
+
         if let Some(ref step) = stmt.inner().between.step {
             self.add_constraint(ConstraintInner::IdToTy {
                 id: Spanned::new(table.get_expr(step).span(table), step.id),
@@ -162,6 +163,14 @@ impl<'i> IdVisitor<'i> for ConstraintVisitor {
                 ),
             });
         }
+
+        // collect constraints from the expressions in the for loop
+        self.visit_expr(table.get_expr_with_id(stmt.inner().between.start), table)?;
+        self.visit_expr(table.get_expr_with_id(stmt.inner().between.stop), table)?;
+        if let Some(ref step) = stmt.inner().between.step {
+            self.visit_expr(table.get_expr_with_id(*step), table)?;
+        }
+
         self.visit_block(table.get_block_with_id(stmt.inner().block), table)
             .into_iter()
             .collect::<Result<_, _>>()?;

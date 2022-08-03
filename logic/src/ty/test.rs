@@ -305,3 +305,40 @@ fn function_returning_bool() {
         Some(Ty::PrimitiveType(PrimitiveType::Bool))
     );
 }
+
+#[test]
+fn unify_invalid_case() {
+    let set = FxHashSet::from_iter(vec![
+        Constraint::new(
+            ConstraintId::new(0),
+            ConstraintInner::IdToTy {
+                id: Spanned::new(Span::null(), Id::new(1)),
+                ty: Spanned::new(Span::null(), Ty::PrimitiveType(PrimitiveType::Int)),
+            },
+        ),
+        Constraint::new(
+            ConstraintId::new(1),
+            ConstraintInner::IdToTy {
+                id: Spanned::new(Span::null(), Id::new(1)),
+                ty: Spanned::new(Span::null(), Ty::PrimitiveType(PrimitiveType::Bool)),
+            },
+        ),
+    ]);
+
+    unify(set, TyEnv::new(), &mut TraceTable::default()).unwrap_err();
+}
+
+#[test]
+fn very_invalid_case() {
+    let table =
+        parse("function p ()\n  return   False\n  for p = True to False\n  next p\nendfunction\n")
+            .unwrap();
+    let env = type_check(&table);
+    match env {
+        Ok(t) => {
+            t.pretty_print(&table);
+            panic!("this program should not have type checked, but it did")
+        }
+        Err(_) => {}
+    }
+}
