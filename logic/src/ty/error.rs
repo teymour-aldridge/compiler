@@ -26,6 +26,14 @@ impl TyCheckError {
             TyCheckError::Reportable(reporter) => reporter.report(id, table),
         }
     }
+
+    pub fn as_constraint_gathering_error(&self) -> Option<&ConstraintGatheringError> {
+        if let Self::ConstraintGatheringError(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -35,6 +43,10 @@ pub enum ConstraintGatheringError {
         explanation: String,
     },
     UnresolvableFunction {
+        span: IndexOnlySpan,
+        explanation: String,
+    },
+    UnresolvableRecord {
         span: IndexOnlySpan,
         explanation: String,
     },
@@ -62,11 +74,11 @@ impl ConstraintGatheringError {
             | ConstraintGatheringError::UnresolvableFunction { span, explanation }
             | ConstraintGatheringError::MismatchedFunctionCall { span, explanation }
             | ConstraintGatheringError::ReturnOutsideFunction { span, explanation }
-            | ConstraintGatheringError::LiteralForFieldOrMethodAccess { span, explanation } => {
-                diagnostic.with_labels(vec![
+            | ConstraintGatheringError::LiteralForFieldOrMethodAccess { span, explanation }
+            | ConstraintGatheringError::UnresolvableRecord { span, explanation } => diagnostic
+                .with_labels(vec![
                     Label::primary(id, span.range()).with_message(explanation)
-                ])
-            }
+                ]),
         }
     }
 }

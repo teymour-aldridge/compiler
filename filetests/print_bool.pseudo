@@ -1,0 +1,11 @@
+;; compiler:
+;;   status: success
+;;   stdout:
+;;          True
+;;          False
+
+function main()
+  print_bool(True)
+  print_bool(False)
+  return 0
+endfunction

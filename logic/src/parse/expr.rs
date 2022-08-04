@@ -101,6 +101,13 @@ pub struct Constructor {
     /// todo: the parser should always sort fields alphabetically to ensure correctness in later
     /// stages of the compiler
     pub(crate) fields: BTreeMap<IdentRef, ExprRef>,
+    pub(crate) span: Span,
+}
+
+impl HasSpan for Constructor {
+    fn span<'i>(&self, _: &'i ParseTable<'i>) -> Span {
+        self.span
+    }
 }
 
 impl<'i> Parse<'i> for Constructor {
@@ -108,6 +115,7 @@ impl<'i> Parse<'i> for Constructor {
     type Output = Self;
 
     fn parse(input: &mut Input<'i>, ctx: &mut ParseContext<'i>) -> Result<Self, ParseError> {
+        let recording = input.start_recording();
         let name = Ident::parse(input, ctx)?;
         input.skip_whitespace()?;
         input.parse_token("{")?;
@@ -138,9 +146,12 @@ impl<'i> Parse<'i> for Constructor {
         }
         input.parse_token("}")?;
 
+        let span = recording.finish_recording(input);
+
         Ok(Constructor {
             name,
             fields: fields.into_iter().collect(),
+            span,
         })
     }
 }
