@@ -46,13 +46,20 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         for block in &block.inner {
             match table.get(block).unwrap() {
                 Item::Expr(e) => {
-                    self.compile_expr(
-                        WithId {
-                            inner: e,
-                            id: block.id,
-                        },
-                        table,
-                    )?;
+                    if !self.builder.is_filled() {
+                        self.compile_expr(
+                            WithId {
+                                inner: e,
+                                id: block.id,
+                            },
+                            table,
+                        )?;
+                    } else {
+                        // todo: report this properly
+                        if std::env::var("FUZZCHECK").is_err() {
+                            println!("warning: anny statements added after a return instruction have no effect")
+                        }
+                    }
                 }
                 Item::For(f) => self.compile_for(f, table),
                 Item::If(i) => self.compile_if(i, table)?,

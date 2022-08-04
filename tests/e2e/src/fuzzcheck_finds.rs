@@ -189,3 +189,8 @@ fn function_with_while_and_boolean() {
 fn infinite_loop_of_functions() {
     compile_for_fuzzing("function v (v,)\n  return   v(True!=+v(),)\nendfunction\n");
 }
+
+#[test]
+fn return_bool() {
+    compile_for_fuzzing("function l ()\n  return   True\n  n = True\nendfunction\n");
+}
