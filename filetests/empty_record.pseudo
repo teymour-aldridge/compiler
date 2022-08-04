@@ -1,0 +1,10 @@
+;; compiler:
+;;   status: success
+
+record Empty
+endrecord
+
+function main()
+  x = Empty {}
+  return 0
+endfunction

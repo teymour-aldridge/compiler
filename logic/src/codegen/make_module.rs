@@ -13,6 +13,20 @@ fn print_int(int: i32) {
     println!("{}", int)
 }
 
+#[no_mangle]
+fn print_bool(boolean: i32) {
+    println!(
+        "{}",
+        if boolean == 1 {
+            "True"
+        } else if boolean == 0 {
+            "False"
+        } else {
+            panic!("invalid boolean value {boolean}")
+        }
+    )
+}
+
 pub(crate) fn make_module_for_compiler_host_architecture() -> JITModule {
     let mut flag_builder = settings::builder();
     flag_builder.set("use_colocated_libcalls", "false").unwrap();
@@ -35,6 +49,7 @@ pub(crate) fn make_module_for_compiler_host_architecture() -> JITModule {
     // define some standard library items
     builder.symbol("print", print as *const u8);
     builder.symbol("print_int", print_int as *const u8);
+    builder.symbol("print_bool", print_bool as *const u8);
 
     JITModule::new(builder)
 }

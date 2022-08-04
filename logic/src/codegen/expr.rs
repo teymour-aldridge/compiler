@@ -182,6 +182,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 }
                 BinOp::SetEquals => unreachable!(),
                 BinOp::Dot => {
+                    log::trace!("compiling dot expression with id {:?}", expr.id());
+
                     let record = table.get_expr_with_id(*left);
                     let record_id = match record.inner().as_ident() {
                         Some(r) => r.id,
@@ -194,8 +196,14 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                     };
                     let key = table.get_expr_with_id(*right).inner().as_ident().unwrap();
 
-                    let record_ty = match self.ty_env.ty_of(record_id).unwrap() {
-                        Ty::Record { ref_ } => ref_,
+                    log::trace!(
+                        "field being accessed is `{}` (id: {})",
+                        table.get_ident(*key).inner(),
+                        key.id
+                    );
+
+                    let record = match self.ty_env.ty_of(record_id).unwrap() {
+                        Ty::Record { ref_ } => table.get_record(ref_),
                         _ => {
                             // todo: report the correct error
                             todo!()
@@ -203,7 +211,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                     };
 
                     let mut offset = 0;
-                    for field in &table.get_record(record_ty).fields {
+                    for field in &record.fields {
                         if table.get_ident(*key).inner() != table.get_ident(field.name).inner() {
                             offset +=
                                 super::layout::type_size(self.ty_env.ty_of(field.name.id).unwrap());
@@ -212,16 +220,28 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         }
                     }
 
-                    let field_type = {
+                    let field_pseudo_ty = self.ty_env.ty_of(key.id).unwrap();
+
+                    let field_clif_type =
                         // todo: resolve fields properly
-                        let ty = self.ty_env.ty_of(key.id).unwrap();
-                        cranelift_of_ty_module(self.module, ty)
-                    };
+                        if matches!(field_pseudo_ty, Ty::PrimitiveType(PrimitiveType::Bool)) {
+                            ir::types::I32
+                        } else {
+                            cranelift_of_ty_module(self.module, field_pseudo_ty)
+                        };
 
                     let pointer = self.builder.use_var(Variable::with_u32(record_id.as_u32()));
-                    self.builder
-                        .ins()
-                        .load(field_type, ir::MemFlags::new(), pointer, offset as i32)
+                    let value = self.builder.ins().load(
+                        field_clif_type,
+                        ir::MemFlags::new(),
+                        pointer,
+                        offset as i32,
+                    );
+                    if matches!(field_pseudo_ty, Ty::PrimitiveType(PrimitiveType::Bool)) {
+                        self.builder.ins().icmp_imm(IntCC::Equal, value, 1)
+                    } else {
+                        value
+                    }
                 }
                 BinOp::Index => match self.ty_env.ty_of(expr.id()).unwrap() {
                     Ty::PrimitiveType(PrimitiveType::Pointer) => {
@@ -270,6 +290,20 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         let func_id = self
                             .module
                             .declare_function("print_int", Linkage::Import, &sig)
+                            .unwrap();
+
+                        self.module.declare_func_in_func(func_id, self.builder.func)
+                    }
+                    "print_bool" => {
+                        let mut sig = self.module.make_signature();
+                        sig.params.push(AbiParam::new(ir::types::I32));
+                        sig.returns.push(AbiParam::new(cranelift_of_ty_module(
+                            self.module,
+                            Ty::PrimitiveType(PrimitiveType::Int),
+                        )));
+                        let func_id = self
+                            .module
+                            .declare_function("print_bool", Linkage::Import, &sig)
                             .unwrap();
 
                         self.module.declare_func_in_func(func_id, self.builder.func)
@@ -415,7 +449,20 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 };
                 let arg_values = params
                     .iter()
-                    .map(|param| self.compile_expr(table.get_expr_with_id(*param), table))
+                    .map(|param| {
+                        let value = self.compile_expr(table.get_expr_with_id(*param), table)?;
+                        Ok(
+                            if matches!(
+                                self.ty_env.ty_of(param.id),
+                                Some(Ty::PrimitiveType(PrimitiveType::Bool))
+                            ) && table.get_ident(*name).inner() == "print_bool"
+                            {
+                                self.builder.ins().bint(ir::types::I32, value)
+                            } else {
+                                value
+                            },
+                        )
+                    })
                     .collect::<Result<Vec<ir::Value>, ReportableError>>()?;
 
                 let call = self.builder.ins().call(local_callee, &arg_values);

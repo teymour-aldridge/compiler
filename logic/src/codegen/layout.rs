@@ -9,13 +9,17 @@ use crate::{
 
 use super::func::FunctionCompiler;
 
-/// Returns the size (in bits) of the type in question.
+/// Returns the size (in bytes) of the type in question.
 ///
 /// Note that if the type in question is a pointer, this will return the size of the _pointer_.
 pub(crate) fn type_size(ty: Ty) -> u32 {
     match ty {
         // integers are 32 bits (maybe)
-        Ty::PrimitiveType(PrimitiveType::Int) => 32 / 8,
+        Ty::PrimitiveType(PrimitiveType::Int) => 8,
+        // this is quite big, but we can always adjust it later
+        // note: all bool need to be converted to/from integers when they are
+        // stored/loaded in a stack slot
+        Ty::PrimitiveType(PrimitiveType::Bool) => 1,
         _ => todo!(),
     }
 }
@@ -102,6 +106,11 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         let mut offset = 0;
         for expr in con.fields.values() {
             let expr_value = self.compile_expr(table.get_expr_with_id(*expr), table)?;
+            let expr_value = if self.builder.func.dfg.value_type(expr_value).is_bool() {
+                self.builder.ins().bint(ir::types::I32, expr_value)
+            } else {
+                expr_value
+            };
             self.builder.ins().stack_store(expr_value, slot, offset);
             offset += type_size(self.ty_env.ty_of(expr.id).unwrap()) as i32;
         }

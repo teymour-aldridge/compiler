@@ -1,0 +1,25 @@
+;; compiler:
+;;   status: success
+;;   stdout:
+;;          144
+;;          148
+;;          False
+;;          1444444
+
+function main()
+  x = RecordWithMultipleFields { first_field: 144, second_field: 148, third_field: False, fourth_field: 1444444 }
+  print_int(x.first_field)
+  print_int(x.second_field)
+  print_bool(x.third_field)
+  print_int(x.fourth_field)
+  return 0
+endfunction
+
+;; do not change order; it is here to check that records defined after they are
+;; used do not result in an error
+record RecordWithMultipleFields
+  first_field of Int
+  second_field of Int
+  third_field of Bool
+  fourth_field of Int
+endrecord

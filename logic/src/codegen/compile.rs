@@ -41,10 +41,11 @@ pub struct Compiler<'i> {
 }
 
 // todo: pointer types
+/// Retrieves the Cranelift type of a Pseudocompiler type.
 pub fn cranelift_of_ty_module(module: &JITModule, ty: Ty) -> ir::Type {
     match ty {
-        Ty::PrimitiveType(PrimitiveType::Int) => ir::Type::int(64).unwrap(),
-        Ty::PrimitiveType(PrimitiveType::Bool) => ir::Type::int(8).unwrap().as_bool(),
+        Ty::PrimitiveType(PrimitiveType::Int) => ir::types::I64,
+        Ty::PrimitiveType(PrimitiveType::Bool) => ir::types::B1,
         Ty::PrimitiveType(PrimitiveType::StrSlice) => module.target_config().pointer_type(),
         // todo: compile structs (using stack slots)
         Ty::Record { ref_: _ } => todo!(),

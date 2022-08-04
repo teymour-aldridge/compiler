@@ -1,6 +1,7 @@
 use logic::{
-    diagnostics::reportable_error::ReportableError, parse::utils::ParseError,
-    ty::error::TyCheckError,
+    diagnostics::reportable_error::ReportableError,
+    parse::utils::ParseError,
+    ty::error::{ConstraintGatheringError, TyCheckError},
 };
 
 fn compile_for_fuzzing(input: &str) {
@@ -193,4 +194,21 @@ fn infinite_loop_of_functions() {
 #[test]
 fn return_bool() {
     compile_for_fuzzing("function l ()\n  return   True\n  n = True\nendfunction\n");
+}
+
+#[test]
+fn undefined_record() {
+    let result = run_test("function main()\n  Record{}\nendfunction");
+    let error = result.as_failed_type_checking().unwrap();
+    let cge = error.as_constraint_gathering_error().unwrap();
+    if let ConstraintGatheringError::UnresolvableRecord {
+        span: _,
+        explanation,
+    } = cge
+    {
+        assert!(explanation.contains("record"));
+    } else {
+        dbg!(cge);
+        panic!("wrong error type");
+    }
 }

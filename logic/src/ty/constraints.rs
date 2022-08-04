@@ -486,11 +486,19 @@ fn collect_expr<'i>(
             }),
         },
         Expr::Constructor(rec) => {
-            let definition = table
+            let find = table
                 .record_
                 .iter()
-                .find(|(_, record)| table.get_ident(record.name) == table.get_ident(rec.name))
-                .unwrap();
+                .find(|(_, record)| table.get_ident(record.name) == table.get_ident(rec.name));
+            let definition = match find {
+                    Some(t) => t,
+                    None => return Err(
+                                ConstraintGatheringError::UnresolvableRecord {
+                                    span: rec.span(table).index_only(),
+                                    explanation: "There is no definition of this record".to_owned()
+                                }
+                            ),
+                };
 
             constraints.push(ConstraintInner::IdToTy {
                 id: Spanned::new(expr.inner().span(table), expr.id()),
@@ -566,6 +574,34 @@ fn collect_expr<'i>(
                     table.get_expr_with_id(*param),
                     table,
                     Some(Ty::PrimitiveType(PrimitiveType::Int)),
+                )?);
+            } else if table.get_ident(*func).inner == "print_bool" {
+                if params.len() != 1 {
+                    return Err(ConstraintGatheringError::MismatchedFunctionCall {
+                        span: table.get_ident(*func).span(table).into(),
+                        explanation: format!(
+                            "This function accepts 1
+                            parameter, but you've called it with `{}` arguments.",
+                            params.len()
+                        ),
+                    });
+                }
+                let param = &params[0];
+                constraints.push(ConstraintInner::IdToTy {
+                    id: Spanned::new(table.get_expr(param).span(table), param.id),
+                    ty: Spanned::new(
+                        table.get_expr(param).span(table),
+                        Ty::PrimitiveType(PrimitiveType::Bool),
+                    ),
+                });
+                constraints.push(ConstraintInner::IdToId {
+                    id: Spanned::new(expr.inner().span(table), expr.id()),
+                    to: Spanned::new(table.get_expr(param).span(table), param.id),
+                });
+                constraints.extend(collect_expr(
+                    table.get_expr_with_id(*param),
+                    table,
+                    Some(Ty::PrimitiveType(PrimitiveType::Bool)),
                 )?);
             } else if table.get_ident(*func).inner == "print" {
                 if params.len() != 1 {

@@ -740,6 +740,7 @@ version = "0.1.0"
 dependencies = [
  "codespan-reporting",
  "env_logger",
+ "log",
  "logic",
 ]
 
