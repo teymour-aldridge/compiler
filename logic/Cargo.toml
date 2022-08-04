@@ -23,5 +23,5 @@ optional = true
 
 [dev-dependencies]
 insta = "1.17.1"
-rustversion = "1.0.8"
+rustversion = "1.0.9"
 serde = { version = "1.0.142", features = ["derive"] }
