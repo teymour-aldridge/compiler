@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "2bfa9f0", optional = true }
 rustversion = "1.0.8"
-serde = { version = "1.0.141", features = ["derive"] }
+serde = { version = "1.0.142", features = ["derive"] }
