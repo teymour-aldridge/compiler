@@ -19,7 +19,7 @@ pub(crate) fn type_size(ty: Ty) -> u32 {
         // this is quite big, but we can always adjust it later
         // note: all bool need to be converted to/from integers when they are
         // stored/loaded in a stack slot
-        Ty::PrimitiveType(PrimitiveType::Bool) => 1,
+        Ty::PrimitiveType(PrimitiveType::Bool) => 8,
         _ => todo!(),
     }
 }
