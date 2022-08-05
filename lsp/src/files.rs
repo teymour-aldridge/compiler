@@ -5,7 +5,7 @@
 
 use codespan_lsp::{byte_span_to_range, position_to_byte_index};
 use codespan_reporting::{diagnostic::LabelStyle, files::Files};
-use lsp_server::{Connection, Message};
+use lsp_server::{Connection, ExtractError, Message};
 use lsp_types::{
     notification::{DidChangeTextDocument, DidOpenTextDocument, Notification, PublishDiagnostics},
     DiagnosticRelatedInformation, Location, PublishDiagnosticsParams,
@@ -96,6 +96,12 @@ impl FileContainer {
                 return;
             }
             Err(not) => not,
+        };
+
+        let not = if let ExtractError::MethodMismatch(not) = not {
+            not
+        } else {
+            panic!()
         };
 
         if let Ok(change) = cast_not::<DidChangeTextDocument>(not) {
