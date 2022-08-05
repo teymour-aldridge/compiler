@@ -13,7 +13,7 @@ use std::error::Error;
 
 use cast::{cast_not, cast_req};
 use files::FileContainer;
-use lsp_server::{Connection, Message, Response};
+use lsp_server::{Connection, ExtractError, Message, Response};
 use lsp_types::{
     notification::Exit, request::Shutdown, InitializeParams, ServerCapabilities,
     TextDocumentSyncCapability, TextDocumentSyncKind,
@@ -64,7 +64,8 @@ fn main_loop(conn: Connection, params: Value) -> LspResult {
                         // send message
                         todo!()
                     }
-                    Err(not) => not,
+                    Err(ExtractError::MethodMismatch(not)) => not,
+                    Err(_) => panic!(),
                 };
                 files.handle_notification(not, &conn)
             }
