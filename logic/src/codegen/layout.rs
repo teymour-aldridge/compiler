@@ -2,7 +2,7 @@ use cranelift_codegen::ir::{self, InstBuilder};
 use cranelift_module::Module;
 
 use crate::{
-    diagnostics::reportable_error::ReportableError,
+    diagnostics::{reportable_error::ReportableError, span::HasSpan},
     parse::{expr::Constructor, table::ParseTable},
     ty::{PrimitiveType, Ty},
 };
@@ -93,12 +93,17 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         let slot = self.builder.create_stack_slot(ir::StackSlotData::new(
             ir::StackSlotKind::ExplicitSlot,
             {
+                // TODO: should report failed inference/could not find record earlier than this
                 con.fields
                     .iter()
-                    .map(|(_, expr)| {
-                        let ty = self.ty_env.ty_of(expr.id).unwrap();
-                        type_size(ty)
+                    .map(|(_, expr)| -> Result<u32, ReportableError> {
+                        let ty = self.ty_env.ty_of(expr.id).ok_or_else(|| {
+                            ReportableError::could_not_infer_ty(table.get_expr(expr).span(table))
+                        })?;
+                        Ok(type_size(ty))
                     })
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
                     .sum()
             },
         ));

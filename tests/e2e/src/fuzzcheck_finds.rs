@@ -81,7 +81,6 @@ fn empty_function_with_one_parameter() {
 }
 
 #[test]
-#[ignore = "todo: fix a bug in struct stack layouts"]
 fn function_and_record() {
     compile_for_fuzzing("function P ()\n  +s { k: False,}\nendfunction\nP = False\n");
 }
