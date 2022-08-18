@@ -112,7 +112,7 @@ fn bool_inside_func() {
 }
 
 #[test]
-#[ignore = "todo: add an error message for this program"]
+// TODO: check error message for this
 fn constructor_without_record_definition() {
     compile_for_fuzzing("k { }");
 }
