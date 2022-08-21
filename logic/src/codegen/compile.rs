@@ -33,7 +33,7 @@ use crate::{
 use super::func::FunctionCompiler;
 
 /// The core compiler struct.
-pub struct Compiler<'i> {
+pub struct Codegen<'i> {
     context: Context,
     ty_env: &'i TyEnv,
     table: &'i ParseTable<'i>,
@@ -53,7 +53,7 @@ pub fn cranelift_of_ty_module(module: &JITModule, ty: Ty) -> ir::Type {
     }
 }
 
-impl<'i> Compiler<'i> {
+impl<'i> Codegen<'i> {
     /// Create a new instance of the compiler.
     pub fn new(ty_env: &'i TyEnv, table: &'i ParseTable<'i>) -> Self {
         let module = make_module_for_compiler_host_architecture();

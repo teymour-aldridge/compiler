@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "2bfa9f0", optional = true }
 rustversion = "1.0.9"
 serde = { version = "1.0.144", features = ["derive"] }
+fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "54399b0" }
+
+[dev-dependencies]

@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 logic = { path = "../../logic" }
-generator = { path = "../generator", features = ["fuzzcheck"], optional = true }
-fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "2bfa9f0", optional = true }
+
+[dev-dependencies]
+generator = { path = "../generator" }
+fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "54399b0" }
 
 [features]
-enable = ["fuzzcheck", "generator"]

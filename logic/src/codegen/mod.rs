@@ -1,6 +1,6 @@
 use crate::{diagnostics::reportable_error::ReportableError, parse::table::ParseTable, ty::TyEnv};
 
-use self::compile::Compiler;
+use self::compile::Codegen;
 
 /// Performs the actual AST -> Cranelift IR pass
 mod compile;
@@ -17,11 +17,11 @@ pub(self) mod make_module;
 ///
 /// todo: automatically link
 /// todo: allow custom file outputs
-pub fn compile<'compiler>(
+pub fn codegen<'compiler>(
     ast: &'compiler ParseTable<'compiler>,
     env: &'compiler TyEnv,
 ) -> Result<i32, ReportableError> {
-    let mut compiler = Compiler::new(env, ast);
+    let mut compiler = Codegen::new(env, ast);
 
     compiler.compile(ast)?;
 
