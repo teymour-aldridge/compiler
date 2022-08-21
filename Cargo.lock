@@ -529,8 +529,7 @@ checksum = "6c8af84674fe1f223a982c933a0ee1086ac4d4052aa0fb8060c12c6ad838e754"
 [[package]]
 name = "lang_tester"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d63df63b7380a561f2c38b0a67ebe3a24b87ff2928391d0b5f8f3cfd39fe112c"
+source = "git+https://github.com/teymour-aldridge/lang_tester?branch=nextest#fd7e08c392a36b8bf27d8d001d7b6025a206fd61"
 dependencies = [
  "fm",
  "getopts",

@@ -1,10 +1,12 @@
 #[cfg(test)]
-#[cfg(feature = "fuzzcheck")]
 use fuzzcheck::fuzz_test;
 
 #[test]
-#[cfg(feature = "fuzzcheck")]
-pub fn main() {
+pub fn run_fuzzer() {
+    if !std::env::var("FUZZCHECK_ARGS").is_ok() {
+        return;
+    }
+
     use fuzzcheck::{builder::basic_sensor_and_pool, mutators::unique::UniqueMutator};
 
     // as per suggestions in
@@ -26,7 +28,6 @@ pub fn main() {
     assert!(!result.found_test_failure);
 }
 
-#[cfg(feature = "fuzzcheck")]
 #[cfg(test)]
 fn compile_for_fuzzing(input: &str) {
     let table = logic::parse::parse(input).unwrap();

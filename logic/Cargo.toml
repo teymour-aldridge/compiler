@@ -16,10 +16,9 @@ rustc-hash = "1.1.0"
 cranelift-jit = "0.86.1"
 log = "0.4.17"
 
-[dependencies.fuzzcheck]
+[dev-dependencies.fuzzcheck]
 git = "https://github.com/loiclec/fuzzcheck-rs"
 rev = "2bfa9f0"
-optional = true
 
 [dev-dependencies]
 insta = "1.18.2"

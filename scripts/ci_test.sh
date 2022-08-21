@@ -4,9 +4,3 @@ then
 else
     cargo test --workspace || { echo 'tests failed' ; exit 1; }
 fi
-
-echo "------------------------------------------------------------------------"
-echo "TESTING COMPILED PROGRAMS"
-echo "------------------------------------------------------------------------"
-
-(cd tests/e2e && cargo run)

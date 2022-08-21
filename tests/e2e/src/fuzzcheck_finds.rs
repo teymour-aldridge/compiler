@@ -1,3 +1,5 @@
+//! Test-cases which were found using Fuzzcheck.
+
 use logic::{
     diagnostics::reportable_error::ReportableError,
     parse::utils::ParseError,
