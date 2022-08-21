@@ -7,13 +7,15 @@ use logic::{
 fn compile_for_fuzzing(input: &str) {
     let table = logic::parse::parse(input).unwrap();
     if let Ok(ty_checked) = logic::ty::type_check(&table) {
-        let _ = logic::codegen::compile(&table, &ty_checked);
+        let _ = logic::codegen::codegen(&table, &ty_checked);
     }
 }
 
 /// Describes the status of a program we attempted to run.
 enum ExecutionStatus {
     /// All stages ran successfully.
+    ///
+    /// The number is the exit code returned by the compiled program.
     Ok(i32),
     /// The program could not be parsed.
     FailedParsing(ParseError),
@@ -61,7 +63,7 @@ fn run_test(input: &str) -> ExecutionStatus {
         Err(err) => return ExecutionStatus::FailedTypeChecking(err),
     };
 
-    let codegen = match logic::codegen::compile(&tree, &ty_env) {
+    let codegen = match logic::codegen::codegen(&tree, &ty_env) {
         Ok(res) => res,
         Err(err) => return ExecutionStatus::FailedCodeGeneration(err),
     };
