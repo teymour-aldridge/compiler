@@ -359,8 +359,32 @@ dependencies = [
  "cfg-if",
  "fastrand",
  "flate2",
- "fuzzcheck_common",
- "fuzzcheck_mutators_derive",
+ "fuzzcheck_common 0.12.0 (git+https://github.com/loiclec/fuzzcheck-rs?rev=2bfa9f0)",
+ "fuzzcheck_mutators_derive 0.12.0 (git+https://github.com/loiclec/fuzzcheck-rs?rev=2bfa9f0)",
+ "getopts",
+ "libc",
+ "md5",
+ "nu-ansi-term",
+ "object 0.29.0",
+ "regex-syntax",
+ "rustc-demangle",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "fuzzcheck"
+version = "0.12.1"
+source = "git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0#54399b09d22e641dbbd1742653726081edbad2b8"
+dependencies = [
+ "ahash",
+ "bit-vec",
+ "cc",
+ "cfg-if",
+ "fastrand",
+ "flate2",
+ "fuzzcheck_common 0.12.0 (git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0)",
+ "fuzzcheck_mutators_derive 0.12.0 (git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0)",
  "getopts",
  "libc",
  "md5",
@@ -381,6 +405,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzzcheck_common"
+version = "0.12.0"
+source = "git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0#54399b09d22e641dbbd1742653726081edbad2b8"
+dependencies = [
+ "getopts",
+]
+
+[[package]]
 name = "fuzzcheck_mutators_derive"
 version = "0.12.0"
 source = "git+https://github.com/loiclec/fuzzcheck-rs?rev=2bfa9f0#2bfa9f0570bc5cd67510dbbd1efdc214cce0ddbd"
@@ -391,10 +423,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzzcheck_mutators_derive"
+version = "0.12.0"
+source = "git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0#54399b09d22e641dbbd1742653726081edbad2b8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "fuzzer"
 version = "0.1.0"
 dependencies = [
- "fuzzcheck",
+ "fuzzcheck 0.12.1 (git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0)",
  "generator",
  "logic",
 ]
@@ -412,7 +454,7 @@ dependencies = [
 name = "generator"
 version = "0.1.0"
 dependencies = [
- "fuzzcheck",
+ "fuzzcheck 0.12.1 (git+https://github.com/loiclec/fuzzcheck-rs?rev=54399b0)",
  "rustversion",
  "serde",
 ]
@@ -584,7 +626,7 @@ dependencies = [
  "cranelift-module",
  "cranelift-native",
  "cranelift-object",
- "fuzzcheck",
+ "fuzzcheck 0.12.1 (git+https://github.com/loiclec/fuzzcheck-rs?rev=2bfa9f0)",
  "insta",
  "log",
  "rustc-hash",
