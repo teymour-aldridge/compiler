@@ -1,0 +1,73 @@
+name: test
+
+on:
+  push:
+    branches: [staging, trying]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  formatting:
+    name: formatting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: install rust
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2022-08-20
+          override: true
+          components: rustfmt
+    - run: cargo fmt --all -- --check
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: install rust
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2022-08-20
+          override: true
+          components: clippy
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo clippy --workspace
+
+  x86_64-tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{matrix.os}}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: install rust
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2022-08-20
+          override: true
+          components: rustfmt
+    - uses: Swatinem/rust-cache@v2
+    - run: ./scripts/install_nextest.sh
+    - run: cargo nextest run --workspace
+
+  ci_passed:
+    needs:
+      - formatting
+      - clippy
+      - x86_64-tests
+    if: ${{ always() && github.event_name == 'push' && contains('refs/heads/staging refs/heads/trying', github.ref) }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          [ ${{ needs.lint.formatting }} == success ] &&
+          [ ${{ needs.test.clippy }} == success ] &&
+          [ ${{ needs.test-prospero.x86_64-tests }} == success ]
