@@ -2,6 +2,7 @@
 use fuzzcheck::fuzz_test;
 
 #[test]
+#[cfg(fuzzing)]
 pub fn run_fuzzer() {
     if !std::env::var("FUZZCHECK_ARGS").is_ok() {
         return;
@@ -29,6 +30,7 @@ pub fn run_fuzzer() {
 }
 
 #[cfg(test)]
+#[cfg(fuzzing)]
 fn compile_for_fuzzing(input: &str) {
     let table = logic::parse::parse(input).unwrap();
     if let Ok(ty_checked) = logic::ty::type_check(&table) {

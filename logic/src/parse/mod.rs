@@ -26,7 +26,7 @@ pub mod table;
 pub mod utils;
 pub mod r#while;
 
-#[cfg(test)]
+#[cfg(all(test, fuzzing))]
 mod fuzz;
 
 #[cfg(test)]
