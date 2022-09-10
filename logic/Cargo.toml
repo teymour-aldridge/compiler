@@ -11,7 +11,7 @@ cranelift-codegen = "0.86.1"
 cranelift-frontend = "0.86.1"
 cranelift-module = "0.86.1"
 cranelift-object = "0.86.1"
-cranelift-native = "0.86.1"
+cranelift-native = "0.87.1"
 rustc-hash = "1.1.0"
 cranelift-jit = "0.86.1"
 
