@@ -182,8 +182,6 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                 }
                 BinOp::SetEquals => unreachable!(),
                 BinOp::Dot => {
-                    log::trace!("compiling dot expression with id {:?}", expr.id());
-
                     let record = table.get_expr_with_id(*left);
                     let record_id = match record.inner().as_ident() {
                         Some(r) => r.id,
@@ -195,12 +193,6 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         }
                     };
                     let key = table.get_expr_with_id(*right).inner().as_ident().unwrap();
-
-                    log::trace!(
-                        "field being accessed is `{}` (id: {})",
-                        table.get_ident(*key).inner(),
-                        key.id
-                    );
 
                     let record = match self.ty_env.ty_of(record_id).unwrap() {
                         Ty::Record { ref_ } => table.get_record(ref_),
