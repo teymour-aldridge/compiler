@@ -2,8 +2,8 @@ target
 runin
 
 # editors
-.idea
 .vscode
+.idea
 
 # for the vscode extension
 node_modules
