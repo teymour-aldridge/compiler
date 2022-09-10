@@ -90,7 +90,7 @@ impl<'ctx, 'builder> FunctionCompiler<'ctx, 'builder> {
         con: &Constructor,
         table: &ParseTable,
     ) -> Result<ir::Value, ReportableError> {
-        let slot = self.builder.create_stack_slot(ir::StackSlotData::new(
+        let slot = self.builder.create_sized_stack_slot(ir::StackSlotData::new(
             ir::StackSlotKind::ExplicitSlot,
             {
                 // TODO: should report failed inference/could not find record earlier than this
