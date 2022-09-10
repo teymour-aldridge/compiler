@@ -11,7 +11,6 @@ use codespan_reporting::{
         termcolor::{ColorChoice, StandardStream},
     },
 };
-use log::LevelFilter;
 use logic::{codegen::codegen, parse, ty::type_check};
 
 /// Runs the compiler.
@@ -19,16 +18,6 @@ use logic::{codegen::codegen, parse, ty::type_check};
 /// todo: some sort of incremental computation
 /// todo: emit multiple errors
 fn main() {
-    // unless this environment variable is specified we set Cranelift's
-    // logging to only include info or above because otherwise it's _very_
-    // verbose
-    if env::var("FULL_LOGS").is_err() {
-        env_logger::builder()
-            .filter(Some("cranelift_codegen"), LevelFilter::Warn)
-            .filter(Some("cranelift_jit"), LevelFilter::Warn)
-            .init();
-    }
-
     let result = catch_unwind(|| {
         let args = env::args().collect::<Vec<_>>();
 

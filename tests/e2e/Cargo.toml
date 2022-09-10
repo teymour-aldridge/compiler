@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cfg-if = "1.0.0"
 lang_tester = { git = "https://github.com/teymour-aldridge/lang_tester", branch = "nextest" }
 run_script = "0.10.0"
 tempfile = "3.3.0"
