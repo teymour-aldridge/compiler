@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(all(test, fuzzing))]
 use fuzzcheck::fuzz_test;
 
 #[test]
