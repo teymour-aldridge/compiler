@@ -1,12 +1,17 @@
+#[cfg(test)]
 use std::{fs::read_to_string, process::Command};
 
 #[cfg(test)]
 mod fuzzcheck_finds;
 
+#[cfg(test)]
 use lang_tester::LangTester;
+#[cfg(test)]
 use run_script::{IoOptions, ScriptOptions};
 
-fn main() {
+#[cfg(test)]
+#[test]
+fn integration_tests() {
     static COMMENT_PREFIX: &str = ";;";
     let options = ScriptOptions {
         output_redirection: IoOptions::Inherit,

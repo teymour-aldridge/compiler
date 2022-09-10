@@ -26,7 +26,7 @@ pub mod table;
 pub mod utils;
 pub mod r#while;
 
-#[cfg(all(test, feature = "fuzzcheck"))]
+#[cfg(all(test, fuzzing))]
 mod fuzz;
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ use codespan_reporting::{
     },
 };
 use log::LevelFilter;
-use logic::{codegen::compile, parse, ty::type_check};
+use logic::{codegen::codegen, parse, ty::type_check};
 
 /// Runs the compiler.
 ///
@@ -66,7 +66,7 @@ fn main() {
             }
         };
 
-        match compile(&ast, &env) {
+        match codegen(&ast, &env) {
             Ok(env) => env,
             Err(error) => {
                 let report = error.report(file_id);

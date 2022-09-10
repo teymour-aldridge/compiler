@@ -14,6 +14,10 @@ fn run_test(input: &str) -> bool {
 
 #[test]
 fn fuzz_parser() {
+    if !std::env::var("FUZZCHECK_ARGS").is_ok() {
+        return;
+    }
+
     let ident = regex("[a-hA-Z][a-h0-9A-Z_]+");
 
     let string = concatenation([literal('"'), ident.clone(), literal('"')]);

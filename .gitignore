@@ -3,7 +3,6 @@ runin
 
 # editors
 .idea
-.vscode
 
 # for the vscode extension
 node_modules
