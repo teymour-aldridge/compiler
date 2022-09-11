@@ -1,16 +1,14 @@
 ---
 source: logic/src/ty/ui.rs
-assertion_line: 33
 expression: "ui_test(include_str!(\"examples/failing\").to_string())"
-
 ---
 error: Your program contains a type error!
   ┌─ file:3:12
   │
 3 │     return "Hello World!"
-  │            ^^^^^^^^^^^^^^ this is of type PrimitiveType(StrSlice)
+  │            ^^^^^^^^^^^^^^ this is of type StrSlice
 4 │   else
 5 │     return 1
-  │            ^ this is of type `PrimitiveType(Int)` which is not the same as type `PrimitiveType(StrSlice)`
+  │            ^ this is of type `Int` which is not the same as type `StrSlice`
 
 

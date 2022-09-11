@@ -404,10 +404,27 @@ fn collect_expr<'i>(
                             table.get_expr_with_id(*right).id(),
                         ),
                     });
+                    constraints.push(ConstraintInner::IdToId {
+                        id: Spanned::new(
+                            table.get_ident(*ident).span(table),
+                            ident.id,
+                        ),
+                        to: Spanned::new(
+                            table.get_expr(right).span(table),
+                            table.get_expr_with_id(*right).id(),
+                        ),
+                    });
                     constraints.extend(collect_expr(table.get_expr_with_id(*left), table, None)?);
                     constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
                 }
                 Expr::UnOp(op, ref pointer) if op.token.is_deref() => {
+                    // first constraint - the parent expression to the expression
+                    // to which we are applying the pointer
+                    // i.e. if the expression is structured something like this
+                    // (note: not valid Rust code)
+                    //  Expr(id1, Pointer(id2, Expr))
+                    // we would add
+                    // id1 == id2
                     constraints.push(ConstraintInner::IdToId {
                         id: Spanned::new(expr.inner().span(table), expr.id()),
                         // todo: use the span of the operator
@@ -469,7 +486,12 @@ fn collect_expr<'i>(
                 constraints.extend(collect_expr(table.get_expr_with_id(*right), table, None)?);
             }
         },
-        Expr::UnOp(op, arg) => match op.token {
+        Expr::UnOp(op, arg) => {
+            constraints.push(ConstraintInner::IdToId {
+                id: Spanned::new(expr.inner().span(table), expr.id),
+                to: Spanned::new(table.get_expr(arg).span(table), arg.id)
+            });
+            match op.token {
             UnOp::Positive | UnOp::Negative => constraints.push(ConstraintInner::IdToTy {
                 id: Spanned::new(table.get_expr(arg).span(table), arg.id),
                 ty: Spanned::new(
@@ -484,7 +506,7 @@ fn collect_expr<'i>(
                     Ty::PrimitiveType(PrimitiveType::Pointer),
                 ),
             }),
-        },
+        }},
         Expr::Constructor(rec) => {
             let find = table
                 .record_

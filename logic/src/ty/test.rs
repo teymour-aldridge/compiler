@@ -342,3 +342,47 @@ fn very_invalid_case() {
         Err(_) => {}
     }
 }
+
+#[test]
+fn func_v() {
+    let table = parse(include_str!("examples/V")).unwrap();
+    let env = type_check(&table).unwrap();
+    let v = table.func.iter().next().unwrap();
+    match env.ty_of(v.1.name.id) {
+        Some(ty) => {
+            assert_eq!(
+                ty,
+                Ty::PrimitiveType(PrimitiveType::Bool),
+                "did not infer correct return type for V()",
+            );
+        }
+        None => {
+            env.pretty_print(&table);
+            panic!("could not infer a type for V()");
+        }
+    };
+}
+
+#[test]
+fn unary_op() {
+    let table = parse("X = +1").unwrap();
+    let env = type_check(&table).unwrap();
+    let expr = table.get(&table.root.1.inner[0]).unwrap();
+    let expr = expr.as_expr().unwrap();
+    let (_, lhs, rhs) = expr.as_bin_op().unwrap();
+    assert_eq!(
+        env.ty_of(lhs.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+    assert_eq!(
+        env.ty_of(rhs.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+
+    let plus = table.get_expr(rhs);
+    let (_, inner) = plus.as_un_op().unwrap();
+    assert_eq!(
+        env.ty_of(inner.id),
+        Some(Ty::PrimitiveType(PrimitiveType::Int))
+    );
+}

@@ -173,6 +173,7 @@ fn invalid_bool_access() {
 }
 
 #[test]
+#[ignore = "todo: should not type check"]
 fn bad_expression() {
     compile_for_fuzzing("function t ()\n  return   -False==-False\nendfunction\n");
 }
@@ -214,4 +215,9 @@ fn undefined_record() {
         dbg!(cge);
         panic!("wrong error type");
     }
+}
+
+#[test]
+fn func_v_compiles() {
+    compile_for_fuzzing(include_str!("../../../logic/src/ty/examples/V"));
 }
