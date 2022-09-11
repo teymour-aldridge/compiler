@@ -154,6 +154,12 @@ pub struct IdentRef {
     pub(crate) id: Id,
 }
 
+impl IdentRef {
+    pub fn new(id: Id) -> Self {
+        Self { id }
+    }
+}
+
 impl fmt::Display for Ident<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)?;

@@ -56,8 +56,8 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                         )?;
                     } else {
                         // todo: report this properly
-                        if std::env::var("FUZZCHECK").is_err() {
-                            println!("warning: anny statements added after a return instruction have no effect")
+                        if !cfg!(fuzzing) {
+                            println!("warning: any statements added after a return instruction have no effect")
                         }
                     }
                 }
@@ -99,7 +99,7 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
         // all instructions exit through this block
         let exit_block = self.builder.create_block();
 
-        if !stmt.else_ifs.is_empty() && std::env::var("FUZZCHECK").is_err() {
+        if !stmt.else_ifs.is_empty() && !cfg!(fuzzing) {
             // todo: proper warning API
             println!("WARNING: else if is not yet supported!");
         }

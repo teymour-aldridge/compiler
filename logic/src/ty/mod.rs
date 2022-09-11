@@ -1,6 +1,7 @@
 //! Type checking.
 
-use std::{collections::BTreeMap, hash::Hash};
+use core::fmt;
+use std::{collections::BTreeMap, fmt::Debug, hash::Hash};
 
 use rustc_hash::FxHashSet;
 
@@ -13,6 +14,7 @@ mod test;
 #[cfg(test)]
 mod ui;
 
+mod dbg;
 pub mod error;
 mod track;
 
@@ -58,7 +60,7 @@ pub enum PrimitiveType {
     Pointer,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
 pub enum Ty {
     /// Contains a reference to the [`crate::parse::record::Record`], from which
     /// the fields can be found (and then the types, from the [`TyEnv`])
@@ -67,13 +69,27 @@ pub enum Ty {
     PrimitiveType(PrimitiveType),
 }
 
-pub fn type_check<'i>(ast: &'i ParseTable<'i>) -> Result<TyEnv, TyCheckError> {
-    let constraints: FxHashSet<Constraint> = collect(ast)?.into_iter().collect();
+impl fmt::Debug for Ty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Ty::Record { ref_ } => {
+                write!(f, "record with id {:?}", ref_)
+            }
+            Ty::PrimitiveType(ty) => <PrimitiveType as Debug>::fmt(ty, f),
+        }
+    }
+}
+
+pub fn type_check<'i>(table: &'i ParseTable<'i>) -> Result<TyEnv, TyCheckError> {
+    let constraints: FxHashSet<Constraint> = collect(table)?.into_iter().collect();
 
     let mut trace_table = TraceTable::default();
 
-    unify(constraints, TyEnv::new(), &mut trace_table)
-        .map_err(|errored_on| TyCheckError::Reportable(ErrorReporter::new(trace_table, errored_on)))
+    let env = unify(constraints, TyEnv::new(), &mut trace_table).map_err(|errored_on| {
+        TyCheckError::Reportable(ErrorReporter::new(trace_table, errored_on))
+    })?;
+
+    Ok(env)
 }
 
 #[derive(Clone, Debug, Hash)]
