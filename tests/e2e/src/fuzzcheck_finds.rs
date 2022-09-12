@@ -217,6 +217,21 @@ fn undefined_record() {
     }
 }
 
+#[cfg(test)]
+#[test]
+#[ignore = "todo: fix type checking/argument checking for this function"]
+fn two_functions() {
+    compile_for_fuzzing(
+        "function h (k,)\n  return   False==h(True,)\nendfunction\nfunction h ()\nendfunction\n",
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn boolean_creation() {
+    compile_for_fuzzing("function V ()\n  M = True\n  return   False\nendfunction\n");
+}
+
 #[test]
 fn func_v_compiles() {
     compile_for_fuzzing(include_str!("../../../logic/src/ty/examples/V"));

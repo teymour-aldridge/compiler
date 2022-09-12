@@ -69,7 +69,9 @@ impl<'i, 'builder> FunctionCompiler<'i, 'builder> {
                     Ty::PrimitiveType(PrimitiveType::Int) => {
                         cranelift_of_ty_module(self.module, Ty::PrimitiveType(PrimitiveType::Int))
                     }
-                    Ty::PrimitiveType(PrimitiveType::Bool | PrimitiveType::StrSlice) => todo!(),
+                    Ty::PrimitiveType(PrimitiveType::Bool | PrimitiveType::StrSlice) => {
+                        cranelift_of_ty_module(self.module, Ty::PrimitiveType(PrimitiveType::Bool))
+                    }
                     Ty::Record { .. } | Ty::PrimitiveType(PrimitiveType::Pointer) => {
                         self.module.target_config().pointer_type()
                     }
