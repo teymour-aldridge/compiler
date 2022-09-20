@@ -20,6 +20,6 @@ git = "https://github.com/loiclec/fuzzcheck-rs"
 rev = "2bfa9f0"
 
 [dev-dependencies]
-insta = "1.19.1"
+insta = "1.20.0"
 rustversion = "1.0.9"
 serde = { version = "1.0.144", features = ["derive"] }
