@@ -8,6 +8,6 @@ logic = { path = "../../logic" }
 
 [dev-dependencies]
 generator = { path = "../generator" }
-fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "54399b0" }
+fuzzcheck = { git = "https://github.com/loiclec/fuzzcheck-rs", rev = "2acc737" }
 
 [features]

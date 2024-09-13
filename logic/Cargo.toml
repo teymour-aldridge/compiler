@@ -17,7 +17,7 @@ rustc-hash = "1.1.0"
 
 [dev-dependencies.fuzzcheck]
 git = "https://github.com/loiclec/fuzzcheck-rs"
-rev = "2bfa9f0"
+rev = "2acc737"
 
 [dev-dependencies]
 insta = "1.20.0"

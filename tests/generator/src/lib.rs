@@ -4,7 +4,7 @@
 //! the compiler because many more of them are likely to advance beyond the parsing stage which
 //! means that we can test more stages.
 
-#![feature(no_coverage)]
+#![feature(coverage_attribute)]
 
 use std::fmt::{self, Display, Write};
 
