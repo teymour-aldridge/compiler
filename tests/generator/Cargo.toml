@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rustversion = "1.0.9"
-serde = { version = "1.0.144", features = ["derive"] }
+rustversion = "1.0.17"
+serde = { version = "1.0.210", features = ["derive"] }
 fuzzcheck = { version = "0.13.0" }
 
 [dev-dependencies]
